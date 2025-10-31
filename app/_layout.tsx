@@ -33,11 +33,11 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  const [playfairLoaded] = usePlayfairFonts({
+  const [playfairLoaded, playfairError] = usePlayfairFonts({
     PlayfairDisplay_400Regular,
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_700Bold,
@@ -45,7 +45,17 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    if (error) {
+      console.error('Font loading error:', error);
+    }
+    if (playfairError) {
+      console.error('Playfair font loading error:', playfairError);
+    }
+  }, [error, playfairError]);
+
+  useEffect(() => {
     if (loaded && playfairLoaded) {
+      console.log('All fonts loaded successfully');
       SplashScreen.hideAsync();
     }
   }, [loaded, playfairLoaded]);
@@ -92,6 +102,27 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                   name="edit-profile"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="notifications"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="chat/[id]"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="user-profile/[id]"
                   options={{
                     presentation: "modal",
                     headerShown: false,

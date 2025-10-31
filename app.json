@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Natively",
@@ -32,7 +33,17 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/SpaceMono-Regular.ttf",
+            "./assets/fonts/SpaceMono-Bold.ttf",
+            "./assets/fonts/SpaceMono-Italic.ttf",
+            "./assets/fonts/SpaceMono-BoldItalic.ttf"
+          ]
+        }
+      ],
       "expo-router",
       "expo-web-browser"
     ],

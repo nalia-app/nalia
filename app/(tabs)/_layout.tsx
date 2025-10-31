@@ -15,7 +15,7 @@ export default function TabLayout() {
     {
       name: 'my-events',
       route: '/(tabs)/my-events',
-      icon: 'calendar.badge.clock',
+      icon: 'calendar',
       label: 'My Events',
     },
     {

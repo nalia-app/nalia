@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Image,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import React from 'react';
@@ -31,7 +30,7 @@ export default function FloatingTabBar({
   tabs,
   containerWidth = 360,
   borderRadius = 20,
-  bottomMargin = 10,
+  bottomMargin = 0,
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();

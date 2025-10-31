@@ -15,6 +15,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
+import { UserProvider } from "@/contexts/UserContext";
 import {
   useFonts as usePlayfairFonts,
   PlayfairDisplay_400Regular,
@@ -26,7 +27,7 @@ import {
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  initialRouteName: "onboarding",
 };
 
 export default function RootLayout() {
@@ -69,35 +70,38 @@ export default function RootLayout() {
     <>
       <StatusBar style="light" animated />
       <ThemeProvider value={NaliaTheme}>
-        <WidgetProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="event-details"
-                options={{
-                  presentation: "modal",
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="create-event"
-                options={{
-                  presentation: "modal",
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="edit-profile"
-                options={{
-                  presentation: "modal",
-                  headerShown: false,
-                }}
-              />
-            </Stack>
-            <SystemBars style="light" />
-          </GestureHandlerRootView>
-        </WidgetProvider>
+        <UserProvider>
+          <WidgetProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="event-details"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="create-event"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="edit-profile"
+                  options={{
+                    presentation: "modal",
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+              <SystemBars style="light" />
+            </GestureHandlerRootView>
+          </WidgetProvider>
+        </UserProvider>
       </ThemeProvider>
     </>
   );

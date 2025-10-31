@@ -20,6 +20,7 @@ import Animated, {
   withSequence,
 } from "react-native-reanimated";
 import * as Location from "expo-location";
+import { useUser } from "@/contexts/UserContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -45,7 +46,7 @@ const MOCK_EVENTS: EventBubble[] = [
     y: 0.4,
     icon: "🍷",
     isPublic: true,
-    tags: ["#drinks", "#social"],
+    tags: ["drinks", "social"],
   },
   {
     id: "2",
@@ -56,7 +57,7 @@ const MOCK_EVENTS: EventBubble[] = [
     y: 0.3,
     icon: "🏃",
     isPublic: true,
-    tags: ["#fitness", "#running"],
+    tags: ["fitness", "running"],
   },
   {
     id: "3",
@@ -67,7 +68,7 @@ const MOCK_EVENTS: EventBubble[] = [
     y: 0.6,
     icon: "☕",
     isPublic: false,
-    tags: ["#coffee", "#networking"],
+    tags: ["coffee", "networking"],
   },
   {
     id: "4",
@@ -78,12 +79,13 @@ const MOCK_EVENTS: EventBubble[] = [
     y: 0.5,
     icon: "🏀",
     isPublic: true,
-    tags: ["#sports", "#basketball"],
+    tags: ["sports", "basketball"],
   },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useUser();
   const [filter, setFilter] = useState<"all" | "interests">("all");
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
 
@@ -99,6 +101,18 @@ export default function HomeScreen() {
       console.log("Location obtained:", loc.coords);
     })();
   }, []);
+
+  // Filter events based on user interests
+  const filteredEvents = filter === "interests" && user?.interests
+    ? MOCK_EVENTS.filter(event =>
+        event.tags.some(tag =>
+          user.interests.some(interest =>
+            interest.toLowerCase().includes(tag.toLowerCase()) ||
+            tag.toLowerCase().includes(interest.toLowerCase())
+          )
+        )
+      )
+    : MOCK_EVENTS;
 
   const centerMap = () => {
     if (location) {
@@ -138,9 +152,17 @@ export default function HomeScreen() {
           </Text>
 
           {/* Event Bubbles */}
-          {MOCK_EVENTS.map((event) => (
+          {filteredEvents.map((event) => (
             <EventBubbleComponent key={event.id} event={event} />
           ))}
+
+          {filteredEvents.length === 0 && filter === "interests" && (
+            <View style={styles.noEventsContainer}>
+              <Text style={styles.noEventsText}>
+                No events match your interests nearby
+              </Text>
+            </View>
+          )}
 
           {/* Center Map Button */}
           <Pressable style={styles.centerButton} onPress={centerMap}>
@@ -154,19 +176,17 @@ export default function HomeScreen() {
         </LinearGradient>
       </View>
 
-      {/* Top Bar */}
+      {/* Top Bar - Compact Single Row */}
       <View style={styles.topBar}>
         <View style={styles.topBarContent}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>nalia</Text>
-          </View>
+          <Text style={styles.logo}>nalia</Text>
           <View style={styles.topBarRight}>
             <Pressable style={styles.iconButton} onPress={handleNotifications}>
-              <IconSymbol name="bell.fill" size={24} color={colors.text} />
+              <IconSymbol name="bell.fill" size={20} color={colors.text} />
             </Pressable>
             <Pressable style={styles.avatarButton} onPress={handleProfile}>
               <View style={styles.avatar}>
-                <IconSymbol name="person.fill" size={20} color={colors.text} />
+                <IconSymbol name="person.fill" size={16} color={colors.text} />
               </View>
             </Pressable>
           </View>
@@ -268,7 +288,7 @@ function EventBubbleComponent({ event }: { event: EventBubble }) {
           `${event.hostName} wanna...`,
           `${event.description}\n\nAttendees: ${event.attendees}\nType: ${
             event.isPublic ? "Public" : "Private"
-          }\nTags: ${event.tags.join(", ")}`
+          }\nTags: ${event.tags.map(t => `#${t}`).join(", ")}`
         )
       }
     >
@@ -310,6 +330,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     lineHeight: 20,
   },
+  noEventsContainer: {
+    position: "absolute",
+    top: "50%",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  noEventsText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
   topBar: {
     position: "absolute",
     top: 0,
@@ -317,7 +349,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 50,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
     backgroundColor: "rgba(18, 18, 18, 0.95)",
     borderBottomWidth: 1,
     borderBottomColor: colors.highlight,
@@ -325,14 +357,11 @@ const styles = StyleSheet.create({
   topBarContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  logoContainer: {
-    flex: 1,
-    alignItems: "center",
+    justifyContent: "center",
+    height: 40,
   },
   logo: {
-    fontSize: 32,
+    fontSize: 28,
     fontFamily: "PlayfairDisplay_400Regular_Italic",
     color: colors.primary,
     letterSpacing: 1,
@@ -340,20 +369,20 @@ const styles = StyleSheet.create({
   topBarRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
     position: "absolute",
     right: 0,
   },
   iconButton: {
-    padding: 8,
+    padding: 6,
   },
   avatarButton: {
-    padding: 4,
+    padding: 2,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.card,
     justifyContent: "center",
     alignItems: "center",
@@ -362,7 +391,7 @@ const styles = StyleSheet.create({
   },
   floatingFilterContainer: {
     position: "absolute",
-    top: 120,
+    top: 110,
     left: 20,
     right: 20,
     flexDirection: "row",

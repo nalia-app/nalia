@@ -7,27 +7,15 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Share,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
 import { LinearGradient } from "expo-linear-gradient";
-
-const MOCK_USER = {
-  name: "Alex Johnson",
-  bio: "Love meeting new people and trying new things! Always up for coffee or outdoor activities.",
-  interests: [
-    "#coffee",
-    "#fitness",
-    "#networking",
-    "#hiking",
-    "#photography",
-    "#music",
-  ],
-  eventsHosted: 12,
-  eventsAttended: 28,
-  friends: 45,
-};
+import { useRouter } from "expo-router";
+import { useUser } from "@/contexts/UserContext";
 
 const RECENT_EVENTS = [
   {
@@ -51,6 +39,43 @@ const RECENT_EVENTS = [
 ];
 
 export default function ProfileScreen() {
+  const router = useRouter();
+  const { user, logout } = useUser();
+
+  const handleEditProfile = () => {
+    router.push("/edit-profile" as any);
+  };
+
+  const handleShareProfile = async () => {
+    try {
+      await Share.share({
+        message: `Check out ${user?.name || 'my'} profile on Nalia! Join me for spontaneous meetups and events.`,
+        title: 'Share Profile',
+      });
+    } catch (error) {
+      console.error('Error sharing profile:', error);
+      Alert.alert('Error', 'Could not share profile');
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/onboarding/welcome' as any);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
@@ -75,16 +100,20 @@ export default function ProfileScreen() {
               colors={[colors.primary, colors.secondary]}
               style={styles.avatarGradient}
             >
-              <View style={styles.avatar}>
-                <IconSymbol name="person.fill" size={48} color={colors.text} />
-              </View>
+              {user?.photoUri ? (
+                <Image source={{ uri: user.photoUri }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatar}>
+                  <IconSymbol name="person.fill" size={48} color={colors.text} />
+                </View>
+              )}
             </LinearGradient>
           </View>
-          <Text style={styles.name}>{MOCK_USER.name}</Text>
-          <Text style={styles.bio}>{MOCK_USER.bio}</Text>
+          <Text style={styles.name}>{user?.name || 'User'}</Text>
+          <Text style={styles.bio}>{user?.bio || 'No bio yet'}</Text>
           <Pressable
             style={styles.editButton}
-            onPress={() => Alert.alert("Edit Profile", "Edit your profile")}
+            onPress={handleEditProfile}
           >
             <LinearGradient
               colors={[colors.primary, colors.secondary]}
@@ -99,32 +128,34 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{MOCK_USER.eventsHosted}</Text>
+            <Text style={styles.statValue}>12</Text>
             <Text style={styles.statLabel}>Hosted</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{MOCK_USER.eventsAttended}</Text>
+            <Text style={styles.statValue}>28</Text>
             <Text style={styles.statLabel}>Attended</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{MOCK_USER.friends}</Text>
+            <Text style={styles.statValue}>45</Text>
             <Text style={styles.statLabel}>Friends</Text>
           </View>
         </View>
 
         {/* Interests */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interests</Text>
-          <View style={styles.interestsContainer}>
-            {MOCK_USER.interests.map((interest, index) => (
-              <View key={index} style={styles.interestTag}>
-                <Text style={styles.interestText}>{interest}</Text>
-              </View>
-            ))}
+        {user?.interests && user.interests.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Interests</Text>
+            <View style={styles.interestsContainer}>
+              {user.interests.map((interest, index) => (
+                <View key={index} style={styles.interestTag}>
+                  <Text style={styles.interestText}>{interest}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Recent Events */}
         <View style={styles.section}>
@@ -162,14 +193,14 @@ export default function ProfileScreen() {
         <View style={styles.actionsContainer}>
           <Pressable
             style={styles.actionButton}
-            onPress={() => Alert.alert("Share Profile", "Share your profile")}
+            onPress={handleShareProfile}
           >
             <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
             <Text style={styles.actionButtonText}>Share Profile</Text>
           </Pressable>
           <Pressable
             style={styles.actionButton}
-            onPress={() => Alert.alert("Logout", "Are you sure you want to logout?")}
+            onPress={handleLogout}
           >
             <IconSymbol name="arrow.right.square" size={20} color={colors.accent} />
             <Text style={[styles.actionButtonText, { color: colors.accent }]}>
@@ -227,6 +258,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     justifyContent: "center",
     alignItems: "center",
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
   },
   name: {
     fontSize: 28,

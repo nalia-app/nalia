@@ -44,8 +44,9 @@ export default function TabLayout() {
         <Stack.Screen name="my-events" />
         <Stack.Screen name="friends" />
         <Stack.Screen name="messages" />
+        <Stack.Screen name="profile" />
       </Stack>
-      <FloatingTabBar tabs={tabs} />
+      <FloatingTabBar tabs={tabs} bottomMargin={0} />
     </>
   );
 }

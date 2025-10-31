@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   Alert,
+  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,7 +16,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 
-const EVENT_ICONS = ["☕", "🍷", "🏃", "🏀", "🎮", "🎵", "🍕", "📚"];
+const { width } = Dimensions.get("window");
+
+// Comprehensive emoji list organized by category
+const EMOJI_CATEGORIES = {
+  'Food & Drink': ['☕', '🍷', '🍺', '🍕', '🍔', '🍟', '🌮', '🍣', '🍜', '🍰', '🍪', '🥗', '🍱', '🥘', '🍝'],
+  'Activities': ['🏃', '🏀', '⚽', '🎾', '🏐', '🏊', '🚴', '🧘', '🏋️', '⛷️', '🏄', '🤸', '🧗', '🎯', '🎳'],
+  'Entertainment': ['🎮', '🎵', '🎸', '🎬', '🎭', '🎨', '📚', '🎲', '🎪', '🎤', '🎧', '🎹', '🎺', '🎻', '🥁'],
+  'Social': ['💬', '🤝', '👥', '🎉', '🎊', '🎈', '🎁', '💼', '🌟', '✨', '💫', '🔥', '❤️', '👋', '🙌'],
+  'Nature': ['🌿', '🌳', '🌲', '🌺', '🌸', '🌼', '🌻', '🌞', '🌙', '⭐', '🌈', '🦋', '🐕', '🐈', '🦜'],
+  'Travel': ['✈️', '🚗', '🚲', '🏖️', '🏔️', '🏕️', '🗺️', '🧳', '📷', '🎒', '🚂', '🚢', '🏰', '🗼', '🌍'],
+};
 
 export default function CreateEventScreen() {
   const router = useRouter();
@@ -24,6 +35,16 @@ export default function CreateEventScreen() {
   const [location, setLocation] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('Food & Drink');
+  const [mapLocation, setMapLocation] = useState<{ x: number; y: number } | null>(null);
+
+  const handleMapPress = (event: any) => {
+    const { locationX, locationY } = event.nativeEvent;
+    setMapLocation({ x: locationX, y: locationY });
+    setLocation(`Location: ${Math.round(locationX)}, ${Math.round(locationY)}`);
+    Alert.alert('Location Selected', 'Tap on the map to select a different location');
+  };
 
   const handleCreate = () => {
     if (!description.trim()) {
@@ -31,7 +52,7 @@ export default function CreateEventScreen() {
       return;
     }
     if (!location.trim()) {
-      Alert.alert("Error", "Please add a location");
+      Alert.alert("Error", "Please select a location on the map");
       return;
     }
 
@@ -72,20 +93,56 @@ export default function CreateEventScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.sectionTitle}>Choose an Icon</Text>
-          <View style={styles.iconsContainer}>
-            {EVENT_ICONS.map((icon) => (
-              <Pressable
-                key={icon}
-                style={[
-                  styles.iconButton,
-                  selectedIcon === icon && styles.iconButtonSelected,
-                ]}
-                onPress={() => setSelectedIcon(icon)}
-              >
-                <Text style={styles.iconText}>{icon}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable
+            style={styles.selectedIconButton}
+            onPress={() => setShowEmojiPicker(!showEmojiPicker)}
+          >
+            <Text style={styles.selectedIconText}>{selectedIcon}</Text>
+            <Text style={styles.changeIconText}>Tap to change</Text>
+          </Pressable>
+
+          {showEmojiPicker && (
+            <View style={styles.emojiPicker}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                {Object.keys(EMOJI_CATEGORIES).map((category) => (
+                  <Pressable
+                    key={category}
+                    style={[
+                      styles.categoryButton,
+                      selectedCategory === category && styles.categoryButtonActive,
+                    ]}
+                    onPress={() => setSelectedCategory(category)}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        selectedCategory === category && styles.categoryTextActive,
+                      ]}
+                    >
+                      {category}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.iconsContainer}>
+                {EMOJI_CATEGORIES[selectedCategory as keyof typeof EMOJI_CATEGORIES].map((icon) => (
+                  <Pressable
+                    key={icon}
+                    style={[
+                      styles.iconButton,
+                      selectedIcon === icon && styles.iconButtonSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedIcon(icon);
+                      setShowEmojiPicker(false);
+                    }}
+                  >
+                    <Text style={styles.iconText}>{icon}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
 
           <Text style={styles.sectionTitle}>I wanna...</Text>
           <TextInput
@@ -98,13 +155,28 @@ export default function CreateEventScreen() {
           />
 
           <Text style={styles.sectionTitle}>Location</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Where will this happen?"
-            placeholderTextColor={colors.textSecondary}
-            value={location}
-            onChangeText={setLocation}
-          />
+          <Text style={styles.locationHint}>Tap on the map to select a location</Text>
+          <Pressable style={styles.mapContainer} onPress={handleMapPress}>
+            <LinearGradient
+              colors={["#1a1a2e", "#16213e", "#0f3460"]}
+              style={styles.mapGradient}
+            >
+              <Text style={styles.mapText}>📍 Tap to select location</Text>
+              {mapLocation && (
+                <View
+                  style={[
+                    styles.mapMarker,
+                    { left: mapLocation.x - 15, top: mapLocation.y - 30 },
+                  ]}
+                >
+                  <Text style={styles.mapMarkerText}>📍</Text>
+                </View>
+              )}
+            </LinearGradient>
+          </Pressable>
+          {location && (
+            <Text style={styles.locationText}>{location}</Text>
+          )}
 
           <Text style={styles.sectionTitle}>Hashtags</Text>
           <TextInput
@@ -218,17 +290,59 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 8,
   },
+  selectedIconButton: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedIconText: {
+    fontSize: 64,
+    marginBottom: 8,
+  },
+  changeIconText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  emojiPicker: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+  },
+  categoryScroll: {
+    marginBottom: 12,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: colors.highlight,
+    marginRight: 8,
+  },
+  categoryButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  categoryTextActive: {
+    color: colors.text,
+  },
   iconsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 24,
+    gap: 8,
   },
   iconButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.card,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
@@ -239,7 +353,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(187, 134, 252, 0.2)",
   },
   iconText: {
-    fontSize: 32,
+    fontSize: 28,
   },
   input: {
     backgroundColor: colors.card,
@@ -250,6 +364,40 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.highlight,
+    marginBottom: 20,
+  },
+  locationHint: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  mapContainer: {
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+  },
+  mapGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  mapMarker: {
+    position: 'absolute',
+  },
+  mapMarkerText: {
+    fontSize: 30,
+  },
+  locationText: {
+    fontSize: 14,
+    color: colors.primary,
     marginBottom: 20,
   },
   typeContainer: {

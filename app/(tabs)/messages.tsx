@@ -1,17 +1,17 @@
 
 import React from "react";
+import { colors } from "@/styles/commonStyles";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
-import { colors } from "@/styles/commonStyles";
-import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 
 interface Chat {
   id: string;
@@ -26,71 +26,62 @@ interface Chat {
 const MOCK_CHATS: Chat[] = [
   {
     id: "1",
-    eventName: "Coffee & Chat",
-    hostName: "You",
-    lastMessage: "See you all at 3pm!",
-    timestamp: "10m ago",
-    unread: 0,
+    eventName: "Coffee Meetup",
+    hostName: "Sarah",
+    lastMessage: "See you at 3pm!",
+    timestamp: "2m ago",
+    unread: 2,
     icon: "☕",
   },
   {
     id: "2",
-    eventName: "Drinks Tonight",
-    hostName: "Anna",
-    lastMessage: "Anna: Should we meet at the bar?",
+    eventName: "Basketball Game",
+    hostName: "Mike",
+    lastMessage: "Bring your own ball",
     timestamp: "1h ago",
-    unread: 3,
-    icon: "🍷",
+    unread: 0,
+    icon: "🏀",
   },
   {
     id: "3",
-    eventName: "Morning Yoga",
-    hostName: "You",
-    lastMessage: "Tom: I'll bring extra mats",
-    timestamp: "2h ago",
-    unread: 1,
-    icon: "🧘",
+    eventName: "Drinks Tonight",
+    hostName: "Anna",
+    lastMessage: "Who's coming?",
+    timestamp: "3h ago",
+    unread: 5,
+    icon: "🍷",
   },
 ];
 
 export default function MessagesScreen() {
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-      </View>
+  const router = useRouter();
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {MOCK_CHATS.map((chat) => (
-          <Pressable
-            key={chat.id}
-            style={styles.chatCard}
-            onPress={() =>
-              Alert.alert(
-                chat.eventName,
-                `Open chat for "${chat.eventName}" event`
-              )
-            }
-          >
-            <LinearGradient
-              colors={
-                chat.unread > 0
-                  ? ["rgba(255, 64, 129, 0.15)", "rgba(187, 134, 252, 0.15)"]
-                  : ["rgba(187, 134, 252, 0.1)", "rgba(3, 218, 198, 0.1)"]
-              }
-              style={styles.chatCardGradient}
+  const handleChatPress = (chat: Chat) => {
+    console.log("Opening chat:", chat.id);
+    router.push(`/chat/${chat.id}` as any);
+  };
+
+  return (
+    <LinearGradient colors={[colors.background, "#0a0a0a"]} style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Messages</Text>
+          <Text style={styles.headerSubtitle}>Event Chats</Text>
+        </View>
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {MOCK_CHATS.map((chat) => (
+            <Pressable
+              key={chat.id}
+              style={styles.chatCard}
+              onPress={() => handleChatPress(chat)}
             >
               <View style={styles.chatIcon}>
                 <Text style={styles.chatIconText}>{chat.icon}</Text>
-                {chat.unread > 0 && (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>{chat.unread}</Text>
-                  </View>
-                )}
               </View>
               <View style={styles.chatContent}>
                 <View style={styles.chatHeader}>
@@ -98,56 +89,54 @@ export default function MessagesScreen() {
                   <Text style={styles.chatTimestamp}>{chat.timestamp}</Text>
                 </View>
                 <Text style={styles.chatHostName}>Host: {chat.hostName}</Text>
-                <Text
-                  style={[
-                    styles.chatLastMessage,
-                    chat.unread > 0 && styles.chatLastMessageUnread,
-                  ]}
-                  numberOfLines={1}
-                >
+                <Text style={styles.chatLastMessage} numberOfLines={1}>
                   {chat.lastMessage}
                 </Text>
               </View>
-              <IconSymbol
-                name="chevron.right"
-                size={20}
-                color={colors.textSecondary}
-              />
-            </LinearGradient>
-          </Pressable>
-        ))}
+              {chat.unread > 0 && (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadText}>{chat.unread}</Text>
+                </View>
+              )}
+            </Pressable>
+          ))}
 
-        {MOCK_CHATS.length === 0 && (
-          <View style={styles.emptyState}>
-            <IconSymbol
-              name="message.badge"
-              size={64}
-              color={colors.textSecondary}
-            />
-            <Text style={styles.emptyStateText}>No messages yet</Text>
-            <Text style={styles.emptyStateSubtext}>
-              Join an event to start chatting with attendees
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          {MOCK_CHATS.length === 0 && (
+            <View style={styles.emptyState}>
+              <IconSymbol name="message" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyText}>No active chats</Text>
+              <Text style={styles.emptySubtext}>
+                Join an event to start chatting
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
-  title: {
+  headerTitle: {
     fontSize: 32,
-    fontWeight: "700",
+    fontWeight: "bold",
     color: colors.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   scrollView: {
     flex: 1,
@@ -157,13 +146,11 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   chatCard: {
-    marginBottom: 12,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  chatCardGradient: {
-    padding: 16,
     flexDirection: "row",
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     alignItems: "center",
     borderWidth: 1,
     borderColor: colors.highlight,
@@ -172,31 +159,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.card,
+    backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
-    position: "relative",
+    marginRight: 12,
   },
   chatIconText: {
     fontSize: 28,
-  },
-  unreadBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 6,
-  },
-  unreadBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.text,
   },
   chatContent: {
     flex: 1,
@@ -208,7 +177,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   chatEventName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     color: colors.text,
   },
@@ -217,33 +186,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   chatHostName: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: 14,
+    color: colors.primary,
     marginBottom: 4,
   },
   chatLastMessage: {
     fontSize: 14,
     color: colors.textSecondary,
   },
-  chatLastMessageUnread: {
+  unreadBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    marginLeft: 8,
+  },
+  unreadText: {
+    fontSize: 12,
+    fontWeight: "bold",
     color: colors.text,
-    fontWeight: "500",
   },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 60,
   },
-  emptyStateText: {
+  emptyText: {
     fontSize: 20,
     fontWeight: "600",
     color: colors.text,
     marginTop: 16,
+    marginBottom: 8,
   },
-  emptyStateSubtext: {
-    fontSize: 14,
+  emptySubtext: {
+    fontSize: 16,
     color: colors.textSecondary,
-    marginTop: 8,
     textAlign: "center",
   },
 });

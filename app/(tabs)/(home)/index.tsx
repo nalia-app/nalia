@@ -5,13 +5,13 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
   Dimensions,
   Alert,
 } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -83,23 +83,20 @@ const MOCK_EVENTS: EventBubble[] = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "interests">("all");
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [locationPermission, setLocationPermission] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
-          "Location Permission",
-          "Please enable location to see nearby events"
-        );
+        console.log("Location permission denied");
         return;
       }
-      setLocationPermission(true);
       const loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
+      console.log("Location obtained:", loc.coords);
     })();
   }, []);
 
@@ -111,6 +108,21 @@ export default function HomeScreen() {
     }
   };
 
+  const handleCreateEvent = () => {
+    console.log("Create event pressed");
+    router.push("/create-event" as any);
+  };
+
+  const handleNotifications = () => {
+    console.log("Notifications pressed");
+    router.push("/notifications" as any);
+  };
+
+  const handleProfile = () => {
+    console.log("Profile pressed");
+    router.push("/(tabs)/profile" as any);
+  };
+
   return (
     <View style={styles.container}>
       {/* Map Placeholder */}
@@ -119,9 +131,7 @@ export default function HomeScreen() {
           colors={["#1a1a2e", "#16213e", "#0f3460"]}
           style={styles.mapGradient}
         >
-          <Text style={styles.mapNotice}>
-            📍 Interactive Map View
-          </Text>
+          <Text style={styles.mapNotice}>📍 Interactive Map View</Text>
           <Text style={styles.mapSubtext}>
             Note: react-native-maps is not supported in Natively.{"\n"}
             This is a visual representation of the map interface.
@@ -151,65 +161,56 @@ export default function HomeScreen() {
             <Text style={styles.logo}>nalia</Text>
           </View>
           <View style={styles.topBarRight}>
-            <Pressable
-              style={styles.iconButton}
-              onPress={() => Alert.alert("Notifications", "No new notifications")}
-            >
+            <Pressable style={styles.iconButton} onPress={handleNotifications}>
               <IconSymbol name="bell.fill" size={24} color={colors.text} />
             </Pressable>
-            <Pressable
-              style={styles.avatarButton}
-              onPress={() => Alert.alert("Profile", "Navigate to profile")}
-            >
+            <Pressable style={styles.avatarButton} onPress={handleProfile}>
               <View style={styles.avatar}>
                 <IconSymbol name="person.fill" size={20} color={colors.text} />
               </View>
             </Pressable>
           </View>
         </View>
+      </View>
 
-        {/* Filter Toggle */}
-        <View style={styles.filterContainer}>
-          <Pressable
+      {/* Floating Filter Toggle */}
+      <View style={styles.floatingFilterContainer}>
+        <Pressable
+          style={[
+            styles.filterButton,
+            filter === "all" && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilter("all")}
+        >
+          <Text
             style={[
-              styles.filterButton,
-              filter === "all" && styles.filterButtonActive,
+              styles.filterText,
+              filter === "all" && styles.filterTextActive,
             ]}
-            onPress={() => setFilter("all")}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filter === "all" && styles.filterTextActive,
-              ]}
-            >
-              All Events
-            </Text>
-          </Pressable>
-          <Pressable
+            All Events
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.filterButton,
+            filter === "interests" && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilter("interests")}
+        >
+          <Text
             style={[
-              styles.filterButton,
-              filter === "interests" && styles.filterButtonActive,
+              styles.filterText,
+              filter === "interests" && styles.filterTextActive,
             ]}
-            onPress={() => setFilter("interests")}
           >
-            <Text
-              style={[
-                styles.filterText,
-                filter === "interests" && styles.filterTextActive,
-              ]}
-            >
-              My Interests
-            </Text>
-          </Pressable>
-        </View>
+            My Interests
+          </Text>
+        </Pressable>
       </View>
 
       {/* Floating Create Button */}
-      <Pressable
-        style={styles.createButton}
-        onPress={() => Alert.alert("Create Event", "Navigate to event creation")}
-      >
+      <Pressable style={styles.createButton} onPress={handleCreateEvent}>
         <LinearGradient
           colors={[colors.accent, colors.primary]}
           style={styles.createButtonGradient}
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 50,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
     backgroundColor: "rgba(18, 18, 18, 0.95)",
     borderBottomWidth: 1,
     borderBottomColor: colors.highlight,
@@ -325,7 +326,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
   },
   logoContainer: {
     flex: 1,
@@ -360,18 +360,26 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
-  filterContainer: {
+  floatingFilterContainer: {
+    position: "absolute",
+    top: 120,
+    left: 20,
+    right: 20,
     flexDirection: "row",
-    backgroundColor: colors.card,
-    borderRadius: 8,
+    backgroundColor: "rgba(30, 30, 30, 0.95)",
+    borderRadius: 12,
     padding: 4,
     gap: 4,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.3)",
+    elevation: 8,
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 6,
+    borderRadius: 8,
     alignItems: "center",
   },
   filterButtonActive: {
@@ -425,7 +433,7 @@ const styles = StyleSheet.create({
   },
   createButton: {
     position: "absolute",
-    bottom: 100,
+    bottom: 90,
     alignSelf: "center",
     borderRadius: 32,
     overflow: "hidden",

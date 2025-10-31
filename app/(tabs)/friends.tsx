@@ -7,12 +7,12 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors } from "@/styles/commonStyles";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
-import { colors } from "@/styles/commonStyles";
-import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 
 interface Friend {
   id: string;
@@ -26,76 +26,80 @@ const MOCK_FRIENDS: Friend[] = [
   {
     id: "1",
     name: "Anna Martinez",
-    bio: "Coffee enthusiast & social butterfly",
-    mutualEvents: 3,
-    interests: ["#coffee", "#drinks", "#networking"],
+    bio: "Coffee enthusiast & runner",
+    mutualEvents: 5,
+    interests: ["coffee", "running", "books"],
   },
   {
     id: "2",
     name: "Tom Wilson",
-    bio: "Fitness lover, always up for a run",
-    mutualEvents: 2,
-    interests: ["#fitness", "#running", "#sports"],
+    bio: "Fitness lover",
+    mutualEvents: 3,
+    interests: ["fitness", "basketball", "hiking"],
   },
   {
     id: "3",
     name: "Sarah Chen",
-    bio: "Tech professional, love meeting new people",
-    mutualEvents: 5,
-    interests: ["#coffee", "#networking", "#tech"],
+    bio: "Foodie & networker",
+    mutualEvents: 8,
+    interests: ["food", "networking", "travel"],
+  },
+  {
+    id: "4",
+    name: "Mike Johnson",
+    bio: "Sports fanatic",
+    mutualEvents: 12,
+    interests: ["basketball", "football", "gaming"],
   },
 ];
 
 export default function FriendsScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredFriends = MOCK_FRIENDS.filter((friend) =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleChatPress = (friend: Friend) => {
+    console.log("Opening chat with:", friend.name);
+    router.push(`/chat/${friend.id}` as any);
+  };
+
+  const handleProfilePress = (friend: Friend) => {
+    console.log("Opening profile:", friend.name);
+    router.push(`/user-profile/${friend.id}` as any);
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Friends</Text>
-        <Pressable
-          style={styles.addButton}
-          onPress={() => Alert.alert("Add Friend", "Search for friends nearby")}
+    <LinearGradient colors={[colors.background, "#0a0a0a"]} style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Friends</Text>
+          <Text style={styles.headerSubtitle}>{MOCK_FRIENDS.length} connections</Text>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <IconSymbol name="magnifyingglass" size={20} color={colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search friends..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <IconSymbol name="person.badge.plus" size={24} color={colors.primary} />
-        </Pressable>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <IconSymbol name="magnifyingglass" size={20} color={colors.textSecondary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search friends..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredFriends.map((friend) => (
-          <Pressable
-            key={friend.id}
-            style={styles.friendCard}
-            onPress={() =>
-              Alert.alert(
-                friend.name,
-                `${friend.bio}\n\nMutual Events: ${friend.mutualEvents}\nInterests: ${friend.interests.join(", ")}`
-              )
-            }
-          >
-            <LinearGradient
-              colors={["rgba(187, 134, 252, 0.1)", "rgba(3, 218, 198, 0.1)"]}
-              style={styles.friendCardGradient}
+          {filteredFriends.map((friend) => (
+            <Pressable
+              key={friend.id}
+              style={styles.friendCard}
+              onPress={() => handleProfilePress(friend)}
             >
               <View style={styles.friendAvatar}>
                 <IconSymbol name="person.fill" size={28} color={colors.text} />
@@ -103,87 +107,83 @@ export default function FriendsScreen() {
               <View style={styles.friendContent}>
                 <Text style={styles.friendName}>{friend.name}</Text>
                 <Text style={styles.friendBio}>{friend.bio}</Text>
-                <View style={styles.mutualEvents}>
-                  <IconSymbol
-                    name="calendar.badge.clock"
-                    size={14}
-                    color={colors.secondary}
-                  />
-                  <Text style={styles.mutualEventsText}>
+                <View style={styles.friendStats}>
+                  <IconSymbol name="calendar" size={14} color={colors.primary} />
+                  <Text style={styles.friendStatsText}>
                     {friend.mutualEvents} mutual events
                   </Text>
                 </View>
                 <View style={styles.interestsContainer}>
                   {friend.interests.slice(0, 3).map((interest, index) => (
                     <View key={index} style={styles.interestTag}>
-                      <Text style={styles.interestText}>{interest}</Text>
+                      <Text style={styles.interestText}>#{interest}</Text>
                     </View>
                   ))}
                 </View>
               </View>
               <Pressable
-                style={styles.messageButton}
-                onPress={() => Alert.alert("Message", `Send message to ${friend.name}`)}
+                style={styles.chatButton}
+                onPress={() => handleChatPress(friend)}
               >
                 <IconSymbol name="message.fill" size={20} color={colors.primary} />
               </Pressable>
-            </LinearGradient>
-          </Pressable>
-        ))}
+            </Pressable>
+          ))}
 
-        {filteredFriends.length === 0 && (
-          <View style={styles.emptyState}>
-            <IconSymbol
-              name="person.2.slash"
-              size={64}
-              color={colors.textSecondary}
-            />
-            <Text style={styles.emptyStateText}>No friends found</Text>
-            <Text style={styles.emptyStateSubtext}>
-              {searchQuery
-                ? "Try a different search"
-                : "Add friends to see them here"}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+          {filteredFriends.length === 0 && (
+            <View style={styles.emptyState}>
+              <IconSymbol name="person.2" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyText}>No friends found</Text>
+              <Text style={styles.emptySubtext}>
+                {searchQuery
+                  ? "Try a different search"
+                  : "Connect with people at events"}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
-  title: {
+  headerTitle: {
     fontSize: 32,
-    fontWeight: "700",
+    fontWeight: "bold",
     color: colors.text,
+    marginBottom: 4,
   },
-  addButton: {
-    padding: 8,
+  headerSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.card,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
-    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.highlight,
   },
   searchInput: {
     flex: 1,
+    marginLeft: 12,
     fontSize: 16,
     color: colors.text,
   },
@@ -195,13 +195,12 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   friendCard: {
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  friendCardGradient: {
-    padding: 16,
     flexDirection: "row",
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: "flex-start",
     borderWidth: 1,
     borderColor: colors.highlight,
   },
@@ -209,10 +208,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.card,
+    backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
     borderWidth: 2,
     borderColor: colors.primary,
   },
@@ -230,16 +229,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 8,
   },
-  mutualEvents: {
+  friendStats: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginBottom: 8,
   },
-  mutualEventsText: {
-    fontSize: 12,
-    color: colors.secondary,
-    fontWeight: "500",
+  friendStatsText: {
+    fontSize: 13,
+    color: colors.primary,
   },
   interestsContainer: {
     flexDirection: "row",
@@ -248,34 +246,38 @@ const styles = StyleSheet.create({
   },
   interestTag: {
     backgroundColor: colors.highlight,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
   },
   interestText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.secondary,
-    fontWeight: "500",
   },
-  messageButton: {
-    padding: 8,
+  chatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.highlight,
     justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
   },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 60,
   },
-  emptyStateText: {
+  emptyText: {
     fontSize: 20,
     fontWeight: "600",
     color: colors.text,
     marginTop: 16,
+    marginBottom: 8,
   },
-  emptyStateSubtext: {
-    fontSize: 14,
+  emptySubtext: {
+    fontSize: 16,
     color: colors.textSecondary,
-    marginTop: 8,
     textAlign: "center",
   },
 });

@@ -5,14 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import React from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
@@ -34,13 +30,14 @@ interface FloatingTabBarProps {
 export default function FloatingTabBar({
   tabs,
   containerWidth = 360,
-  borderRadius = 24,
-  bottomMargin = 20,
+  borderRadius = 20,
+  bottomMargin = 10,
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
 
   const handleTabPress = (route: string) => {
+    console.log('Tab pressed:', route);
     router.push(route as any);
   };
 
@@ -61,33 +58,35 @@ export default function FloatingTabBar({
           },
         ]}
       >
-        {tabs.map((tab, index) => {
-          const active = isActive(tab.route);
-          return (
-            <TouchableOpacity
-              key={tab.name}
-              style={styles.tab}
-              onPress={() => handleTabPress(tab.route)}
-              activeOpacity={0.7}
-            >
-              <Animated.View style={styles.tabContent}>
-                <IconSymbol
-                  name={tab.icon as any}
-                  size={24}
-                  color={active ? colors.primary : colors.text}
-                />
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: active ? colors.primary : colors.text },
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </Animated.View>
-            </TouchableOpacity>
-          );
-        })}
+        <View style={styles.tabsContainer}>
+          {tabs.map((tab) => {
+            const active = isActive(tab.route);
+            return (
+              <TouchableOpacity
+                key={tab.name}
+                style={styles.tab}
+                onPress={() => handleTabPress(tab.route)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tabContent}>
+                  <IconSymbol
+                    name={tab.icon as any}
+                    size={22}
+                    color={active ? colors.primary : colors.text}
+                  />
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      { color: active ? colors.primary : colors.text },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </BlurView>
     </View>
   );
@@ -100,25 +99,31 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 1000,
+    pointerEvents: 'box-none',
   },
   tabBar: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(30, 30, 30, 0.9)',
-    paddingVertical: 12,
+    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: colors.highlight,
     overflow: 'hidden',
   },
+  tabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 50,
+  },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 4,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 2,
   },
   tabLabel: {
     fontSize: 10,

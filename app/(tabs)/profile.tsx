@@ -68,8 +68,11 @@ export default function ProfileScreen() {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
+            console.log('Logging out user...');
             await logout();
-            router.replace('/onboarding/welcome' as any);
+            console.log('User logged out, navigating to onboarding...');
+            // Navigate to onboarding index which will redirect to welcome screen
+            router.replace('/onboarding/' as any);
           },
         },
       ]

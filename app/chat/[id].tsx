@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,88 +9,202 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface Message {
   id: string;
-  sender: string;
+  sender_id: string;
+  sender_name: string;
   text: string;
-  timestamp: string;
+  created_at: string;
   isMe: boolean;
 }
-
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: "1",
-    sender: "Sarah",
-    text: "Hey everyone! Looking forward to this!",
-    timestamp: "10:30 AM",
-    isMe: false,
-  },
-  {
-    id: "2",
-    sender: "You",
-    text: "Me too! What time are we meeting?",
-    timestamp: "10:32 AM",
-    isMe: true,
-  },
-  {
-    id: "3",
-    sender: "Sarah",
-    text: "Let's meet at 3pm at the usual spot",
-    timestamp: "10:35 AM",
-    isMe: false,
-  },
-  {
-    id: "4",
-    sender: "You",
-    text: "Perfect! See you there 👍",
-    timestamp: "10:36 AM",
-    isMe: true,
-  },
-];
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useUser();
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [eventName, setEventName] = useState("Event Chat");
+  const [participantCount, setParticipantCount] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const handleSend = () => {
-    if (message.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        sender: "You",
-        text: message,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        isMe: true,
-      };
-      setMessages([...messages, newMessage]);
-      setMessage("");
-      console.log("Message sent:", message);
+  useEffect(() => {
+    if (user && id) {
+      loadEventDetails();
+      loadMessages();
+      setupRealtimeSubscription();
+    }
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [id, user]);
+
+  const loadEventDetails = async () => {
+    try {
+      const { data: eventData, error: eventError } = await supabase
+        .from("events")
+        .select("description")
+        .eq("id", id)
+        .single();
+
+      if (eventError) throw eventError;
+
+      setEventName(eventData.description);
+
+      // Count participants
+      const { count } = await supabase
+        .from("event_attendees")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", id)
+        .eq("status", "approved");
+
+      setParticipantCount(count || 0);
+    } catch (error: any) {
+      console.error("Error loading event details:", error);
     }
   };
 
+  const loadMessages = async () => {
+    try {
+      setLoading(true);
+      console.log("Loading messages for event:", id);
+
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("event_id", id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      const formattedMessages = (data || []).map((msg) => ({
+        ...msg,
+        isMe: msg.sender_id === user?.id,
+      }));
+
+      setMessages(formattedMessages);
+
+      // Scroll to bottom after loading
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    } catch (error: any) {
+      console.error("Error loading messages:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setupRealtimeSubscription = async () => {
+    if (channelRef.current?.state === "subscribed") return;
+
+    const channel = supabase.channel(`event:${id}:messages`, {
+      config: { private: true },
+    });
+
+    channelRef.current = channel;
+
+    // Set auth before subscribing
+    await supabase.realtime.setAuth();
+
+    channel
+      .on("broadcast", { event: "INSERT" }, (payload) => {
+        console.log("New message received:", payload);
+        const newMessage = payload.payload.record;
+        setMessages((prev) => [
+          ...prev,
+          {
+            ...newMessage,
+            isMe: newMessage.sender_id === user?.id,
+          },
+        ]);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      })
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
+  };
+
+  const handleSend = async () => {
+    if (!message.trim() || !user) return;
+
+    const messageText = message.trim();
+    setMessage("");
+
+    try {
+      const { error } = await supabase.from("messages").insert({
+        event_id: id as string,
+        sender_id: user.id,
+        sender_name: user.name,
+        text: messageText,
+      });
+
+      if (error) throw error;
+
+      console.log("Message sent successfully");
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      setMessage(messageText); // Restore message on error
+    }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <LinearGradient colors={[colors.background, "#0a0a0a"]} style={styles.container}>
+    <LinearGradient
+      colors={[colors.background, "#0a0a0a"]}
+      style={styles.container}
+    >
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </Pressable>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Event Chat</Text>
-            <Text style={styles.headerSubtitle}>4 participants</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {eventName}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {participantCount} participants
+            </Text>
           </View>
-          <Pressable style={styles.infoButton}>
+          <Pressable
+            style={styles.infoButton}
+            onPress={() => router.push(`/event/${id}` as any)}
+          >
             <IconSymbol name="info.circle" size={24} color={colors.text} />
           </Pressable>
         </View>
@@ -101,23 +215,33 @@ export default function ChatScreen() {
           keyboardVerticalOffset={100}
         >
           <ScrollView
+            ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
+            onContentSizeChange={() =>
+              scrollViewRef.current?.scrollToEnd({ animated: true })
+            }
           >
             {messages.map((msg) => (
               <View
                 key={msg.id}
                 style={[
                   styles.messageWrapper,
-                  msg.isMe ? styles.messageWrapperMe : styles.messageWrapperOther,
+                  msg.isMe
+                    ? styles.messageWrapperMe
+                    : styles.messageWrapperOther,
                 ]}
               >
-                {!msg.isMe && <Text style={styles.senderName}>{msg.sender}</Text>}
+                {!msg.isMe && (
+                  <Text style={styles.senderName}>{msg.sender_name}</Text>
+                )}
                 <View
                   style={[
                     styles.messageBubble,
-                    msg.isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
+                    msg.isMe
+                      ? styles.messageBubbleMe
+                      : styles.messageBubbleOther,
                   ]}
                 >
                   <Text
@@ -129,7 +253,9 @@ export default function ChatScreen() {
                     {msg.text}
                   </Text>
                 </View>
-                <Text style={styles.timestamp}>{msg.timestamp}</Text>
+                <Text style={styles.timestamp}>
+                  {formatTimestamp(msg.created_at)}
+                </Text>
               </View>
             ))}
           </ScrollView>
@@ -144,7 +270,10 @@ export default function ChatScreen() {
               multiline
             />
             <Pressable
-              style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton,
+                !message.trim() && styles.sendButtonDisabled,
+              ]}
               onPress={handleSend}
               disabled={!message.trim()}
             >
@@ -167,6 +296,12 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: "row",

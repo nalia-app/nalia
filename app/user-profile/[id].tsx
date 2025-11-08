@@ -1,59 +1,215 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
 
-const MOCK_USER = {
-  name: "Anna Martinez",
-  bio: "Coffee enthusiast & runner. Always up for spontaneous adventures!",
-  interests: ["coffee", "running", "books", "travel", "photography"],
-  mutualEvents: 5,
-  hostedEvents: 12,
-  attendedEvents: 28,
-};
+interface UserProfile {
+  id: string;
+  name: string;
+  bio: string;
+  interests: string[];
+  hostedEvents: number;
+  attendedEvents: number;
+  mutualEvents: number;
+  isFriend: boolean;
+  friendshipStatus: string | null;
+}
 
-const RECENT_EVENTS = [
-  {
-    id: "1",
-    name: "Coffee Meetup",
-    date: "Today, 3:00 PM",
-    icon: "☕",
-  },
-  {
-    id: "2",
-    name: "Morning Run",
-    date: "Yesterday",
-    icon: "🏃",
-  },
-  {
-    id: "3",
-    name: "Book Club",
-    date: "2 days ago",
-    icon: "📚",
-  },
-];
+interface RecentEvent {
+  id: string;
+  description: string;
+  event_date: string;
+  icon: string;
+}
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useUser();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && id) {
+      loadProfile();
+    }
+  }, [id, user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      console.log("Loading profile for user:", id);
+
+      // Get user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Get interests
+      const { data: interestsData } = await supabase
+        .from("interests")
+        .select("interest")
+        .eq("user_id", id);
+
+      // Count hosted events
+      const { count: hostedCount } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .eq("host_id", id);
+
+      // Count attended events
+      const { count: attendedCount } = await supabase
+        .from("event_attendees")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", id)
+        .eq("status", "approved");
+
+      // Check friendship status
+      const { data: friendshipData } = await supabase
+        .from("friendships")
+        .select("status")
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+        .or(`user_id.eq.${id},friend_id.eq.${id}`)
+        .single();
+
+      // Count mutual events
+      const { data: userEvents } = await supabase
+        .from("event_attendees")
+        .select("event_id")
+        .eq("user_id", user.id);
+
+      const userEventIds = userEvents?.map((e) => e.event_id) || [];
+
+      const { count: mutualCount } = await supabase
+        .from("event_attendees")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", id)
+        .in("event_id", userEventIds);
+
+      // Get recent events
+      const { data: eventsData } = await supabase
+        .from("events")
+        .select("id, description, event_date, icon")
+        .eq("host_id", id)
+        .order("event_date", { ascending: false })
+        .limit(3);
+
+      setProfile({
+        id: profileData.id,
+        name: profileData.name,
+        bio: profileData.bio || "No bio yet",
+        interests:
+          interestsData?.map((i) => i.interest.replace("#", "")) || [],
+        hostedEvents: hostedCount || 0,
+        attendedEvents: attendedCount || 0,
+        mutualEvents: mutualCount || 0,
+        isFriend: !!friendshipData,
+        friendshipStatus: friendshipData?.status || null,
+      });
+
+      setRecentEvents(eventsData || []);
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+      Alert.alert("Error", "Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddFriend = async () => {
+    if (!user || !profile) return;
+
+    try {
+      const { error } = await supabase.from("friendships").insert({
+        user_id: user.id,
+        friend_id: profile.id,
+        status: "pending",
+      });
+
+      if (error) throw error;
+
+      // Create notification
+      await supabase.from("notifications").insert({
+        user_id: profile.id,
+        type: "friend",
+        title: "Friend Request",
+        message: `${user.name} wants to connect`,
+        related_id: user.id,
+      });
+
+      Alert.alert("Success", "Friend request sent!");
+      loadProfile();
+    } catch (error: any) {
+      console.error("Error sending friend request:", error);
+      Alert.alert("Error", "Failed to send friend request");
+    }
+  };
 
   const handleMessage = () => {
     console.log("Opening chat with user:", id);
-    router.push(`/chat/${id}` as any);
+    // For now, show alert since direct messaging isn't fully implemented
+    Alert.alert("Info", "Direct messaging coming soon!");
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+    const diffDays = Math.floor(
+      (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (diffDays < 7) return `${diffDays} days ago`;
+
+    return date.toLocaleDateString();
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>Profile not found</Text>
+      </View>
+    );
+  }
+
   return (
-    <LinearGradient colors={[colors.background, "#0a0a0a"]} style={styles.container}>
+    <LinearGradient
+      colors={[colors.background, "#0a0a0a"]}
+      style={styles.container}
+    >
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
@@ -72,62 +228,98 @@ export default function UserProfileScreen() {
             <View style={styles.avatarLarge}>
               <IconSymbol name="person.fill" size={48} color={colors.text} />
             </View>
-            <Text style={styles.name}>{MOCK_USER.name}</Text>
-            <Text style={styles.bio}>{MOCK_USER.bio}</Text>
+            <Text style={styles.name}>{profile.name}</Text>
+            <Text style={styles.bio}>{profile.bio}</Text>
 
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{MOCK_USER.hostedEvents}</Text>
+                <Text style={styles.statValue}>{profile.hostedEvents}</Text>
                 <Text style={styles.statLabel}>Hosted</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{MOCK_USER.attendedEvents}</Text>
+                <Text style={styles.statValue}>{profile.attendedEvents}</Text>
                 <Text style={styles.statLabel}>Attended</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{MOCK_USER.mutualEvents}</Text>
+                <Text style={styles.statValue}>{profile.mutualEvents}</Text>
                 <Text style={styles.statLabel}>Mutual</Text>
               </View>
             </View>
 
-            <Pressable style={styles.messageButton} onPress={handleMessage}>
-              <LinearGradient
-                colors={[colors.primary, colors.secondary]}
-                style={styles.messageButtonGradient}
-              >
-                <IconSymbol name="message.fill" size={20} color={colors.text} />
-                <Text style={styles.messageButtonText}>Send Message</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
+            <View style={styles.actionButtons}>
+              <Pressable style={styles.messageButton} onPress={handleMessage}>
+                <LinearGradient
+                  colors={[colors.primary, colors.secondary]}
+                  style={styles.messageButtonGradient}
+                >
+                  <IconSymbol
+                    name="message.fill"
+                    size={20}
+                    color={colors.text}
+                  />
+                  <Text style={styles.messageButtonText}>Send Message</Text>
+                </LinearGradient>
+              </Pressable>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interests</Text>
-            <View style={styles.interestsContainer}>
-              {MOCK_USER.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>#{interest}</Text>
+              {!profile.isFriend && (
+                <Pressable
+                  style={styles.addFriendButton}
+                  onPress={handleAddFriend}
+                >
+                  <IconSymbol
+                    name="person.badge.plus"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.addFriendText}>Add Friend</Text>
+                </Pressable>
+              )}
+
+              {profile.friendshipStatus === "pending" && (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingText}>Request Pending</Text>
                 </View>
-              ))}
+              )}
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Events</Text>
-            {RECENT_EVENTS.map((event) => (
-              <View key={event.id} style={styles.eventCard}>
-                <View style={styles.eventIcon}>
-                  <Text style={styles.eventIconText}>{event.icon}</Text>
-                </View>
-                <View style={styles.eventContent}>
-                  <Text style={styles.eventName}>{event.name}</Text>
-                  <Text style={styles.eventDate}>{event.date}</Text>
-                </View>
+          {profile.interests.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Interests</Text>
+              <View style={styles.interestsContainer}>
+                {profile.interests.map((interest, index) => (
+                  <View key={index} style={styles.interestTag}>
+                    <Text style={styles.interestText}>#{interest}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </View>
+          )}
+
+          {recentEvents.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recent Events</Text>
+              {recentEvents.map((event) => (
+                <Pressable
+                  key={event.id}
+                  style={styles.eventCard}
+                  onPress={() => router.push(`/event/${event.id}` as any)}
+                >
+                  <View style={styles.eventIcon}>
+                    <Text style={styles.eventIconText}>{event.icon}</Text>
+                  </View>
+                  <View style={styles.eventContent}>
+                    <Text style={styles.eventName}>{event.description}</Text>
+                    <Text style={styles.eventDate}>
+                      {formatDate(event.event_date)}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -140,6 +332,16 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.background,
+  },
+  errorText: {
+    fontSize: 18,
+    color: colors.textSecondary,
   },
   header: {
     flexDirection: "row",
@@ -224,10 +426,13 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: colors.highlight,
   },
+  actionButtons: {
+    width: "100%",
+    gap: 12,
+  },
   messageButton: {
     borderRadius: 12,
     overflow: "hidden",
-    width: "100%",
   },
   messageButtonGradient: {
     flexDirection: "row",
@@ -240,6 +445,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.text,
+  },
+  addFriendButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    gap: 8,
+  },
+  addFriendText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  pendingBadge: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: "center",
+  },
+  pendingText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
   },
   section: {
     paddingHorizontal: 20,

@@ -1,74 +1,142 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
 import { LinearGradient } from "expo-linear-gradient";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
+import { useRouter } from "expo-router";
 
 interface Event {
   id: string;
-  hostName: string;
+  host_id: string;
+  host_name: string;
   description: string;
-  date: string;
-  time: string;
-  attendees: number;
+  event_date: string;
+  event_time: string;
   icon: string;
-  isHosting: boolean;
   tags: string[];
+  attendees: Array<{ status: string }>;
+  isHosting: boolean;
 }
 
-const MOCK_EVENTS: Event[] = [
-  {
-    id: "1",
-    hostName: "You",
-    description: "grab coffee and chat",
-    date: "Today",
-    time: "3:00 PM",
-    attendees: 4,
-    icon: "☕",
-    isHosting: true,
-    tags: ["#coffee", "#networking"],
-  },
-  {
-    id: "2",
-    hostName: "Anna",
-    description: "grab a drink",
-    date: "Tomorrow",
-    time: "7:00 PM",
-    attendees: 5,
-    icon: "🍷",
-    isHosting: false,
-    tags: ["#drinks", "#social"],
-  },
-  {
-    id: "3",
-    hostName: "You",
-    description: "morning yoga session",
-    date: "Saturday",
-    time: "8:00 AM",
-    attendees: 7,
-    icon: "🧘",
-    isHosting: true,
-    tags: ["#fitness", "#yoga"],
-  },
-];
-
 export default function MyEventsScreen() {
+  const { user } = useUser();
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "hosting" | "attending">("all");
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEvents = MOCK_EVENTS.filter((event) => {
+  useEffect(() => {
+    if (user) {
+      loadEvents();
+    }
+  }, [user]);
+
+  const loadEvents = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      console.log("Loading user events");
+
+      // Get events where user is host
+      const { data: hostedEvents, error: hostedError } = await supabase
+        .from("events")
+        .select(`
+          *,
+          attendees:event_attendees(status)
+        `)
+        .eq("host_id", user.id)
+        .order("event_date", { ascending: true });
+
+      if (hostedError) throw hostedError;
+
+      // Get events where user is attending
+      const { data: attendingData, error: attendingError } = await supabase
+        .from("event_attendees")
+        .select(`
+          event_id,
+          status,
+          events(*)
+        `)
+        .eq("user_id", user.id)
+        .eq("status", "approved")
+        .neq("events.host_id", user.id);
+
+      if (attendingError) throw attendingError;
+
+      // Format hosted events
+      const formattedHosted = (hostedEvents || []).map((event) => ({
+        ...event,
+        isHosting: true,
+      }));
+
+      // Format attending events
+      const formattedAttending = (attendingData || [])
+        .filter((item) => item.events)
+        .map((item) => ({
+          ...(item.events as any),
+          attendees: [],
+          isHosting: false,
+        }));
+
+      // Combine and sort
+      const allEvents = [...formattedHosted, ...formattedAttending].sort(
+        (a, b) =>
+          new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+      );
+
+      setEvents(allEvents);
+    } catch (error: any) {
+      console.error("Error loading events:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredEvents = events.filter((event) => {
     if (filter === "hosting") return event.isHosting;
     if (filter === "attending") return !event.isHosting;
     return true;
   });
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const handleEventPress = (eventId: string) => {
+    router.push(`/event/${eventId}` as any);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -137,12 +205,7 @@ export default function MyEventsScreen() {
           <Pressable
             key={event.id}
             style={styles.eventCard}
-            onPress={() =>
-              Alert.alert(
-                `${event.hostName} wanna...`,
-                `${event.description}\n\nDate: ${event.date}\nTime: ${event.time}\nAttendees: ${event.attendees}`
-              )
-            }
+            onPress={() => handleEventPress(event.id)}
           >
             <LinearGradient
               colors={["rgba(187, 134, 252, 0.1)", "rgba(3, 218, 198, 0.1)"]}
@@ -154,7 +217,7 @@ export default function MyEventsScreen() {
               <View style={styles.eventContent}>
                 <View style={styles.eventHeader}>
                   <Text style={styles.eventHost}>
-                    {event.hostName} wanna...
+                    {event.host_name} wanna...
                   </Text>
                   {event.isHosting && (
                     <View style={styles.hostBadge}>
@@ -170,7 +233,9 @@ export default function MyEventsScreen() {
                       size={14}
                       color={colors.textSecondary}
                     />
-                    <Text style={styles.eventDetailText}>{event.date}</Text>
+                    <Text style={styles.eventDetailText}>
+                      {formatDate(event.event_date)}
+                    </Text>
                   </View>
                   <View style={styles.eventDetailItem}>
                     <IconSymbol
@@ -178,7 +243,7 @@ export default function MyEventsScreen() {
                       size={14}
                       color={colors.textSecondary}
                     />
-                    <Text style={styles.eventDetailText}>{event.time}</Text>
+                    <Text style={styles.eventDetailText}>{event.event_time}</Text>
                   </View>
                   <View style={styles.eventDetailItem}>
                     <IconSymbol
@@ -187,17 +252,19 @@ export default function MyEventsScreen() {
                       color={colors.textSecondary}
                     />
                     <Text style={styles.eventDetailText}>
-                      {event.attendees}
+                      {event.attendees?.length || 0}
                     </Text>
                   </View>
                 </View>
-                <View style={styles.tagsContainer}>
-                  {event.tags.map((tag, index) => (
-                    <View key={index} style={styles.tag}>
-                      <Text style={styles.tagText}>{tag}</Text>
-                    </View>
-                  ))}
-                </View>
+                {event.tags.length > 0 && (
+                  <View style={styles.tagsContainer}>
+                    {event.tags.slice(0, 3).map((tag, index) => (
+                      <View key={index} style={styles.tag}>
+                        <Text style={styles.tagText}>{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             </LinearGradient>
           </Pressable>
@@ -228,6 +295,12 @@ export default function MyEventsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: colors.background,
   },
   header: {

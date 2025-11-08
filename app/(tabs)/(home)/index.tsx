@@ -438,13 +438,9 @@ export default function HomeScreen() {
       const data = JSON.parse(event.nativeEvent.data);
       
       if (data.type === 'eventClick') {
-        const event = data.event;
-        Alert.alert(
-          `${event.hostName} wanna...`,
-          `${event.description}\n\nAttendees: ${event.attendees}\nType: ${
-            event.isPublic ? "Public" : "Private"
-          }\nTags: ${event.tags.map((t: string) => `#${t}`).join(", ")}`
-        );
+        const eventData = data.event;
+        console.log('Event clicked:', eventData.id);
+        router.push(`/event/${eventData.id}` as any);
       } else if (data.type === 'mapClick') {
         console.log('Map clicked at:', data.lat, data.lng);
       }

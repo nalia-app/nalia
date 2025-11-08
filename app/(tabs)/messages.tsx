@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { colors } from "@/styles/commonStyles";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -8,61 +8,151 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { useRouter } from "expo-router";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
 
 interface Chat {
   id: string;
-  eventName: string;
-  hostName: string;
+  event_id: string;
+  event_name: string;
+  host_name: string;
   lastMessage: string;
   timestamp: string;
   unread: number;
   icon: string;
 }
 
-const MOCK_CHATS: Chat[] = [
-  {
-    id: "1",
-    eventName: "Coffee Meetup",
-    hostName: "Sarah",
-    lastMessage: "See you at 3pm!",
-    timestamp: "2m ago",
-    unread: 2,
-    icon: "☕",
-  },
-  {
-    id: "2",
-    eventName: "Basketball Game",
-    hostName: "Mike",
-    lastMessage: "Bring your own ball",
-    timestamp: "1h ago",
-    unread: 0,
-    icon: "🏀",
-  },
-  {
-    id: "3",
-    eventName: "Drinks Tonight",
-    hostName: "Anna",
-    lastMessage: "Who's coming?",
-    timestamp: "3h ago",
-    unread: 5,
-    icon: "🍷",
-  },
-];
-
 export default function MessagesScreen() {
   const router = useRouter();
+  const { user } = useUser();
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadChats();
+    }
+  }, [user]);
+
+  const loadChats = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      console.log("Loading chats");
+
+      // Get events where user is an approved attendee
+      const { data: attendeeData, error: attendeeError } = await supabase
+        .from("event_attendees")
+        .select(`
+          event_id,
+          events(
+            id,
+            description,
+            host_name,
+            icon
+          )
+        `)
+        .eq("user_id", user.id)
+        .eq("status", "approved");
+
+      if (attendeeError) throw attendeeError;
+
+      // For each event, get the last message
+      const chatsPromises = (attendeeData || []).map(async (item) => {
+        if (!item.events) return null;
+
+        const event = item.events as any;
+
+        const { data: lastMessage } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("event_id", event.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        // Count unread messages (simplified - you could add a read_by field)
+        const { count: unreadCount } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("event_id", event.id)
+          .neq("sender_id", user.id)
+          .gte(
+            "created_at",
+            new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          );
+
+        return {
+          id: event.id,
+          event_id: event.id,
+          event_name: event.description,
+          host_name: event.host_name,
+          lastMessage: lastMessage?.text || "No messages yet",
+          timestamp: lastMessage
+            ? formatTimestamp(lastMessage.created_at)
+            : "New",
+          unread: unreadCount || 0,
+          icon: event.icon,
+        };
+      });
+
+      const chatsData = await Promise.all(chatsPromises);
+      const validChats = chatsData.filter((chat) => chat !== null) as Chat[];
+
+      // Sort by most recent
+      validChats.sort((a, b) => {
+        if (a.timestamp === "New") return -1;
+        if (b.timestamp === "New") return 1;
+        return 0;
+      });
+
+      setChats(validChats);
+    } catch (error: any) {
+      console.error("Error loading chats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
   const handleChatPress = (chat: Chat) => {
     console.log("Opening chat:", chat.id);
-    router.push(`/chat/${chat.id}` as any);
+    router.push(`/chat/${chat.event_id}` as any);
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <LinearGradient colors={[colors.background, "#0a0a0a"]} style={styles.container}>
+    <LinearGradient
+      colors={[colors.background, "#0a0a0a"]}
+      style={styles.container}
+    >
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Messages</Text>
@@ -74,7 +164,7 @@ export default function MessagesScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {MOCK_CHATS.map((chat) => (
+          {chats.map((chat) => (
             <Pressable
               key={chat.id}
               style={styles.chatCard}
@@ -85,10 +175,10 @@ export default function MessagesScreen() {
               </View>
               <View style={styles.chatContent}>
                 <View style={styles.chatHeader}>
-                  <Text style={styles.chatEventName}>{chat.eventName}</Text>
+                  <Text style={styles.chatEventName}>{chat.event_name}</Text>
                   <Text style={styles.chatTimestamp}>{chat.timestamp}</Text>
                 </View>
-                <Text style={styles.chatHostName}>Host: {chat.hostName}</Text>
+                <Text style={styles.chatHostName}>Host: {chat.host_name}</Text>
                 <Text style={styles.chatLastMessage} numberOfLines={1}>
                   {chat.lastMessage}
                 </Text>
@@ -101,7 +191,7 @@ export default function MessagesScreen() {
             </Pressable>
           ))}
 
-          {MOCK_CHATS.length === 0 && (
+          {chats.length === 0 && (
             <View style={styles.emptyState}>
               <IconSymbol name="message" size={64} color={colors.textSecondary} />
               <Text style={styles.emptyText}>No active chats</Text>
@@ -122,6 +212,12 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: 20,
@@ -180,6 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: colors.text,
+    flex: 1,
   },
   chatTimestamp: {
     fontSize: 12,

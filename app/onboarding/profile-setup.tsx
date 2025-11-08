@@ -1,24 +1,26 @@
 
-import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
 import { useUser } from '@/contexts/UserContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
+import { supabase } from '@/app/integrations/supabase/client';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
-  const { user, updateProfile } = useUser();
-  const [name, setName] = useState(user?.name || '');
-  const [bio, setBio] = useState(user?.bio || '');
-  const [photoUri, setPhotoUri] = useState(user?.photoUri || '');
+  const { session } = useUser();
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -29,88 +31,100 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!name.trim()) {
-      Alert.alert('Name Required', 'Please enter your name');
+      Alert.alert('Name Required', 'Please enter your name to continue.');
       return;
     }
 
-    updateProfile({ name, bio, photoUri });
-    router.push('/onboarding/permissions' as any);
+    if (!session?.user) {
+      Alert.alert('Error', 'No user session found. Please sign up again.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('[ProfileSetup] Creating profile for user:', session.user.id);
+      
+      // Create profile in database
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: session.user.id,
+          name: name.trim(),
+          bio: bio.trim() || null,
+          avatar_url: photoUri || null,
+        });
+
+      if (error) {
+        console.error('[ProfileSetup] Error creating profile:', error);
+        Alert.alert('Error', 'Failed to create profile. Please try again.');
+        return;
+      }
+
+      console.log('[ProfileSetup] Profile created successfully');
+      router.push('/onboarding/permissions');
+    } catch (error: any) {
+      console.error('[ProfileSetup] Exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <LinearGradient colors={[colors.background, '#0a0a0a']} style={styles.container}>
+    <LinearGradient colors={[colors.background, '#1a1a2e']} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <IconSymbol name="chevron.left" size={28} color={colors.text} />
-          </Pressable>
-        </View>
-
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
           <Text style={styles.title}>Set up your profile</Text>
-          <Text style={styles.subtitle}>
-            Tell us a bit about yourself
-          </Text>
+          <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
 
-          <View style={styles.photoSection}>
-            <Pressable style={styles.photoButton} onPress={pickImage}>
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.photo} />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <IconSymbol name="person.fill" size={48} color={colors.textSecondary} />
-                </View>
-              )}
-              <View style={styles.photoEditBadge}>
-                <IconSymbol name="camera.fill" size={16} color={colors.text} />
+          <Pressable style={styles.photoContainer} onPress={pickImage}>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.photo} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <IconSymbol name="camera" size={32} color={colors.textSecondary} />
+                <Text style={styles.photoPlaceholderText}>Add Photo</Text>
               </View>
-            </Pressable>
-            <Text style={styles.photoLabel}>Add a photo</Text>
-          </View>
+            )}
+          </Pressable>
 
           <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Your name"
-                placeholderTextColor={colors.textSecondary}
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
+            <Text style={styles.label}>Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your name"
+              placeholderTextColor={colors.textSecondary}
+              value={name}
+              onChangeText={setName}
+              editable={!loading}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bio</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Tell people about yourself..."
-                placeholderTextColor={colors.textSecondary}
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                numberOfLines={4}
-                maxLength={150}
-              />
-              <Text style={styles.charCount}>{bio.length}/150</Text>
-            </View>
+            <Text style={styles.label}>Bio</Text>
+            <TextInput
+              style={[styles.input, styles.bioInput]}
+              placeholder="Tell people about yourself..."
+              placeholderTextColor={colors.textSecondary}
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              editable={!loading}
+            />
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
           <Pressable
-            style={[styles.button, !name.trim() && styles.buttonDisabled]}
+            style={[styles.continueButton, (!name.trim() || loading) && styles.continueButtonDisabled]}
             onPress={handleContinue}
-            disabled={!name.trim()}
+            disabled={!name.trim() || loading}
           >
-            <LinearGradient
-              colors={name.trim() ? [colors.primary, colors.secondary] : [colors.card, colors.card]}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.buttonText}>Continue</Text>
-            </LinearGradient>
+            <Text style={styles.continueButtonText}>
+              {loading ? 'Creating Profile...' : 'Continue'}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -125,35 +139,26 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 32,
-    paddingTop: 20,
-    paddingBottom: 100,
+  content: {
+    padding: 24,
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  photoSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  photoButton: {
-    position: 'relative',
+  photoContainer: {
+    alignSelf: 'center',
+    marginBottom: 32,
   },
   photo: {
     width: 120,
@@ -164,85 +169,55 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 2,
-    borderColor: colors.highlight,
-  },
-  photoEditBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderStyle: 'dashed',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.background,
+    justifyContent: 'center',
   },
-  photoLabel: {
-    fontSize: 14,
+  photoPlaceholderText: {
     color: colors.textSecondary,
-    marginTop: 12,
+    fontSize: 12,
+    marginTop: 8,
   },
   form: {
-    gap: 24,
-  },
-  inputGroup: {
-    gap: 8,
+    gap: 20,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 16,
     fontSize: 16,
     color: colors.text,
     borderWidth: 1,
-    borderColor: colors.highlight,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'right',
+  bioInput: {
+    minHeight: 100,
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 32,
-    paddingVertical: 20,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.highlight,
+    padding: 24,
+    paddingTop: 16,
   },
-  button: {
+  continueButton: {
+    backgroundColor: colors.primary,
     borderRadius: 12,
-    overflow: 'hidden',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonGradient: {
-    paddingVertical: 16,
+    padding: 16,
     alignItems: 'center',
   },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '600',
+  continueButtonDisabled: {
+    opacity: 0.5,
+  },
+  continueButtonText: {
     color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

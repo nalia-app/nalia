@@ -17,6 +17,9 @@ import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { WebView } from "react-native-webview";
 import * as Location from "expo-location";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const { width } = Dimensions.get("window");
 
@@ -32,6 +35,7 @@ const EMOJI_CATEGORIES = {
 
 export default function CreateEventScreen() {
   const router = useRouter();
+  const { user, session } = useUser();
   const [selectedIcon, setSelectedIcon] = useState("☕");
   const [description, setDescription] = useState("");
   const [locationName, setLocationName] = useState("");
@@ -42,6 +46,11 @@ export default function CreateEventScreen() {
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [eventDate, setEventDate] = useState(new Date());
+  const [eventTime, setEventTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const webViewRef = React.useRef<WebView>(null);
 
   useEffect(() => {
@@ -50,7 +59,6 @@ export default function CreateEventScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
           console.log("Location permission denied");
-          // Use default location if permission denied
           setUserLocation({ lat: 37.7849, lng: -122.4094 });
           setIsLoadingLocation(false);
           return;
@@ -63,7 +71,6 @@ export default function CreateEventScreen() {
         setIsLoadingLocation(false);
       } catch (error) {
         console.log("Error getting location:", error);
-        // Use default location if error occurs
         setUserLocation({ lat: 37.7849, lng: -122.4094 });
         setIsLoadingLocation(false);
       }
@@ -71,7 +78,6 @@ export default function CreateEventScreen() {
   }, []);
 
   const generateMapHTML = () => {
-    // Use user location as default center, or fallback to San Francisco
     const centerLocation = userLocation || { lat: 37.7849, lng: -122.4094 };
     const markerLocation = mapLocation || null;
     
@@ -98,7 +104,6 @@ export default function CreateEventScreen() {
             background: #0a0a0a;
           }
           
-          /* Custom styling for map elements */
           .leaflet-container {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -167,7 +172,6 @@ export default function CreateEventScreen() {
         <script>
           let selectedMarker = null;
           
-          // Initialize map centered on user location without zoom controls
           const map = L.map('map', {
             zoomControl: false,
             attributionControl: false
@@ -175,14 +179,12 @@ export default function CreateEventScreen() {
           
           window.map = map;
           
-          // Add MapTiler Streets tile layer
           L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=DRK7TsTMDfLaHMdlzmoz', {
             attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 20,
             minZoom: 10
           }).addTo(map);
           
-          // Add user location marker
           const userIcon = L.divIcon({
             className: 'custom-marker',
             html: '<div class="user-marker"></div>',
@@ -269,7 +271,7 @@ export default function CreateEventScreen() {
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!description.trim()) {
       Alert.alert("Error", "Please add a description");
       return;
@@ -278,25 +280,68 @@ export default function CreateEventScreen() {
       Alert.alert("Error", "Please select a location on the map");
       return;
     }
+    if (!user || !session?.user) {
+      Alert.alert("Error", "You must be logged in to create an event");
+      return;
+    }
 
-    console.log("Creating event:", {
-      icon: selectedIcon,
-      description,
-      location: mapLocation,
-      hashtags,
-      isPublic,
-    });
+    setLoading(true);
+    try {
+      console.log('[CreateEvent] Creating event...');
+      
+      // Parse hashtags
+      const tags = hashtags
+        .split(/[\s,]+/)
+        .filter(tag => tag.trim())
+        .map(tag => tag.replace('#', '').trim());
 
-    Alert.alert(
-      "Event Created!",
-      "Your event has been created successfully",
-      [
-        {
-          text: "OK",
-          onPress: () => router.back(),
-        },
-      ]
-    );
+      // Format date and time
+      const dateStr = eventDate.toISOString().split('T')[0];
+      const timeStr = eventTime.toTimeString().split(' ')[0];
+
+      // Create event in database
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          host_id: session.user.id,
+          host_name: user.name,
+          description: description.trim(),
+          icon: selectedIcon,
+          latitude: mapLocation.lat,
+          longitude: mapLocation.lng,
+          location_name: locationName || null,
+          event_date: dateStr,
+          event_time: timeStr,
+          is_public: isPublic,
+          tags: tags,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[CreateEvent] Error creating event:', error);
+        Alert.alert('Error', 'Failed to create event. Please try again.');
+        return;
+      }
+
+      console.log('[CreateEvent] Event created successfully:', data.id);
+      
+      Alert.alert(
+        "Event Created!",
+        "Your event has been created successfully",
+        [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('[CreateEvent] Exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -376,6 +421,51 @@ export default function CreateEventScreen() {
             onChangeText={setDescription}
             maxLength={50}
           />
+
+          <Text style={styles.sectionTitle}>Date & Time</Text>
+          <View style={styles.dateTimeContainer}>
+            <Pressable style={styles.dateTimeButton} onPress={() => setShowDatePicker(true)}>
+              <IconSymbol name="calendar" size={20} color={colors.text} />
+              <Text style={styles.dateTimeText}>
+                {eventDate.toLocaleDateString()}
+              </Text>
+            </Pressable>
+            <Pressable style={styles.dateTimeButton} onPress={() => setShowTimePicker(true)}>
+              <IconSymbol name="clock" size={20} color={colors.text} />
+              <Text style={styles.dateTimeText}>
+                {eventTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </Pressable>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={eventDate}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  setEventDate(selectedDate);
+                }
+              }}
+              minimumDate={new Date()}
+            />
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={eventTime}
+              mode="time"
+              display="default"
+              onChange={(event, selectedTime) => {
+                setShowTimePicker(false);
+                if (selectedTime) {
+                  setEventTime(selectedTime);
+                }
+              }}
+            />
+          )}
 
           <Text style={styles.sectionTitle}>Location</Text>
           <Text style={styles.locationHint}>
@@ -463,12 +553,18 @@ export default function CreateEventScreen() {
             </Pressable>
           </View>
 
-          <Pressable style={styles.createButton} onPress={handleCreate}>
+          <Pressable 
+            style={[styles.createButton, loading && styles.createButtonDisabled]} 
+            onPress={handleCreate}
+            disabled={loading}
+          >
             <LinearGradient
               colors={[colors.primary, colors.secondary]}
               style={styles.createButtonGradient}
             >
-              <Text style={styles.createButtonText}>Create Event</Text>
+              <Text style={styles.createButtonText}>
+                {loading ? 'Creating...' : 'Create Event'}
+              </Text>
             </LinearGradient>
           </Pressable>
         </ScrollView>
@@ -594,6 +690,27 @@ const styles = StyleSheet.create({
     borderColor: colors.highlight,
     marginBottom: 20,
   },
+  dateTimeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  dateTimeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600',
+  },
   locationHint: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -663,6 +780,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     marginTop: 8,
+  },
+  createButtonDisabled: {
+    opacity: 0.5,
   },
   createButtonGradient: {
     paddingVertical: 16,

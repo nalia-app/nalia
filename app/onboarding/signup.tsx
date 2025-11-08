@@ -1,92 +1,163 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
 import { useUser } from '@/contexts/UserContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
+import { supabase } from '@/app/integrations/supabase/client';
 
 export default function SignupScreen() {
   const router = useRouter();
   const { setUser } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleEmailSignup = () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleEmailSignup = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
-    // Create user with email
-    const newUser = {
-      id: Date.now().toString(),
-      name: '',
-      email: email,
-      bio: '',
-      interests: [],
-    };
-    
-    setUser(newUser);
-    router.push('/onboarding/interests' as any);
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('[Signup] Attempting email signup for:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: 'https://natively.dev/email-confirmed'
+        }
+      });
+
+      if (error) {
+        console.error('[Signup] Error:', error);
+        Alert.alert('Signup Error', error.message);
+        return;
+      }
+
+      console.log('[Signup] Signup successful:', data.user?.id);
+      
+      // Show email verification message
+      Alert.alert(
+        'Verify Your Email',
+        'Please check your email and click the verification link to complete your registration.',
+        [{ text: 'OK' }]
+      );
+
+      // If user is created, proceed to interests
+      if (data.user) {
+        router.replace('/onboarding/interests');
+      }
+    } catch (error: any) {
+      console.error('[Signup] Exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred during signup');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogleSignup = () => {
-    // Mock Google signup
-    const newUser = {
-      id: Date.now().toString(),
-      name: 'Google User',
-      email: 'user@gmail.com',
-      bio: '',
-      interests: [],
-    };
-    
-    setUser(newUser);
-    router.push('/onboarding/interests' as any);
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    try {
+      console.log('[Signup] Attempting Google signup');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'https://natively.dev/auth/callback',
+        }
+      });
+
+      if (error) {
+        console.error('[Signup] Google error:', error);
+        Alert.alert('Google Signup Error', error.message);
+        return;
+      }
+
+      console.log('[Signup] Google signup initiated');
+    } catch (error: any) {
+      console.error('[Signup] Google exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred with Google signup');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAppleSignup = () => {
-    // Mock Apple signup
-    const newUser = {
-      id: Date.now().toString(),
-      name: 'Apple User',
-      email: 'user@icloud.com',
-      bio: '',
-      interests: [],
-    };
-    
-    setUser(newUser);
-    router.push('/onboarding/interests' as any);
+  const handleAppleSignup = async () => {
+    setLoading(true);
+    try {
+      console.log('[Signup] Attempting Apple signup');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: 'https://natively.dev/auth/callback',
+        }
+      });
+
+      if (error) {
+        console.error('[Signup] Apple error:', error);
+        Alert.alert('Apple Signup Error', error.message);
+        return;
+      }
+
+      console.log('[Signup] Apple signup initiated');
+    } catch (error: any) {
+      console.error('[Signup] Apple exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred with Apple signup');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <LinearGradient colors={[colors.background, '#0a0a0a']} style={styles.container}>
+    <LinearGradient colors={[colors.background, '#1a1a2e']} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <IconSymbol name="chevron.left" size={28} color={colors.text} />
-          </Pressable>
-        </View>
-
         <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to start connecting</Text>
+          <Text style={styles.logo}>nalia</Text>
+          <Text style={styles.subtitle}>Create your account</Text>
 
-          <View style={styles.socialButtons}>
-            <Pressable style={styles.socialButton} onPress={handleGoogleSignup}>
-              <View style={styles.socialButtonContent}>
-                <IconSymbol name="globe" size={24} color={colors.text} />
-                <Text style={styles.socialButtonText}>Continue with Google</Text>
-              </View>
-            </Pressable>
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={colors.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!loading}
+            />
 
-            <Pressable style={styles.socialButton} onPress={handleAppleSignup}>
-              <View style={styles.socialButtonContent}>
-                <IconSymbol name="apple.logo" size={24} color={colors.text} />
-                <Text style={styles.socialButtonText}>Continue with Apple</Text>
-              </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              editable={!loading}
+            />
+
+            <Pressable
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleEmailSignup}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Creating Account...' : 'Sign Up with Email'}
+              </Text>
             </Pressable>
           </View>
 
@@ -96,34 +167,33 @@ export default function SignupScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+          <Pressable
+            style={[styles.socialButton, loading && styles.buttonDisabled]}
+            onPress={handleGoogleSignup}
+            disabled={loading}
+          >
+            <IconSymbol name="logo.google" size={24} color={colors.text} />
+            <Text style={styles.socialButtonText}>Continue with Google</Text>
+          </Pressable>
 
-            <Pressable style={styles.button} onPress={handleEmailSignup}>
-              <LinearGradient
-                colors={[colors.primary, colors.secondary]}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.buttonText}>Sign Up</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
+          <Pressable
+            style={[styles.socialButton, loading && styles.buttonDisabled]}
+            onPress={handleAppleSignup}
+            disabled={loading}
+          >
+            <IconSymbol name="logo.apple" size={24} color={colors.text} />
+            <Text style={styles.socialButtonText}>Continue with Apple</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.loginLink}
+            onPress={() => router.back()}
+            disabled={loading}
+          >
+            <Text style={styles.loginLinkText}>
+              Already have an account? <Text style={styles.loginLinkBold}>Log In</Text>
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -137,88 +207,94 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
   content: {
     flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 20,
+    padding: 24,
+    justifyContent: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
+  logo: {
+    fontFamily: 'PlayfairDisplay-Italic',
+    fontSize: 64,
     color: colors.text,
+    textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: colors.textSecondary,
-    marginBottom: 40,
+    textAlign: 'center',
+    marginBottom: 48,
   },
-  socialButtons: {
-    gap: 12,
-    marginBottom: 32,
+  form: {
+    marginBottom: 24,
   },
-  socialButton: {
-    backgroundColor: colors.card,
+  input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.highlight,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  socialButtonContent: {
-    flexDirection: 'row',
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 12,
+    marginTop: 8,
   },
-  socialButtonText: {
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.highlight,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
     color: colors.textSecondary,
+    marginHorizontal: 16,
+    fontSize: 14,
   },
-  form: {
-    gap: 16,
-  },
-  input: {
-    backgroundColor: colors.card,
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.highlight,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  button: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 8,
+  socialButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
   },
-  buttonGradient: {
-    paddingVertical: 16,
+  loginLink: {
+    marginTop: 24,
     alignItems: 'center',
   },
-  buttonText: {
-    fontSize: 18,
+  loginLinkText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  loginLinkBold: {
+    color: colors.primary,
     fontWeight: '600',
-    color: colors.text,
   },
 });

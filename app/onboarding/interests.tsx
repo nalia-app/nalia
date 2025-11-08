@@ -1,37 +1,43 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
 import { useUser } from '@/contexts/UserContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
+import { supabase } from '@/app/integrations/supabase/client';
 
 const SUGGESTED_INTERESTS = [
   '☕ Coffee',
   '🏃 Running',
-  '🎵 Music',
-  '📚 Books',
-  '🍕 Food',
-  '🎮 Gaming',
-  '🏀 Basketball',
-  '🧘 Yoga',
   '🎨 Art',
-  '💼 Networking',
-  '🌿 Nature',
-  '🎬 Movies',
+  '🎵 Music',
+  '📚 Reading',
+  '🎮 Gaming',
+  '🍕 Food',
   '✈️ Travel',
-  '📷 Photography',
-  '🍷 Wine',
+  '💪 Fitness',
+  '🎬 Movies',
+  '📸 Photography',
+  '🧘 Yoga',
   '🎭 Theater',
+  '🏀 Sports',
+  '🌱 Nature',
+  '💻 Tech',
+  '🎤 Karaoke',
+  '🍷 Wine',
+  '🎲 Board Games',
+  '🐕 Pets',
 ];
 
 export default function InterestsScreen() {
   const router = useRouter();
-  const { updateProfile } = useUser();
+  const { session } = useUser();
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [customInterest, setCustomInterest] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
@@ -48,37 +54,58 @@ export default function InterestsScreen() {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedInterests.length < 3) {
-      Alert.alert('Select Interests', 'Please select at least 3 interests');
+      Alert.alert('Select Interests', 'Please select at least 3 interests to continue.');
       return;
     }
 
-    updateProfile({ interests: selectedInterests });
-    router.push('/onboarding/profile-setup' as any);
+    if (!session?.user) {
+      Alert.alert('Error', 'No user session found. Please sign up again.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('[Interests] Saving interests for user:', session.user.id);
+      
+      // Save interests to database
+      const interestsToInsert = selectedInterests.map(interest => ({
+        user_id: session.user.id,
+        interest,
+      }));
+
+      const { error } = await supabase
+        .from('interests')
+        .insert(interestsToInsert);
+
+      if (error) {
+        console.error('[Interests] Error saving interests:', error);
+        Alert.alert('Error', 'Failed to save interests. Please try again.');
+        return;
+      }
+
+      console.log('[Interests] Interests saved successfully');
+      router.push('/onboarding/profile-setup');
+    } catch (error: any) {
+      console.error('[Interests] Exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <LinearGradient colors={[colors.background, '#0a0a0a']} style={styles.container}>
+    <LinearGradient colors={[colors.background, '#1a1a2e']} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <IconSymbol name="chevron.left" size={28} color={colors.text} />
-          </Pressable>
+          <Text style={styles.title}>What are you into?</Text>
+          <Text style={styles.subtitle}>
+            Select at least 3 interests ({selectedInterests.length}/3)
+          </Text>
         </View>
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.title}>What are you interested in?</Text>
-          <Text style={styles.subtitle}>
-            Select at least 3 interests to personalize your experience
-          </Text>
-
-          <View style={styles.selectedCount}>
-            <Text style={styles.selectedCountText}>
-              {selectedInterests.length} selected {selectedInterests.length >= 3 ? '✓' : ''}
-            </Text>
-          </View>
-
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
           <View style={styles.interestsGrid}>
             {SUGGESTED_INTERESTS.map((interest) => (
               <Pressable
@@ -110,22 +137,24 @@ export default function InterestsScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={customInterest}
                 onChangeText={setCustomInterest}
+                onSubmitEditing={addCustomInterest}
+                returnKeyType="done"
               />
               <Pressable style={styles.addButton} onPress={addCustomInterest}>
-                <IconSymbol name="plus.circle.fill" size={32} color={colors.primary} />
+                <IconSymbol name="plus" size={24} color={colors.text} />
               </Pressable>
             </View>
           </View>
 
           {selectedInterests.length > 0 && (
             <View style={styles.selectedSection}>
-              <Text style={styles.selectedTitle}>Your Interests</Text>
-              <View style={styles.selectedList}>
+              <Text style={styles.selectedTitle}>Your interests:</Text>
+              <View style={styles.selectedGrid}>
                 {selectedInterests.map((interest) => (
                   <View key={interest} style={styles.selectedChip}>
-                    <Text style={styles.selectedChipText}>{interest}</Text>
+                    <Text style={styles.selectedText}>{interest}</Text>
                     <Pressable onPress={() => toggleInterest(interest)}>
-                      <IconSymbol name="xmark.circle.fill" size={20} color={colors.textSecondary} />
+                      <IconSymbol name="xmark" size={16} color={colors.text} />
                     </Pressable>
                   </View>
                 ))}
@@ -136,16 +165,16 @@ export default function InterestsScreen() {
 
         <View style={styles.footer}>
           <Pressable
-            style={[styles.button, selectedInterests.length < 3 && styles.buttonDisabled]}
+            style={[
+              styles.continueButton,
+              (selectedInterests.length < 3 || loading) && styles.continueButtonDisabled,
+            ]}
             onPress={handleContinue}
-            disabled={selectedInterests.length < 3}
+            disabled={selectedInterests.length < 3 || loading}
           >
-            <LinearGradient
-              colors={selectedInterests.length >= 3 ? [colors.primary, colors.secondary] : [colors.card, colors.card]}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.buttonText}>Continue</Text>
-            </LinearGradient>
+            <Text style={styles.continueButtonText}>
+              {loading ? 'Saving...' : 'Continue'}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -161,70 +190,53 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 32,
-    paddingTop: 20,
-    paddingBottom: 100,
+    padding: 24,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
-    marginBottom: 24,
-    lineHeight: 22,
   },
-  selectedCount: {
-    backgroundColor: colors.card,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-    marginBottom: 24,
+  scrollView: {
+    flex: 1,
   },
-  selectedCountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
+  content: {
+    padding: 24,
+    paddingTop: 0,
   },
   interestsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    marginBottom: 32,
   },
   interestChip: {
-    backgroundColor: colors.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.highlight,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   interestChipSelected: {
-    backgroundColor: 'rgba(187, 134, 252, 0.2)',
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   interestText: {
-    fontSize: 16,
-    color: colors.text,
+    color: colors.textSecondary,
+    fontSize: 14,
   },
   interestTextSelected: {
-    color: colors.primary,
+    color: colors.text,
     fontWeight: '600',
   },
   customSection: {
-    marginBottom: 32,
+    marginTop: 32,
   },
   customTitle: {
     fontSize: 18,
@@ -234,25 +246,28 @@ const styles = StyleSheet.create({
   },
   customInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
   customInput: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 12,
     fontSize: 16,
     color: colors.text,
     borderWidth: 1,
-    borderColor: colors.highlight,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   addButton: {
-    padding: 4,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectedSection: {
-    marginBottom: 32,
+    marginTop: 32,
   },
   selectedTitle: {
     fontSize: 18,
@@ -260,50 +275,41 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  selectedList: {
+  selectedGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
   selectedChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  selectedChipText: {
-    fontSize: 14,
+  selectedText: {
     color: colors.text,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 32,
-    paddingVertical: 20,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.highlight,
+    padding: 24,
+    paddingTop: 16,
   },
-  button: {
+  continueButton: {
+    backgroundColor: colors.primary,
     borderRadius: 12,
-    overflow: 'hidden',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonGradient: {
-    paddingVertical: 16,
+    padding: 16,
     alignItems: 'center',
   },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '600',
+  continueButtonDisabled: {
+    opacity: 0.5,
+  },
+  continueButtonText: {
     color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

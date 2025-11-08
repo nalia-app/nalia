@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import * as Location from "expo-location";
 import { useUser } from "@/contexts/UserContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
+import { supabase } from "@/app/integrations/supabase/client";
 
 const { width, height } = Dimensions.get("window");
 
@@ -39,78 +40,117 @@ interface EventBubble {
   tags: string[];
 }
 
-const MOCK_EVENTS: EventBubble[] = [
-  {
-    id: "1",
-    hostName: "Anna",
-    description: "grab a drink",
-    attendees: 5,
-    latitude: 37.7849,
-    longitude: -122.4094,
-    icon: "🍷",
-    isPublic: true,
-    tags: ["drinks", "social"],
-  },
-  {
-    id: "2",
-    hostName: "Tom",
-    description: "go running",
-    attendees: 3,
-    latitude: 37.7899,
-    longitude: -122.4064,
-    icon: "🏃",
-    isPublic: true,
-    tags: ["fitness", "running"],
-  },
-  {
-    id: "3",
-    hostName: "Sarah",
-    description: "grab coffee",
-    attendees: 8,
-    latitude: 37.7829,
-    longitude: -122.4124,
-    icon: "☕",
-    isPublic: false,
-    tags: ["coffee", "networking"],
-  },
-  {
-    id: "4",
-    hostName: "Mike",
-    description: "play basketball",
-    attendees: 12,
-    latitude: 37.7869,
-    longitude: -122.4074,
-    icon: "🏀",
-    isPublic: true,
-    tags: ["sports", "basketball"],
-  },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useUser();
   const [filter, setFilter] = useState<"all" | "interests">("all");
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 37.7849, lng: -122.4094 });
-  const webViewRef = React.useRef<WebView>(null);
+  const [events, setEvents] = useState<EventBubble[]>([]);
+  const [loading, setLoading] = useState(true);
+  const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
-    (async () => {
+    console.log('[HomeScreen] Initializing...');
+    loadLocation();
+    loadEvents();
+    
+    // Subscribe to real-time event changes
+    const eventsChannel = supabase
+      .channel('events-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events'
+        },
+        (payload) => {
+          console.log('[HomeScreen] Event change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[HomeScreen] Cleaning up subscriptions');
+      supabase.removeChannel(eventsChannel);
+    };
+  }, []);
+
+  const loadLocation = async () => {
+    try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        console.log("Location permission denied");
+        console.log("[HomeScreen] Location permission denied");
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
       setMapCenter({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-      console.log("Location obtained:", loc.coords);
-    })();
-  }, []);
+      console.log("[HomeScreen] Location obtained:", loc.coords);
+    } catch (error) {
+      console.error("[HomeScreen] Error getting location:", error);
+    }
+  };
+
+  const loadEvents = async () => {
+    try {
+      console.log('[HomeScreen] Loading events...');
+      
+      // Get today's date
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Fetch events from database
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .gte('event_date', today)
+        .order('event_date', { ascending: true })
+        .order('event_time', { ascending: true });
+
+      if (eventsError) {
+        console.error('[HomeScreen] Error loading events:', eventsError);
+        setLoading(false);
+        return;
+      }
+
+      console.log('[HomeScreen] Loaded events:', eventsData?.length || 0);
+
+      // Get attendee counts for each event
+      const eventsWithAttendees = await Promise.all(
+        (eventsData || []).map(async (event) => {
+          const { count } = await supabase
+            .from('event_attendees')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'approved');
+
+          return {
+            id: event.id,
+            hostName: event.host_name,
+            description: event.description,
+            attendees: (count || 0) + 1, // +1 for host
+            latitude: event.latitude,
+            longitude: event.longitude,
+            icon: event.icon,
+            isPublic: event.is_public || false,
+            tags: event.tags || [],
+          };
+        })
+      );
+
+      setEvents(eventsWithAttendees);
+      setLoading(false);
+    } catch (error) {
+      console.error('[HomeScreen] Error in loadEvents:', error);
+      setLoading(false);
+    }
+  };
 
   // Filter events based on user interests
   const filteredEvents = filter === "interests" && user?.interests
-    ? MOCK_EVENTS.filter(event =>
+    ? events.filter(event =>
         event.tags.some(tag =>
           user.interests.some(interest =>
             interest.toLowerCase().includes(tag.toLowerCase()) ||
@@ -118,7 +158,7 @@ export default function HomeScreen() {
           )
         )
       )
-    : MOCK_EVENTS;
+    : events;
 
   const centerMap = () => {
     if (location) {
@@ -429,13 +469,19 @@ export default function HomeScreen() {
           scrollEnabled={false}
         />
 
-        {filteredEvents.length === 0 && filter === "interests" && (
+        {filteredEvents.length === 0 && filter === "interests" && !loading && (
           <View style={styles.noEventsOverlay}>
             <View style={styles.noEventsContainer}>
               <Text style={styles.noEventsText}>
                 No events match your interests nearby
               </Text>
             </View>
+          </View>
+        )}
+
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <Text style={styles.loadingText}>Loading events...</Text>
           </View>
         )}
 
@@ -548,6 +594,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     textAlign: "center",
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
   },
   topBarSafeArea: {
     position: "absolute",

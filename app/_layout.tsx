@@ -16,6 +16,12 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { UserProvider } from "@/contexts/UserContext";
+import {
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_400Regular_Italic,
+  PlayfairDisplay_700Bold,
+  PlayfairDisplay_700Bold_Italic,
+} from "@expo-google-fonts/playfair-display";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,10 +37,10 @@ export default function RootLayout() {
     'SpaceMono-Bold': require("../assets/fonts/SpaceMono-Bold.ttf"),
     'SpaceMono-Italic': require("../assets/fonts/SpaceMono-Italic.ttf"),
     'SpaceMono-BoldItalic': require("../assets/fonts/SpaceMono-BoldItalic.ttf"),
-    'PlayfairDisplay-Regular': require("@expo-google-fonts/playfair-display/PlayfairDisplay_400Regular.ttf"),
-    'PlayfairDisplay-Italic': require("@expo-google-fonts/playfair-display/PlayfairDisplay_400Regular_Italic.ttf"),
-    'PlayfairDisplay-Bold': require("@expo-google-fonts/playfair-display/PlayfairDisplay_700Bold.ttf"),
-    'PlayfairDisplay-BoldItalic': require("@expo-google-fonts/playfair-display/PlayfairDisplay_700Bold_Italic.ttf"),
+    'PlayfairDisplay-Regular': PlayfairDisplay_400Regular,
+    'PlayfairDisplay-Italic': PlayfairDisplay_400Regular_Italic,
+    'PlayfairDisplay-Bold': PlayfairDisplay_700Bold,
+    'PlayfairDisplay-BoldItalic': PlayfairDisplay_700Bold_Italic,
   });
 
   useEffect(() => {

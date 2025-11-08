@@ -9,67 +9,50 @@ import React, { useState } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/app/integrations/supabase/client';
 
-export default function SignupScreen() {
+export default function LoginScreen() {
   const router = useRouter();
   const { setUser } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleEmailSignup = async () => {
+  const handleEmailLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-
     setLoading(true);
     try {
-      console.log('[Signup] Attempting email signup for:', email);
+      console.log('[Login] Attempting email login for:', email);
       
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          emailRedirectTo: 'https://natively.dev/email-confirmed'
-        }
       });
 
       if (error) {
-        console.error('[Signup] Error:', error);
-        Alert.alert('Signup Error', error.message);
+        console.error('[Login] Error:', error);
+        Alert.alert('Login Error', error.message);
         return;
       }
 
-      console.log('[Signup] Signup successful:', data.user?.id);
+      console.log('[Login] Login successful:', data.user?.id);
       
-      // Show email verification message
-      Alert.alert(
-        'Verify Your Email',
-        'Please check your email and click the verification link to complete your registration.',
-        [{ text: 'OK' }]
-      );
-
-      // If user is created, proceed to interests
-      if (data.user) {
-        router.replace('/onboarding/interests');
-      }
+      // Navigation will be handled by UserContext
+      // The app will automatically redirect to the home screen
     } catch (error: any) {
-      console.error('[Signup] Exception:', error);
-      Alert.alert('Error', error.message || 'An error occurred during signup');
+      console.error('[Login] Exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred during login');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignup = async () => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      console.log('[Signup] Attempting Google signup');
+      console.log('[Login] Attempting Google login');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -79,24 +62,24 @@ export default function SignupScreen() {
       });
 
       if (error) {
-        console.error('[Signup] Google error:', error);
-        Alert.alert('Google Signup Error', error.message);
+        console.error('[Login] Google error:', error);
+        Alert.alert('Google Login Error', error.message);
         return;
       }
 
-      console.log('[Signup] Google signup initiated');
+      console.log('[Login] Google login initiated');
     } catch (error: any) {
-      console.error('[Signup] Google exception:', error);
-      Alert.alert('Error', error.message || 'An error occurred with Google signup');
+      console.error('[Login] Google exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred with Google login');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAppleSignup = async () => {
+  const handleAppleLogin = async () => {
     setLoading(true);
     try {
-      console.log('[Signup] Attempting Apple signup');
+      console.log('[Login] Attempting Apple login');
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
@@ -106,15 +89,15 @@ export default function SignupScreen() {
       });
 
       if (error) {
-        console.error('[Signup] Apple error:', error);
-        Alert.alert('Apple Signup Error', error.message);
+        console.error('[Login] Apple error:', error);
+        Alert.alert('Apple Login Error', error.message);
         return;
       }
 
-      console.log('[Signup] Apple signup initiated');
+      console.log('[Login] Apple login initiated');
     } catch (error: any) {
-      console.error('[Signup] Apple exception:', error);
-      Alert.alert('Error', error.message || 'An error occurred with Apple signup');
+      console.error('[Login] Apple exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred with Apple login');
     } finally {
       setLoading(false);
     }
@@ -133,7 +116,7 @@ export default function SignupScreen() {
           </Pressable>
 
           <Text style={styles.logo}>nalia</Text>
-          <Text style={styles.subtitle}>Create your account</Text>
+          <Text style={styles.subtitle}>Welcome back</Text>
 
           <View style={styles.form}>
             <TextInput
@@ -160,11 +143,11 @@ export default function SignupScreen() {
 
             <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleEmailSignup}
+              onPress={handleEmailLogin}
               disabled={loading}
             >
               <Text style={styles.buttonText}>
-                {loading ? 'Creating Account...' : 'Sign Up with Email'}
+                {loading ? 'Logging In...' : 'Log In with Email'}
               </Text>
             </Pressable>
           </View>
@@ -177,7 +160,7 @@ export default function SignupScreen() {
 
           <Pressable
             style={[styles.socialButton, loading && styles.buttonDisabled]}
-            onPress={handleGoogleSignup}
+            onPress={handleGoogleLogin}
             disabled={loading}
           >
             <IconSymbol name="logo.google" size={24} color={colors.text} />
@@ -186,7 +169,7 @@ export default function SignupScreen() {
 
           <Pressable
             style={[styles.socialButton, loading && styles.buttonDisabled]}
-            onPress={handleAppleSignup}
+            onPress={handleAppleLogin}
             disabled={loading}
           >
             <IconSymbol name="logo.apple" size={24} color={colors.text} />
@@ -194,12 +177,12 @@ export default function SignupScreen() {
           </Pressable>
 
           <Pressable
-            style={styles.loginLink}
-            onPress={() => router.push('/onboarding/login' as any)}
+            style={styles.signupLink}
+            onPress={() => router.push('/onboarding/signup' as any)}
             disabled={loading}
           >
-            <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkBold}>Log In</Text>
+            <Text style={styles.signupLinkText}>
+              Don&apos;t have an account? <Text style={styles.signupLinkBold}>Sign Up</Text>
             </Text>
           </Pressable>
         </View>
@@ -303,15 +286,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 12,
   },
-  loginLink: {
+  signupLink: {
     marginTop: 24,
     alignItems: 'center',
   },
-  loginLinkText: {
+  signupLinkText: {
     color: colors.textSecondary,
     fontSize: 14,
   },
-  loginLinkBold: {
+  signupLinkBold: {
     color: colors.primary,
     fontWeight: '600',
   },

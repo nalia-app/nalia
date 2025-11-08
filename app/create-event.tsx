@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
+import { WebView } from "react-native-webview";
 
 const { width } = Dimensions.get("window");
 
@@ -32,18 +33,142 @@ export default function CreateEventScreen() {
   const router = useRouter();
   const [selectedIcon, setSelectedIcon] = useState("☕");
   const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
+  const [locationName, setLocationName] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Food & Drink');
-  const [mapLocation, setMapLocation] = useState<{ x: number; y: number } | null>(null);
+  const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const webViewRef = React.useRef<WebView>(null);
 
-  const handleMapPress = (event: any) => {
-    const { locationX, locationY } = event.nativeEvent;
-    setMapLocation({ x: locationX, y: locationY });
-    setLocation(`Location: ${Math.round(locationX)}, ${Math.round(locationY)}`);
-    Alert.alert('Location Selected', 'Tap on the map to select a different location');
+  const generateMapHTML = () => {
+    const markerLocation = mapLocation || { lat: 37.7849, lng: -122.4094 };
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+          }
+          #map {
+            height: 100%;
+            width: 100%;
+            cursor: crosshair;
+          }
+          .selected-marker {
+            background: linear-gradient(135deg, rgba(187, 134, 252, 1), rgba(3, 218, 198, 1));
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            animation: bounce 0.5s;
+          }
+          @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+          }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          let selectedMarker = null;
+          
+          const map = L.map('map', {
+            zoomControl: true,
+            attributionControl: false
+          }).setView([${markerLocation.lat}, ${markerLocation.lng}], 14);
+          
+          window.map = map;
+          
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            minZoom: 10
+          }).addTo(map);
+          
+          ${mapLocation ? `
+            const markerIcon = L.divIcon({
+              className: 'custom-marker',
+              html: '<div class="selected-marker"></div>',
+              iconSize: [30, 30],
+              iconAnchor: [15, 15]
+            });
+            
+            selectedMarker = L.marker([${mapLocation.lat}, ${mapLocation.lng}], { 
+              icon: markerIcon,
+              draggable: true
+            }).addTo(map);
+            
+            selectedMarker.on('dragend', (e) => {
+              const pos = e.target.getLatLng();
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'locationSelected',
+                lat: pos.lat,
+                lng: pos.lng
+              }));
+            });
+          ` : ''}
+          
+          map.on('click', (e) => {
+            if (selectedMarker) {
+              map.removeLayer(selectedMarker);
+            }
+            
+            const markerIcon = L.divIcon({
+              className: 'custom-marker',
+              html: '<div class="selected-marker"></div>',
+              iconSize: [30, 30],
+              iconAnchor: [15, 15]
+            });
+            
+            selectedMarker = L.marker([e.latlng.lat, e.latlng.lng], { 
+              icon: markerIcon,
+              draggable: true
+            }).addTo(map);
+            
+            selectedMarker.on('dragend', (e) => {
+              const pos = e.target.getLatLng();
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'locationSelected',
+                lat: pos.lat,
+                lng: pos.lng
+              }));
+            });
+            
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'locationSelected',
+              lat: e.latlng.lat,
+              lng: e.latlng.lng
+            }));
+          });
+        </script>
+      </body>
+      </html>
+    `;
+  };
+
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      
+      if (data.type === 'locationSelected') {
+        setMapLocation({ lat: data.lat, lng: data.lng });
+        setLocationName(`Location: ${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}`);
+        console.log('Location selected:', data.lat, data.lng);
+      }
+    } catch (error) {
+      console.log('Error parsing WebView message:', error);
+    }
   };
 
   const handleCreate = () => {
@@ -51,7 +176,7 @@ export default function CreateEventScreen() {
       Alert.alert("Error", "Please add a description");
       return;
     }
-    if (!location.trim()) {
+    if (!mapLocation) {
       Alert.alert("Error", "Please select a location on the map");
       return;
     }
@@ -59,7 +184,7 @@ export default function CreateEventScreen() {
     console.log("Creating event:", {
       icon: selectedIcon,
       description,
-      location,
+      location: mapLocation,
       hashtags,
       isPublic,
     });
@@ -155,27 +280,24 @@ export default function CreateEventScreen() {
           />
 
           <Text style={styles.sectionTitle}>Location</Text>
-          <Text style={styles.locationHint}>Tap on the map to select a location</Text>
-          <Pressable style={styles.mapContainer} onPress={handleMapPress}>
-            <LinearGradient
-              colors={["#1a1a2e", "#16213e", "#0f3460"]}
-              style={styles.mapGradient}
-            >
-              <Text style={styles.mapText}>📍 Tap to select location</Text>
-              {mapLocation && (
-                <View
-                  style={[
-                    styles.mapMarker,
-                    { left: mapLocation.x - 15, top: mapLocation.y - 30 },
-                  ]}
-                >
-                  <Text style={styles.mapMarkerText}>📍</Text>
-                </View>
-              )}
-            </LinearGradient>
-          </Pressable>
-          {location && (
-            <Text style={styles.locationText}>{location}</Text>
+          <Text style={styles.locationHint}>
+            Tap on the map to select a location (marker is draggable)
+          </Text>
+          <View style={styles.mapContainer}>
+            <WebView
+              ref={webViewRef}
+              source={{ html: generateMapHTML() }}
+              style={styles.webView}
+              onMessage={handleWebViewMessage}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              startInLoadingState={true}
+              scalesPageToFit={true}
+              scrollEnabled={false}
+            />
+          </View>
+          {locationName && (
+            <Text style={styles.locationText}>{locationName}</Text>
           )}
 
           <Text style={styles.sectionTitle}>Hashtags</Text>
@@ -372,33 +494,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   mapContainer: {
-    height: 200,
+    height: 250,
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.highlight,
   },
-  mapGradient: {
+  webView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  mapMarker: {
-    position: 'absolute',
-  },
-  mapMarkerText: {
-    fontSize: 30,
+    backgroundColor: '#0a0a0a',
   },
   locationText: {
     fontSize: 14,
     color: colors.primary,
     marginBottom: 20,
+    fontWeight: '600',
   },
   typeContainer: {
     flexDirection: "row",

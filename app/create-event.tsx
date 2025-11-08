@@ -89,32 +89,76 @@ export default function CreateEventScreen() {
             height: 100%;
             width: 100%;
             overflow: hidden;
+            background: #0a0a0a;
           }
           #map {
             height: 100%;
             width: 100%;
             cursor: crosshair;
+            background: #0a0a0a;
           }
+          
+          /* Custom styling for dark mode map elements */
+          .leaflet-container {
+            background: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          
+          .leaflet-popup-content-wrapper {
+            background: rgba(30, 30, 30, 0.98);
+            color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .leaflet-popup-tip {
+            background: rgba(30, 30, 30, 0.98);
+          }
+          
+          .leaflet-popup-content {
+            margin: 12px;
+            font-size: 14px;
+            color: #ffffff;
+          }
+          
           .selected-marker {
             background: linear-gradient(135deg, rgba(187, 134, 252, 1), rgba(3, 218, 198, 1));
-            border: 3px solid white;
+            border: 3px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
             width: 30px;
             height: 30px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            animation: bounce 0.5s;
+            box-shadow: 0 8px 24px rgba(187, 134, 252, 0.6),
+                        0 0 40px rgba(3, 218, 198, 0.4);
+            animation: bounce 0.5s ease-out;
           }
+          
           .user-marker {
-            background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.3));
-            border: 3px solid white;
+            background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.4));
+            border: 3px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
             width: 20px;
             height: 20px;
-            box-shadow: 0 0 20px rgba(3, 218, 198, 0.8);
+            box-shadow: 0 0 30px rgba(3, 218, 198, 1),
+                        0 0 60px rgba(3, 218, 198, 0.5);
+            animation: userPulse 2s infinite ease-in-out;
           }
+          
           @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
+          }
+          
+          @keyframes userPulse {
+            0%, 100% { 
+              box-shadow: 0 0 30px rgba(3, 218, 198, 1),
+                          0 0 60px rgba(3, 218, 198, 0.5);
+            }
+            50% { 
+              box-shadow: 0 0 40px rgba(3, 218, 198, 1),
+                          0 0 80px rgba(3, 218, 198, 0.7);
+            }
           }
         </style>
       </head>
@@ -131,9 +175,11 @@ export default function CreateEventScreen() {
           
           window.map = map;
           
-          // Add colorful tile layer (OpenStreetMap standard)
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
+          // Add CartoDB Dark Matter tile layer for beautiful dark mode
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20,
             minZoom: 10
           }).addTo(map);
           
@@ -147,7 +193,7 @@ export default function CreateEventScreen() {
           
           L.marker([${centerLocation.lat}, ${centerLocation.lng}], { icon: userIcon })
             .addTo(map)
-            .bindPopup('<b>Your Location</b>');
+            .bindPopup('<b style="color: #ffffff;">Your Location</b>');
           
           ${markerLocation ? `
             const markerIcon = L.divIcon({
@@ -564,7 +610,7 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#0a0a0a',
   },
   loadingContainer: {
     flex: 1,

@@ -154,7 +154,7 @@ export default function HomeScreen() {
     router.push("/(tabs)/profile" as any);
   };
 
-  // Generate HTML for the map
+  // Generate HTML for the map with beautiful dark mode styling
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents);
     const userLocationJSON = location ? JSON.stringify({
@@ -176,11 +176,39 @@ export default function HomeScreen() {
             height: 100%;
             width: 100%;
             overflow: hidden;
+            background: #0a0a0a;
           }
           #map {
             height: 100%;
             width: 100%;
+            background: #0a0a0a;
           }
+          
+          /* Custom styling for dark mode map elements */
+          .leaflet-container {
+            background: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          
+          .leaflet-popup-content-wrapper {
+            background: rgba(30, 30, 30, 0.98);
+            color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .leaflet-popup-tip {
+            background: rgba(30, 30, 30, 0.98);
+          }
+          
+          .leaflet-popup-content {
+            margin: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          
           .custom-marker {
             background: transparent;
             border: none;
@@ -189,28 +217,92 @@ export default function HomeScreen() {
             line-height: 1;
             cursor: pointer;
           }
+          
           .bubble-marker {
-            background: linear-gradient(135deg, rgba(187, 134, 252, 0.8), rgba(3, 218, 198, 0.8));
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: linear-gradient(135deg, rgba(187, 134, 252, 0.9), rgba(3, 218, 198, 0.9));
+            border: 2px solid rgba(255, 255, 255, 0.6);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 24px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            animation: pulse 2s infinite;
+            box-shadow: 0 8px 24px rgba(187, 134, 252, 0.4),
+                        0 0 40px rgba(3, 218, 198, 0.2);
+            animation: pulse 2s infinite ease-in-out;
+            transition: all 0.3s ease;
           }
+          
+          .bubble-marker:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(187, 134, 252, 0.6),
+                        0 0 60px rgba(3, 218, 198, 0.4);
+          }
+          
           @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.9; }
-            50% { transform: scale(1.05); opacity: 1; }
+            0%, 100% { 
+              transform: scale(1); 
+              opacity: 0.95;
+              box-shadow: 0 8px 24px rgba(187, 134, 252, 0.4),
+                          0 0 40px rgba(3, 218, 198, 0.2);
+            }
+            50% { 
+              transform: scale(1.05); 
+              opacity: 1;
+              box-shadow: 0 12px 32px rgba(187, 134, 252, 0.6),
+                          0 0 60px rgba(3, 218, 198, 0.4);
+            }
           }
+          
           .user-marker {
-            background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.3));
-            border: 3px solid white;
+            background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.4));
+            border: 3px solid rgba(255, 255, 255, 0.9);
             border-radius: 50%;
             width: 20px;
             height: 20px;
-            box-shadow: 0 0 20px rgba(3, 218, 198, 0.8);
+            box-shadow: 0 0 30px rgba(3, 218, 198, 1),
+                        0 0 60px rgba(3, 218, 198, 0.5);
+            animation: userPulse 2s infinite ease-in-out;
+          }
+          
+          @keyframes userPulse {
+            0%, 100% { 
+              box-shadow: 0 0 30px rgba(3, 218, 198, 1),
+                          0 0 60px rgba(3, 218, 198, 0.5);
+            }
+            50% { 
+              box-shadow: 0 0 40px rgba(3, 218, 198, 1),
+                          0 0 80px rgba(3, 218, 198, 0.7);
+            }
+          }
+          
+          /* Style the popup content */
+          .popup-host {
+            font-weight: 600;
+            font-size: 16px;
+            color: #ffffff;
+            margin-bottom: 8px;
+          }
+          
+          .popup-description {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+          }
+          
+          .popup-detail {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 4px;
+          }
+          
+          .popup-tag {
+            display: inline-block;
+            background: rgba(187, 134, 252, 0.3);
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin-right: 4px;
+            margin-top: 4px;
+            color: rgba(255, 255, 255, 0.9);
           }
         </style>
       </head>
@@ -229,9 +321,11 @@ export default function HomeScreen() {
           // Store map globally for external access
           window.map = map;
           
-          // Add colorful tile layer (OpenStreetMap standard)
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
+          // Add CartoDB Dark Matter tile layer for beautiful dark mode
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20,
             minZoom: 10
           }).addTo(map);
           
@@ -246,10 +340,10 @@ export default function HomeScreen() {
             
             L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
               .addTo(map)
-              .bindPopup('<b>Your Location</b>');
+              .bindPopup('<div class="popup-host">Your Location</div>');
           }
           
-          // Add event markers
+          // Add event markers with enhanced styling
           events.forEach(event => {
             const size = 40 + event.attendees * 3;
             const eventIcon = L.divIcon({
@@ -269,15 +363,21 @@ export default function HomeScreen() {
               }));
             });
             
+            const tags = event.tags.map(tag => '<span class="popup-tag">#' + tag + '</span>').join('');
+            
             const popupContent = 
-              '<div style="color: #000; font-family: sans-serif;">' +
-              '<b>' + event.hostName + ' wanna...</b><br/>' +
-              event.description + '<br/>' +
-              '<small>Attendees: ' + event.attendees + '</small><br/>' +
-              '<small>Type: ' + (event.isPublic ? 'Public' : 'Private') + '</small>' +
+              '<div>' +
+              '<div class="popup-host">' + event.hostName + ' wanna...</div>' +
+              '<div class="popup-description">' + event.description + '</div>' +
+              '<div class="popup-detail">👥 ' + event.attendees + ' attending</div>' +
+              '<div class="popup-detail">🔒 ' + (event.isPublic ? 'Public' : 'Private') + '</div>' +
+              '<div style="margin-top: 8px;">' + tags + '</div>' +
               '</div>';
             
-            marker.bindPopup(popupContent);
+            marker.bindPopup(popupContent, {
+              maxWidth: 250,
+              className: 'custom-popup'
+            });
           });
           
           // Handle map clicks
@@ -429,7 +529,7 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#0a0a0a',
   },
   noEventsOverlay: {
     ...StyleSheet.absoluteFillObject,

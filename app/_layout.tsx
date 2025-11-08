@@ -16,13 +16,6 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { UserProvider } from "@/contexts/UserContext";
-import {
-  useFonts as usePlayfairFonts,
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_700Bold_Italic,
-} from '@expo-google-fonts/playfair-display';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,33 +27,30 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   
   const [loaded, error] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  const [playfairLoaded, playfairError] = usePlayfairFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_400Regular_Italic,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_700Bold_Italic,
+    'SpaceMono-Regular': require("../assets/fonts/SpaceMono-Regular.ttf"),
+    'SpaceMono-Bold': require("../assets/fonts/SpaceMono-Bold.ttf"),
+    'SpaceMono-Italic': require("../assets/fonts/SpaceMono-Italic.ttf"),
+    'SpaceMono-BoldItalic': require("../assets/fonts/SpaceMono-BoldItalic.ttf"),
+    'PlayfairDisplay-Regular': require("@expo-google-fonts/playfair-display/PlayfairDisplay_400Regular.ttf"),
+    'PlayfairDisplay-Italic': require("@expo-google-fonts/playfair-display/PlayfairDisplay_400Regular_Italic.ttf"),
+    'PlayfairDisplay-Bold': require("@expo-google-fonts/playfair-display/PlayfairDisplay_700Bold.ttf"),
+    'PlayfairDisplay-BoldItalic': require("@expo-google-fonts/playfair-display/PlayfairDisplay_700Bold_Italic.ttf"),
   });
 
   useEffect(() => {
     if (error) {
       console.error('Font loading error:', error);
     }
-    if (playfairError) {
-      console.error('Playfair font loading error:', playfairError);
-    }
-  }, [error, playfairError]);
+  }, [error]);
 
   useEffect(() => {
-    if (loaded && playfairLoaded) {
+    if (loaded) {
       console.log('All fonts loaded successfully');
       SplashScreen.hideAsync();
     }
-  }, [loaded, playfairLoaded]);
+  }, [loaded]);
 
-  if (!loaded || !playfairLoaded) {
+  if (!loaded) {
     return null;
   }
 

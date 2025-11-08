@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     fontSize: 26,
-    fontFamily: "PlayfairDisplay_400Regular_Italic",
+    fontFamily: "PlayfairDisplay-Italic",
     color: "#FFFFFF",
     letterSpacing: 1,
   },

@@ -98,7 +98,7 @@ export default function CreateEventScreen() {
             background: #0a0a0a;
           }
           
-          /* Custom styling for dark mode map elements */
+          /* Custom styling for map elements */
           .leaflet-container {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -175,10 +175,9 @@ export default function CreateEventScreen() {
           
           window.map = map;
           
-          // Add CartoDB Dark Matter tile layer for beautiful dark mode
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
+          // Add colorful OpenStreetMap tile layer
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 20,
             minZoom: 10
           }).addTo(map);

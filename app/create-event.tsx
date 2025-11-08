@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { WebView } from "react-native-webview";
+import * as Location from "expo-location";
 
 const { width } = Dimensions.get("window");
 
@@ -39,10 +40,40 @@ export default function CreateEventScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Food & Drink');
   const [mapLocation, setMapLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const webViewRef = React.useRef<WebView>(null);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          console.log("Location permission denied");
+          // Use default location if permission denied
+          setUserLocation({ lat: 37.7849, lng: -122.4094 });
+          setIsLoadingLocation(false);
+          return;
+        }
+        
+        const loc = await Location.getCurrentPositionAsync({});
+        const newLocation = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        setUserLocation(newLocation);
+        console.log("User location obtained:", newLocation);
+        setIsLoadingLocation(false);
+      } catch (error) {
+        console.log("Error getting location:", error);
+        // Use default location if error occurs
+        setUserLocation({ lat: 37.7849, lng: -122.4094 });
+        setIsLoadingLocation(false);
+      }
+    })();
+  }, []);
+
   const generateMapHTML = () => {
-    const markerLocation = mapLocation || { lat: 37.7849, lng: -122.4094 };
+    // Use user location as default center, or fallback to San Francisco
+    const centerLocation = userLocation || { lat: 37.7849, lng: -122.4094 };
+    const markerLocation = mapLocation || null;
     
     return `
       <!DOCTYPE html>
@@ -73,6 +104,14 @@ export default function CreateEventScreen() {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             animation: bounce 0.5s;
           }
+          .user-marker {
+            background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.3));
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            box-shadow: 0 0 20px rgba(3, 218, 198, 0.8);
+          }
           @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
@@ -84,11 +123,11 @@ export default function CreateEventScreen() {
         <script>
           let selectedMarker = null;
           
-          // Initialize map without zoom controls
+          // Initialize map centered on user location without zoom controls
           const map = L.map('map', {
             zoomControl: false,
             attributionControl: false
-          }).setView([${markerLocation.lat}, ${markerLocation.lng}], 14);
+          }).setView([${centerLocation.lat}, ${centerLocation.lng}], 15);
           
           window.map = map;
           
@@ -98,7 +137,19 @@ export default function CreateEventScreen() {
             minZoom: 10
           }).addTo(map);
           
-          ${mapLocation ? `
+          // Add user location marker
+          const userIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div class="user-marker"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          });
+          
+          L.marker([${centerLocation.lat}, ${centerLocation.lng}], { icon: userIcon })
+            .addTo(map)
+            .bindPopup('<b>Your Location</b>');
+          
+          ${markerLocation ? `
             const markerIcon = L.divIcon({
               className: 'custom-marker',
               html: '<div class="selected-marker"></div>',
@@ -106,7 +157,7 @@ export default function CreateEventScreen() {
               iconAnchor: [15, 15]
             });
             
-            selectedMarker = L.marker([${mapLocation.lat}, ${mapLocation.lng}], { 
+            selectedMarker = L.marker([${markerLocation.lat}, ${markerLocation.lng}], { 
               icon: markerIcon,
               draggable: true
             }).addTo(map);
@@ -283,20 +334,28 @@ export default function CreateEventScreen() {
 
           <Text style={styles.sectionTitle}>Location</Text>
           <Text style={styles.locationHint}>
-            Tap on the map to select a location (marker is draggable)
+            {isLoadingLocation 
+              ? "Loading your location..." 
+              : "Tap on the map to select a location (marker is draggable)"}
           </Text>
           <View style={styles.mapContainer}>
-            <WebView
-              ref={webViewRef}
-              source={{ html: generateMapHTML() }}
-              style={styles.webView}
-              onMessage={handleWebViewMessage}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              startInLoadingState={true}
-              scalesPageToFit={true}
-              scrollEnabled={false}
-            />
+            {!isLoadingLocation ? (
+              <WebView
+                ref={webViewRef}
+                source={{ html: generateMapHTML() }}
+                style={styles.webView}
+                onMessage={handleWebViewMessage}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                startInLoadingState={true}
+                scalesPageToFit={true}
+                scrollEnabled={false}
+              />
+            ) : (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading map...</Text>
+              </View>
+            )}
           </View>
           {locationName && (
             <Text style={styles.locationText}>{locationName}</Text>
@@ -506,6 +565,16 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: '#f0f0f0',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   locationText: {
     fontSize: 14,

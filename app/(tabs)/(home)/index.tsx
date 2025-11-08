@@ -154,7 +154,7 @@ export default function HomeScreen() {
     router.push("/(tabs)/profile" as any);
   };
 
-  // Generate HTML for the map with colorful OpenStreetMap tiles
+  // Generate HTML for the map with MapTiler Streets
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents);
     const userLocationJSON = location ? JSON.stringify({
@@ -321,9 +321,9 @@ export default function HomeScreen() {
           // Store map globally for external access
           window.map = map;
           
-          // Add colorful OpenStreetMap tile layer
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          // Add MapTiler Streets tile layer
+          L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=DRK7TsTMDfLaHMdlzmoz', {
+            attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 20,
             minZoom: 10
           }).addTo(map);

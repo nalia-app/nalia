@@ -220,17 +220,17 @@ export default function HomeScreen() {
           const events = ${eventsJSON};
           const userLocation = ${userLocationJSON};
           
-          // Initialize map
+          // Initialize map without zoom controls
           const map = L.map('map', {
-            zoomControl: true,
+            zoomControl: false,
             attributionControl: false
           }).setView([${mapCenter.lat}, ${mapCenter.lng}], 14);
           
           // Store map globally for external access
           window.map = map;
           
-          // Add dark tile layer
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          // Add colorful tile layer (OpenStreetMap standard)
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             minZoom: 10
           }).addTo(map);
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#f0f0f0',
   },
   noEventsOverlay: {
     ...StyleSheet.absoluteFillObject,

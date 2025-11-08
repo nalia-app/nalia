@@ -362,10 +362,9 @@ const styles = StyleSheet.create({
   },
   logo: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontFamily: "PlayfairDisplay_400Regular_Italic",
     color: "#FFFFFF",
     letterSpacing: 1,
-    fontStyle: "italic",
   },
   topBarRight: {
     flexDirection: "row",

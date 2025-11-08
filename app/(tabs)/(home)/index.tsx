@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Location from "expo-location";
 import { useUser } from "@/contexts/UserContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
@@ -176,22 +177,24 @@ export default function HomeScreen() {
         </LinearGradient>
       </View>
 
-      {/* Top Bar - Compact Single Row */}
-      <View style={styles.topBar}>
-        <View style={styles.topBarContent}>
-          <Text style={styles.logo}>nalia</Text>
-          <View style={styles.topBarRight}>
-            <Pressable style={styles.iconButton} onPress={handleNotifications}>
-              <IconSymbol name="bell.fill" size={20} color={colors.text} />
-            </Pressable>
-            <Pressable style={styles.avatarButton} onPress={handleProfile}>
-              <View style={styles.avatar}>
-                <IconSymbol name="person.fill" size={16} color={colors.text} />
-              </View>
-            </Pressable>
+      {/* Top Bar - Compact Single Row with SafeAreaView */}
+      <SafeAreaView edges={['top']} style={styles.topBarSafeArea}>
+        <View style={styles.topBar}>
+          <View style={styles.topBarContent}>
+            <Text style={styles.logo}>nalia</Text>
+            <View style={styles.topBarRight}>
+              <Pressable style={styles.iconButton} onPress={handleNotifications}>
+                <IconSymbol name="bell.fill" size={20} color={colors.text} />
+              </Pressable>
+              <Pressable style={styles.avatarButton} onPress={handleProfile}>
+                <View style={styles.avatar}>
+                  <IconSymbol name="person.fill" size={16} color={colors.text} />
+                </View>
+              </Pressable>
+            </View>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
 
       {/* Floating Filter Toggle */}
       <View style={styles.floatingFilterContainer}>
@@ -342,17 +345,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
   },
-  topBar: {
+  topBarSafeArea: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: 44,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
     backgroundColor: "rgba(18, 18, 18, 0.95)",
     borderBottomWidth: 1,
     borderBottomColor: colors.highlight,
+  },
+  topBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   topBarContent: {
     flexDirection: "row",

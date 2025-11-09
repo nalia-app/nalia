@@ -14,7 +14,7 @@ import {
   Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -36,6 +36,7 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useUser();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,7 +266,7 @@ export default function ChatScreen() {
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -326,7 +327,7 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <SafeAreaView style={styles.inputWrapper} edges={["bottom"]}>
+          <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -355,7 +356,7 @@ export default function ChatScreen() {
                 />
               </Pressable>
             </View>
-          </SafeAreaView>
+          </View>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
@@ -485,13 +486,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.highlight,
+    paddingTop: 16,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 0,
   },
   input: {
     flex: 1,

@@ -18,7 +18,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
@@ -31,6 +31,7 @@ interface Message {
 
 export default function DirectMessageScreen() {
   const { user } = useUser();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -229,11 +230,11 @@ export default function DirectMessageScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={[colors.background, "#0a0a0a"]}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <LinearGradient
+        colors={[colors.background, "#0a0a0a"]}
+        style={styles.gradient}
+      >
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={handleBack}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
@@ -245,8 +246,8 @@ export default function DirectMessageScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -256,6 +257,7 @@ export default function DirectMessageScreen() {
             onContentSizeChange={() =>
               scrollViewRef.current?.scrollToEnd({ animated: true })
             }
+            keyboardShouldPersistTaps="handled"
           >
             {messages.map((message) => (
               <View
@@ -296,50 +298,54 @@ export default function DirectMessageScreen() {
             )}
           </ScrollView>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textSecondary}
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              maxLength={500}
-              blurOnSubmit={false}
-            />
-            <Pressable
-              style={[
-                styles.sendButton,
-                (!newMessage.trim() || sending) && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSend}
-              disabled={!newMessage.trim() || sending}
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <IconSymbol
-                  name="arrow.up"
-                  size={24}
-                  color={
-                    newMessage.trim() ? colors.text : colors.textSecondary
-                  }
-                />
-              )}
-            </Pressable>
+          <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="Type a message..."
+                placeholderTextColor={colors.textSecondary}
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                maxLength={500}
+                blurOnSubmit={false}
+                editable={!sending}
+              />
+              <Pressable
+                style={[
+                  styles.sendButton,
+                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSend}
+                disabled={!newMessage.trim() || sending}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color={colors.text} />
+                ) : (
+                  <IconSymbol
+                    name="arrow.up"
+                    size={24}
+                    color={
+                      newMessage.trim() ? colors.text : colors.textSecondary
+                    }
+                  />
+                )}
+              </Pressable>
+            </View>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </LinearGradient>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
-  safeArea: {
+  gradient: {
     flex: 1,
   },
   loadingContainer: {
@@ -429,27 +435,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
+  inputWrapper: {
+    borderTopWidth: 1,
+    borderTopColor: colors.highlight,
+    backgroundColor: colors.card,
+    paddingTop: 16,
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.highlight,
-    backgroundColor: colors.background,
+    paddingBottom: 0,
     gap: 12,
   },
   input: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.highlight,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 16,
     color: colors.text,
     maxHeight: 100,
-    borderWidth: 1,
-    borderColor: colors.highlight,
   },
   sendButton: {
     width: 40,

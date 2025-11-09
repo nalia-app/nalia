@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
   },
   floatingFilterContainer: {
     position: "absolute",
-    top: 100,
+    top: 120,
     left: 20,
     right: 20,
     flexDirection: "row",

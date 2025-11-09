@@ -11,10 +11,9 @@ import {
   Platform,
   ActivityIndicator,
   Image,
-  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -36,33 +35,15 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useUser();
-  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [eventName, setEventName] = useState("Event Chat");
   const [participantCount, setParticipantCount] = useState(0);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const inputRef = useRef<TextInput>(null);
-
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-
-    return () => {
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (user && id) {
@@ -282,8 +263,8 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -344,12 +325,7 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <View 
-            style={[
-              styles.inputWrapper,
-              !keyboardVisible && { paddingBottom: insets.bottom }
-            ]}
-          >
+          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -378,7 +354,7 @@ export default function ChatScreen() {
                 />
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>

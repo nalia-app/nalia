@@ -17,9 +17,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Keyboard,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
@@ -32,34 +31,16 @@ interface Message {
 
 export default function DirectMessageScreen() {
   const { user } = useUser();
-  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [otherUserName, setOtherUserName] = useState("");
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const inputRef = useRef<TextInput>(null);
-
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-
-    return () => {
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (otherUserId && user) {
@@ -264,8 +245,8 @@ export default function DirectMessageScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -316,12 +297,7 @@ export default function DirectMessageScreen() {
             )}
           </ScrollView>
 
-          <View 
-            style={[
-              styles.inputWrapper,
-              !keyboardVisible && { paddingBottom: insets.bottom }
-            ]}
-          >
+          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -356,7 +332,7 @@ export default function DirectMessageScreen() {
                 )}
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>

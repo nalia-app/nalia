@@ -98,22 +98,27 @@ export default function CreateEventScreen() {
             width: 100%;
             overflow: hidden;
             background: #0a0a0a;
-            touch-action: pan-x pan-y;
           }
           #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             height: 100%;
             width: 100%;
             background: #0a0a0a;
-            touch-action: pan-x pan-y;
           }
           .leaflet-container {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 16px;
-            touch-action: pan-x pan-y;
           }
           .leaflet-marker-icon {
-            touch-action: none;
+            cursor: grab !important;
+          }
+          .leaflet-marker-icon:active {
+            cursor: grabbing !important;
           }
           .custom-marker {
             background: linear-gradient(135deg, rgba(255, 64, 129, 0.9), rgba(187, 134, 252, 0.9));
@@ -127,8 +132,12 @@ export default function CreateEventScreen() {
             font-size: 24px;
             box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
             animation: pulse 2s infinite ease-in-out;
-            cursor: pointer;
-            touch-action: none;
+            cursor: grab;
+          }
+          .custom-marker:active {
+            cursor: grabbing;
+            animation: none;
+            transform: scale(1.1);
           }
           @keyframes pulse {
             0%, 100% { 
@@ -136,7 +145,7 @@ export default function CreateEventScreen() {
               box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
             }
             50% { 
-              transform: scale(1.1); 
+              transform: scale(1.05); 
               box-shadow: 0 12px 32px rgba(255, 64, 129, 0.7);
             }
           }
@@ -154,14 +163,15 @@ export default function CreateEventScreen() {
             minZoom: 3,
             maxZoom: 20,
             tap: true,
-            tapTolerance: 15,
+            tapTolerance: 20,
             touchZoom: true,
             dragging: true,
             scrollWheelZoom: true,
-            doubleClickZoom: true
-          }).setView([${lat}, ${lng}], 15);
+            doubleClickZoom: true,
+            boxZoom: false
+          });
           
-          console.log('[CreateEvent Map] Map initialized at:', ${lat}, ${lng});
+          console.log('[CreateEvent Map] Map object created');
           
           // Add MapTiler Streets tile layer
           L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
@@ -174,67 +184,96 @@ export default function CreateEventScreen() {
           
           console.log('[CreateEvent Map] Tile layer added');
           
-          // Add draggable marker
-          let marker = L.marker([${lat}, ${lng}], {
-            icon: L.divIcon({
-              className: 'custom-marker',
-              html: '${selectedIcon}',
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
-            }),
-            draggable: true,
-            autoPan: true,
-            autoPanPadding: [50, 50],
-            autoPanSpeed: 10
-          }).addTo(map);
-          
-          console.log('[CreateEvent Map] Marker added');
-          
-          // Track if marker is being dragged
+          // Create marker variable
+          let marker = null;
           let isDraggingMarker = false;
           
-          // Handle marker drag events
-          marker.on('dragstart', (e) => {
-            isDraggingMarker = true;
-            console.log('[CreateEvent Map] Marker drag started');
-          });
-          
-          marker.on('drag', (e) => {
-            const position = e.target.getLatLng();
-            console.log('[CreateEvent Map] Marker dragging:', position.lat, position.lng);
-          });
-          
-          marker.on('dragend', (e) => {
-            const position = e.target.getLatLng();
-            console.log('[CreateEvent Map] Marker drag ended at:', position.lat, position.lng);
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'locationSelected',
-              lat: position.lat,
-              lng: position.lng
-            }));
-            // Reset drag flag after a short delay
+          // Wait for map to be ready before setting view and adding marker
+          map.whenReady(() => {
+            console.log('[CreateEvent Map] Map is ready');
+            
+            // Set the view to center on the location
+            map.setView([${lat}, ${lng}], 15);
+            console.log('[CreateEvent Map] View set to:', ${lat}, ${lng});
+            
+            // Force map to recalculate size
             setTimeout(() => {
-              isDraggingMarker = false;
-            }, 100);
+              map.invalidateSize();
+              console.log('[CreateEvent Map] Map size invalidated');
+              
+              // Now add the marker at the center
+              marker = L.marker([${lat}, ${lng}], {
+                icon: L.divIcon({
+                  className: 'custom-marker',
+                  html: '${selectedIcon}',
+                  iconSize: [40, 40],
+                  iconAnchor: [20, 20]
+                }),
+                draggable: true,
+                autoPan: true,
+                autoPanPadding: [50, 50],
+                autoPanSpeed: 10
+              }).addTo(map);
+              
+              console.log('[CreateEvent Map] Marker added at center:', ${lat}, ${lng});
+              
+              // Handle marker drag events
+              marker.on('dragstart', (e) => {
+                isDraggingMarker = true;
+                console.log('[CreateEvent Map] Marker drag started');
+                // Disable map dragging while dragging marker
+                map.dragging.disable();
+              });
+              
+              marker.on('drag', (e) => {
+                const position = e.target.getLatLng();
+                console.log('[CreateEvent Map] Marker dragging:', position.lat, position.lng);
+              });
+              
+              marker.on('dragend', (e) => {
+                const position = e.target.getLatLng();
+                console.log('[CreateEvent Map] Marker drag ended at:', position.lat, position.lng);
+                
+                // Send location update
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'locationSelected',
+                  lat: position.lat,
+                  lng: position.lng
+                }));
+                
+                // Re-enable map dragging after a short delay
+                setTimeout(() => {
+                  isDraggingMarker = false;
+                  map.dragging.enable();
+                  console.log('[CreateEvent Map] Map dragging re-enabled');
+                }, 200);
+              });
+              
+              // Handle map clicks to move marker (only if not dragging)
+              map.on('click', (e) => {
+                if (isDraggingMarker) {
+                  console.log('[CreateEvent Map] Ignoring click - marker is being dragged');
+                  return;
+                }
+                console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng);
+                
+                if (marker) {
+                  marker.setLatLng(e.latlng);
+                  map.panTo(e.latlng, { animate: true, duration: 0.5 });
+                  
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'locationSelected',
+                    lat: e.latlng.lat,
+                    lng: e.latlng.lng
+                  }));
+                }
+              });
+              
+              console.log('[CreateEvent Map] All event handlers attached');
+            }, 300);
           });
           
-          // Handle map clicks to move marker (only if not dragging)
-          map.on('click', (e) => {
-            if (isDraggingMarker) {
-              console.log('[CreateEvent Map] Ignoring click - marker is being dragged');
-              return;
-            }
-            console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng);
-            marker.setLatLng(e.latlng);
-            map.panTo(e.latlng);
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'locationSelected',
-              lat: e.latlng.lat,
-              lng: e.latlng.lng
-            }));
-          });
-          
-          // Prevent map drag from interfering with marker placement
+          // Log map events for debugging
           map.on('dragstart', () => {
             console.log('[CreateEvent Map] Map drag started');
           });
@@ -243,17 +282,15 @@ export default function CreateEventScreen() {
             console.log('[CreateEvent Map] Map drag ended');
           });
           
-          // Log when map is ready
-          map.whenReady(() => {
-            console.log('[CreateEvent Map] Map is ready and interactive');
-            // Force a resize to ensure proper rendering
-            setTimeout(() => {
-              map.invalidateSize();
-              console.log('[CreateEvent Map] Map size invalidated');
-            }, 100);
+          map.on('zoomstart', () => {
+            console.log('[CreateEvent Map] Zoom started');
           });
           
-          console.log('[CreateEvent Map] All event handlers attached');
+          map.on('zoomend', () => {
+            console.log('[CreateEvent Map] Zoom ended, level:', map.getZoom());
+          });
+          
+          console.log('[CreateEvent Map] Initialization complete');
         </script>
       </body>
       </html>

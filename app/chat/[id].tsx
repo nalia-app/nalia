@@ -237,7 +237,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <LinearGradient
         colors={[colors.background, "#0a0a0a"]}
         style={styles.gradient}
@@ -326,7 +326,7 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <View style={styles.inputWrapper}>
+          <SafeAreaView style={styles.inputWrapper} edges={["bottom"]}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -355,7 +355,7 @@ export default function ChatScreen() {
                 />
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
@@ -485,14 +485,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.highlight,
-    paddingBottom: Platform.OS === "ios" ? 0 : 8,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   input: {
     flex: 1,

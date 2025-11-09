@@ -300,7 +300,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Generate HTML for the map with translucent bubble styling
+  // Generate HTML for the map with cyan-to-purple glowing gradient bubbles
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
       ...event,
@@ -359,7 +359,7 @@ export default function HomeScreen() {
             cursor: pointer;
           }
           
-          /* Translucent bubble container */
+          /* Translucent bubble container with cyan-to-purple gradient */
           .bubble-marker {
             position: relative;
             display: flex;
@@ -368,10 +368,9 @@ export default function HomeScreen() {
             border-radius: 50%;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: bubbleFloat 4s ease-in-out infinite;
           }
           
-          /* Main bubble body - translucent with purple gradient */
+          /* Main bubble body - translucent cyan-to-purple gradient */
           .bubble-body {
             position: absolute;
             width: 100%;
@@ -379,21 +378,24 @@ export default function HomeScreen() {
             border-radius: 50%;
             background: radial-gradient(
               circle at 35% 35%,
-              rgba(147, 51, 234, 0.25) 0%,
-              rgba(126, 34, 206, 0.2) 30%,
-              rgba(88, 28, 135, 0.15) 60%,
-              rgba(59, 7, 100, 0.1) 100%
+              rgba(6, 182, 212, 0.3) 0%,
+              rgba(59, 130, 246, 0.25) 25%,
+              rgba(139, 92, 246, 0.22) 50%,
+              rgba(168, 85, 247, 0.2) 75%,
+              rgba(147, 51, 234, 0.18) 100%
             );
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1.5px solid rgba(167, 139, 250, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid rgba(6, 182, 212, 0.4);
             box-shadow: 
-              inset 0 0 30px rgba(147, 51, 234, 0.15),
-              inset -10px -10px 40px rgba(126, 34, 206, 0.1),
-              0 8px 32px rgba(147, 51, 234, 0.2);
+              inset 0 0 40px rgba(6, 182, 212, 0.2),
+              inset -15px -15px 50px rgba(147, 51, 234, 0.15),
+              0 10px 40px rgba(6, 182, 212, 0.3),
+              0 0 60px rgba(139, 92, 246, 0.2);
+            animation: bubblePulse 3s ease-in-out infinite;
           }
           
-          /* Shimmer highlight effect */
+          /* Shimmer highlight effect - cyan tint */
           .bubble-shimmer {
             position: absolute;
             top: 15%;
@@ -403,15 +405,15 @@ export default function HomeScreen() {
             border-radius: 50%;
             background: radial-gradient(
               circle at center,
-              rgba(255, 255, 255, 0.4) 0%,
-              rgba(255, 255, 255, 0.2) 30%,
+              rgba(165, 243, 252, 0.5) 0%,
+              rgba(103, 232, 249, 0.3) 30%,
               transparent 70%
             );
-            filter: blur(10px);
+            filter: blur(12px);
             animation: shimmerPulse 3s ease-in-out infinite;
           }
           
-          /* Secondary shimmer for soap bubble effect */
+          /* Secondary shimmer - purple tint */
           .bubble-shimmer-secondary {
             position: absolute;
             bottom: 20%;
@@ -421,81 +423,95 @@ export default function HomeScreen() {
             border-radius: 50%;
             background: radial-gradient(
               circle at center,
-              rgba(167, 139, 250, 0.3) 0%,
-              rgba(139, 92, 246, 0.15) 40%,
+              rgba(196, 181, 253, 0.4) 0%,
+              rgba(167, 139, 250, 0.25) 40%,
               transparent 70%
             );
-            filter: blur(8px);
+            filter: blur(10px);
             animation: shimmerPulse 3s ease-in-out infinite 1.5s;
           }
           
-          /* Outer glow aura */
+          /* Outer glow aura - cyan-to-purple gradient */
           .bubble-glow {
             position: absolute;
-            width: 130%;
-            height: 130%;
+            width: 140%;
+            height: 140%;
             border-radius: 50%;
             background: radial-gradient(
               circle at center,
-              rgba(147, 51, 234, 0.2) 0%,
-              rgba(126, 34, 206, 0.1) 40%,
-              transparent 70%
+              rgba(6, 182, 212, 0.3) 0%,
+              rgba(59, 130, 246, 0.2) 30%,
+              rgba(139, 92, 246, 0.15) 50%,
+              rgba(147, 51, 234, 0.1) 70%,
+              transparent 100%
             );
-            filter: blur(20px);
-            animation: glowPulse 4s ease-in-out infinite;
+            filter: blur(25px);
+            animation: glowPulse 3s ease-in-out infinite;
           }
           
           /* Icon container */
           .bubble-icon {
             position: relative;
             z-index: 10;
-            filter: drop-shadow(0 2px 8px rgba(147, 51, 234, 0.6));
+            filter: drop-shadow(0 3px 10px rgba(6, 182, 212, 0.7))
+                    drop-shadow(0 0 20px rgba(139, 92, 246, 0.5));
             animation: iconFloat 3s ease-in-out infinite;
           }
           
           /* Hover effects */
           .bubble-marker:hover {
-            transform: scale(1.1);
-            animation-play-state: paused;
+            transform: scale(1.12);
           }
           
           .bubble-marker:hover .bubble-body {
             background: radial-gradient(
               circle at 35% 35%,
-              rgba(147, 51, 234, 0.35) 0%,
-              rgba(126, 34, 206, 0.3) 30%,
-              rgba(88, 28, 135, 0.25) 60%,
-              rgba(59, 7, 100, 0.2) 100%
+              rgba(6, 182, 212, 0.4) 0%,
+              rgba(59, 130, 246, 0.35) 25%,
+              rgba(139, 92, 246, 0.32) 50%,
+              rgba(168, 85, 247, 0.3) 75%,
+              rgba(147, 51, 234, 0.28) 100%
             );
-            border-color: rgba(167, 139, 250, 0.5);
+            border-color: rgba(6, 182, 212, 0.6);
             box-shadow: 
-              inset 0 0 40px rgba(147, 51, 234, 0.25),
-              inset -10px -10px 50px rgba(126, 34, 206, 0.2),
-              0 12px 48px rgba(147, 51, 234, 0.4);
+              inset 0 0 50px rgba(6, 182, 212, 0.3),
+              inset -15px -15px 60px rgba(147, 51, 234, 0.25),
+              0 15px 50px rgba(6, 182, 212, 0.5),
+              0 0 80px rgba(139, 92, 246, 0.4);
+            animation-play-state: paused;
           }
           
           .bubble-marker:hover .bubble-glow {
             background: radial-gradient(
               circle at center,
-              rgba(147, 51, 234, 0.3) 0%,
-              rgba(126, 34, 206, 0.15) 40%,
-              transparent 70%
+              rgba(6, 182, 212, 0.4) 0%,
+              rgba(59, 130, 246, 0.3) 30%,
+              rgba(139, 92, 246, 0.25) 50%,
+              rgba(147, 51, 234, 0.2) 70%,
+              transparent 100%
             );
+            animation-play-state: paused;
           }
           
-          /* Animations */
-          @keyframes bubbleFloat {
+          /* Soft pulsing animation for live events */
+          @keyframes bubblePulse {
             0%, 100% {
-              transform: translateY(0px) translateX(0px);
-            }
-            25% {
-              transform: translateY(-5px) translateX(3px);
+              transform: scale(1);
+              opacity: 1;
+              box-shadow: 
+                inset 0 0 40px rgba(6, 182, 212, 0.2),
+                inset -15px -15px 50px rgba(147, 51, 234, 0.15),
+                0 10px 40px rgba(6, 182, 212, 0.3),
+                0 0 60px rgba(139, 92, 246, 0.2);
             }
             50% {
-              transform: translateY(-3px) translateX(-3px);
-            }
-            75% {
-              transform: translateY(-7px) translateX(2px);
+              transform: scale(1.05);
+              opacity: 0.95;
+              box-shadow: 
+                inset 0 0 50px rgba(6, 182, 212, 0.3),
+                inset -15px -15px 60px rgba(147, 51, 234, 0.25),
+                0 15px 50px rgba(6, 182, 212, 0.4),
+                0 0 80px rgba(139, 92, 246, 0.3);
             }
           }
           
@@ -506,18 +522,18 @@ export default function HomeScreen() {
             }
             50% {
               opacity: 1;
-              transform: scale(1.2);
+              transform: scale(1.15);
             }
           }
           
           @keyframes glowPulse {
             0%, 100% {
-              opacity: 0.5;
+              opacity: 0.6;
               transform: scale(1);
             }
             50% {
-              opacity: 0.8;
-              transform: scale(1.1);
+              opacity: 0.9;
+              transform: scale(1.08);
             }
           }
           
@@ -526,7 +542,7 @@ export default function HomeScreen() {
               transform: translateY(0px);
             }
             50% {
-              transform: translateY(-2px);
+              transform: translateY(-3px);
             }
           }
           
@@ -605,7 +621,7 @@ export default function HomeScreen() {
             return Math.min(calculatedSize, maxSize);
           }
           
-          // Add event markers with translucent bubble styling
+          // Add event markers with cyan-to-purple glowing gradient bubbles
           events.forEach(event => {
             const size = calculateBubbleSize(event.attendees);
             const iconSize = Math.min(24 + (event.attendees * 2), 44);

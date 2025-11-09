@@ -49,6 +49,7 @@ export default function CreateEventScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState("");
+  const [mapKey, setMapKey] = useState(0);
   const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
@@ -57,15 +58,22 @@ export default function CreateEventScreen() {
 
   const loadLocation = async () => {
     try {
+      console.log('[CreateEvent] Requesting location permission...');
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission Denied", "Location permission is required to create events");
         return;
       }
+      console.log('[CreateEvent] Getting current position...');
       const loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
       setSelectedLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
       console.log("[CreateEvent] Location obtained:", loc.coords);
+      
+      // Force map to reload with new location
+      setTimeout(() => {
+        setMapKey(prev => prev + 1);
+      }, 100);
     } catch (error) {
       console.error("[CreateEvent] Error getting location:", error);
       Alert.alert("Error", "Failed to get your location");
@@ -73,10 +81,15 @@ export default function CreateEventScreen() {
   };
 
   const generateMapHTML = () => {
-    if (!location) return '<html><body><div style="display:flex;align-items:center;justify-content:center;height:100%;color:white;">Loading map...</div></body></html>';
+    if (!location) {
+      console.log('[CreateEvent] No location available yet');
+      return '<html><body style="background:#0a0a0a;display:flex;align-items:center;justify-content:center;height:100%;margin:0;"><div style="color:white;font-family:sans-serif;">Loading map...</div></body></html>';
+    }
 
     const lat = selectedLocation?.lat || location.coords.latitude;
     const lng = selectedLocation?.lng || location.coords.longitude;
+
+    console.log('[CreateEvent] Generating map HTML for location:', lat, lng);
 
     return `
       <!DOCTYPE html>
@@ -154,143 +167,165 @@ export default function CreateEventScreen() {
       <body>
         <div id="map"></div>
         <script>
-          console.log('[CreateEvent Map] Initializing map...');
+          console.log('[CreateEvent Map] Starting initialization...');
+          console.log('[CreateEvent Map] Target location: ${lat}, ${lng}');
           
-          // Initialize map WITHOUT zoom control buttons
-          const map = L.map('map', {
-            zoomControl: false,
-            attributionControl: false,
-            minZoom: 3,
-            maxZoom: 20,
-            tap: true,
-            tapTolerance: 20,
-            touchZoom: true,
-            dragging: true,
-            scrollWheelZoom: true,
-            doubleClickZoom: true,
-            boxZoom: false
-          });
-          
-          console.log('[CreateEvent Map] Map object created');
-          
-          // Add MapTiler Streets tile layer
-          L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
-            attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>',
-            maxZoom: 20,
-            minZoom: 3,
-            tileSize: 512,
-            zoomOffset: -1
-          }).addTo(map);
-          
-          console.log('[CreateEvent Map] Tile layer added');
-          
-          // Create marker variable
-          let marker = null;
-          let isDraggingMarker = false;
-          
-          // Wait for map to be ready before setting view and adding marker
-          map.whenReady(() => {
-            console.log('[CreateEvent Map] Map is ready');
+          try {
+            // Initialize map WITHOUT zoom control buttons
+            const map = L.map('map', {
+              zoomControl: false,
+              attributionControl: false,
+              minZoom: 3,
+              maxZoom: 20,
+              tap: true,
+              tapTolerance: 20,
+              touchZoom: true,
+              dragging: true,
+              scrollWheelZoom: true,
+              doubleClickZoom: true,
+              boxZoom: false
+            });
             
-            // Set the view to center on the location
+            console.log('[CreateEvent Map] Map object created successfully');
+            
+            // Set the view immediately
             map.setView([${lat}, ${lng}], 15);
             console.log('[CreateEvent Map] View set to:', ${lat}, ${lng});
             
-            // Force map to recalculate size
-            setTimeout(() => {
-              map.invalidateSize();
-              console.log('[CreateEvent Map] Map size invalidated');
+            // Add MapTiler Streets tile layer
+            const tileLayer = L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
+              attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>',
+              maxZoom: 20,
+              minZoom: 3,
+              tileSize: 512,
+              zoomOffset: -1
+            });
+            
+            tileLayer.on('loading', () => {
+              console.log('[CreateEvent Map] Tiles loading...');
+            });
+            
+            tileLayer.on('load', () => {
+              console.log('[CreateEvent Map] Tiles loaded successfully');
+            });
+            
+            tileLayer.on('tileerror', (error) => {
+              console.error('[CreateEvent Map] Tile error:', error);
+            });
+            
+            tileLayer.addTo(map);
+            console.log('[CreateEvent Map] Tile layer added');
+            
+            // Create marker variable
+            let marker = null;
+            let isDraggingMarker = false;
+            
+            // Wait for map to be ready before adding marker
+            map.whenReady(() => {
+              console.log('[CreateEvent Map] Map is ready');
               
-              // Now add the marker at the center
-              marker = L.marker([${lat}, ${lng}], {
-                icon: L.divIcon({
-                  className: 'custom-marker',
-                  html: '${selectedIcon}',
-                  iconSize: [40, 40],
-                  iconAnchor: [20, 20]
-                }),
-                draggable: true,
-                autoPan: true,
-                autoPanPadding: [50, 50],
-                autoPanSpeed: 10
-              }).addTo(map);
-              
-              console.log('[CreateEvent Map] Marker added at center:', ${lat}, ${lng});
-              
-              // Handle marker drag events
-              marker.on('dragstart', (e) => {
-                isDraggingMarker = true;
-                console.log('[CreateEvent Map] Marker drag started');
-                // Disable map dragging while dragging marker
-                map.dragging.disable();
-              });
-              
-              marker.on('drag', (e) => {
-                const position = e.target.getLatLng();
-                console.log('[CreateEvent Map] Marker dragging:', position.lat, position.lng);
-              });
-              
-              marker.on('dragend', (e) => {
-                const position = e.target.getLatLng();
-                console.log('[CreateEvent Map] Marker drag ended at:', position.lat, position.lng);
+              // Force map to recalculate size
+              setTimeout(() => {
+                map.invalidateSize();
+                console.log('[CreateEvent Map] Map size invalidated');
                 
-                // Send location update
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'locationSelected',
-                  lat: position.lat,
-                  lng: position.lng
-                }));
+                // Now add the marker at the center
+                marker = L.marker([${lat}, ${lng}], {
+                  icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: '${selectedIcon}',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                  }),
+                  draggable: true,
+                  autoPan: true,
+                  autoPanPadding: [50, 50],
+                  autoPanSpeed: 10
+                }).addTo(map);
                 
-                // Re-enable map dragging after a short delay
-                setTimeout(() => {
-                  isDraggingMarker = false;
-                  map.dragging.enable();
-                  console.log('[CreateEvent Map] Map dragging re-enabled');
-                }, 200);
-              });
-              
-              // Handle map clicks to move marker (only if not dragging)
-              map.on('click', (e) => {
-                if (isDraggingMarker) {
-                  console.log('[CreateEvent Map] Ignoring click - marker is being dragged');
-                  return;
-                }
-                console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng);
+                console.log('[CreateEvent Map] Marker added at:', ${lat}, ${lng});
                 
-                if (marker) {
-                  marker.setLatLng(e.latlng);
-                  map.panTo(e.latlng, { animate: true, duration: 0.5 });
+                // Handle marker drag events
+                marker.on('dragstart', (e) => {
+                  isDraggingMarker = true;
+                  console.log('[CreateEvent Map] Marker drag started');
+                  map.dragging.disable();
+                });
+                
+                marker.on('drag', (e) => {
+                  const position = e.target.getLatLng();
+                  console.log('[CreateEvent Map] Marker dragging:', position.lat, position.lng);
+                });
+                
+                marker.on('dragend', (e) => {
+                  const position = e.target.getLatLng();
+                  console.log('[CreateEvent Map] Marker drag ended at:', position.lat, position.lng);
                   
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'locationSelected',
-                    lat: e.latlng.lat,
-                    lng: e.latlng.lng
-                  }));
-                }
-              });
-              
-              console.log('[CreateEvent Map] All event handlers attached');
-            }, 300);
-          });
-          
-          // Log map events for debugging
-          map.on('dragstart', () => {
-            console.log('[CreateEvent Map] Map drag started');
-          });
-          
-          map.on('dragend', () => {
-            console.log('[CreateEvent Map] Map drag ended');
-          });
-          
-          map.on('zoomstart', () => {
-            console.log('[CreateEvent Map] Zoom started');
-          });
-          
-          map.on('zoomend', () => {
-            console.log('[CreateEvent Map] Zoom ended, level:', map.getZoom());
-          });
-          
-          console.log('[CreateEvent Map] Initialization complete');
+                  // Send location update
+                  if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'locationSelected',
+                      lat: position.lat,
+                      lng: position.lng
+                    }));
+                  }
+                  
+                  // Re-enable map dragging after a short delay
+                  setTimeout(() => {
+                    isDraggingMarker = false;
+                    map.dragging.enable();
+                    console.log('[CreateEvent Map] Map dragging re-enabled');
+                  }, 200);
+                });
+                
+                // Handle map clicks to move marker (only if not dragging)
+                map.on('click', (e) => {
+                  if (isDraggingMarker) {
+                    console.log('[CreateEvent Map] Ignoring click - marker is being dragged');
+                    return;
+                  }
+                  console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng);
+                  
+                  if (marker) {
+                    marker.setLatLng(e.latlng);
+                    map.panTo(e.latlng, { animate: true, duration: 0.5 });
+                    
+                    if (window.ReactNativeWebView) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'locationSelected',
+                        lat: e.latlng.lat,
+                        lng: e.latlng.lng
+                      }));
+                    }
+                  }
+                });
+                
+                console.log('[CreateEvent Map] All event handlers attached');
+              }, 300);
+            });
+            
+            // Log map events for debugging
+            map.on('dragstart', () => {
+              console.log('[CreateEvent Map] Map drag started');
+            });
+            
+            map.on('dragend', () => {
+              console.log('[CreateEvent Map] Map drag ended');
+            });
+            
+            map.on('zoomstart', () => {
+              console.log('[CreateEvent Map] Zoom started');
+            });
+            
+            map.on('zoomend', () => {
+              console.log('[CreateEvent Map] Zoom ended, level:', map.getZoom());
+            });
+            
+            console.log('[CreateEvent Map] Initialization complete');
+          } catch (error) {
+            console.error('[CreateEvent Map] Error during initialization:', error);
+            document.body.innerHTML = '<div style="color:white;padding:20px;font-family:sans-serif;">Error loading map: ' + error.message + '</div>';
+          }
         </script>
       </body>
       </html>
@@ -462,30 +497,48 @@ export default function CreateEventScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Location (tap map or drag marker to set)</Text>
             <View style={styles.mapContainer}>
-              <WebView
-                ref={webViewRef}
-                source={{ html: generateMapHTML() }}
-                style={styles.map}
-                onMessage={handleWebViewMessage}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                scrollEnabled={false}
-                bounces={false}
-                allowsInlineMediaPlayback={true}
-                scalesPageToFit={false}
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-                onError={(syntheticEvent) => {
-                  const { nativeEvent } = syntheticEvent;
-                  console.error('[CreateEvent] WebView error:', nativeEvent);
-                }}
-                onLoad={() => {
-                  console.log('[CreateEvent] WebView loaded successfully');
-                }}
-                onLoadEnd={() => {
-                  console.log('[CreateEvent] WebView load ended');
-                }}
-              />
+              {location ? (
+                <WebView
+                  key={mapKey}
+                  ref={webViewRef}
+                  source={{ html: generateMapHTML() }}
+                  style={styles.map}
+                  onMessage={handleWebViewMessage}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  startInLoadingState={true}
+                  scrollEnabled={false}
+                  bounces={false}
+                  allowsInlineMediaPlayback={true}
+                  scalesPageToFit={true}
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
+                  onError={(syntheticEvent) => {
+                    const { nativeEvent } = syntheticEvent;
+                    console.error('[CreateEvent] WebView error:', nativeEvent);
+                  }}
+                  onHttpError={(syntheticEvent) => {
+                    const { nativeEvent } = syntheticEvent;
+                    console.error('[CreateEvent] WebView HTTP error:', nativeEvent);
+                  }}
+                  onLoad={() => {
+                    console.log('[CreateEvent] WebView loaded successfully');
+                  }}
+                  onLoadStart={() => {
+                    console.log('[CreateEvent] WebView load started');
+                  }}
+                  onLoadEnd={() => {
+                    console.log('[CreateEvent] WebView load ended');
+                  }}
+                  onLoadProgress={({ nativeEvent }) => {
+                    console.log('[CreateEvent] WebView load progress:', nativeEvent.progress);
+                  }}
+                />
+              ) : (
+                <View style={styles.mapLoadingContainer}>
+                  <Text style={styles.mapLoadingText}>Loading map...</Text>
+                </View>
+              )}
             </View>
             <TextInput
               style={styles.input}
@@ -739,9 +792,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.highlight,
+    backgroundColor: colors.card,
   },
   map: {
     flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  mapLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+  },
+  mapLoadingText: {
+    fontSize: 16,
+    color: colors.text,
   },
   dateTimeRow: {
     flexDirection: "row",

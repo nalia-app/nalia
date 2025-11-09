@@ -139,9 +139,9 @@ export default function CreateEventScreen() {
         <script>
           console.log('[CreateEvent Map] Initializing map...');
           
-          // Initialize map with extended zoom range and tap enabled
+          // Initialize map WITHOUT zoom control buttons and with extended zoom range
           const map = L.map('map', {
-            zoomControl: true,
+            zoomControl: false,
             attributionControl: false,
             minZoom: 3,
             maxZoom: 20,

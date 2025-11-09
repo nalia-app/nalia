@@ -69,12 +69,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('[UserContext] Loading profile for user:', userId);
       
-      // Get profile
+      // Get profile - use maybeSingle() instead of single() to handle missing profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('[UserContext] Error loading profile:', profileError);

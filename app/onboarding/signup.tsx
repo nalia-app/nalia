@@ -57,6 +57,31 @@ export default function SignupScreen() {
     }
   }, []);
 
+  const createInitialProfile = async (userId: string, email: string) => {
+    try {
+      console.log('[Signup] Creating initial profile for user:', userId);
+      
+      // Create a basic profile entry
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name: email.split('@')[0], // Use email prefix as temporary name
+          bio: '',
+        });
+
+      if (profileError) {
+        console.error('[Signup] Error creating profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('[Signup] Initial profile created successfully');
+    } catch (error) {
+      console.error('[Signup] Exception creating profile:', error);
+      throw error;
+    }
+  };
+
   const handleEmailSignup = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
@@ -88,10 +113,15 @@ export default function SignupScreen() {
 
       console.log('[Signup] Signup successful:', data.user?.id);
       
+      // Create initial profile
+      if (data.user) {
+        await createInitialProfile(data.user.id, email);
+      }
+
       // Show email verification message
       Alert.alert(
         'Verify Your Email',
-        'Please check your email and click the verification link to complete your registration.',
+        'Please check your email and click the verification link to complete your registration. You can continue with the onboarding process.',
         [{ text: 'OK' }]
       );
 
@@ -147,10 +177,11 @@ export default function SignupScreen() {
           .from('profiles')
           .select('*')
           .eq('id', data.user?.id)
-          .single();
+          .maybeSingle();
 
-        if (!profile) {
-          // New user, proceed to interests
+        if (!profile && data.user) {
+          // New user, create profile and proceed to interests
+          await createInitialProfile(data.user.id, data.user.email || '');
           router.replace('/onboarding/interests');
         }
         // Otherwise, UserContext will handle navigation to home
@@ -213,10 +244,11 @@ export default function SignupScreen() {
           .from('profiles')
           .select('*')
           .eq('id', data.user?.id)
-          .single();
+          .maybeSingle();
 
-        if (!profile) {
-          // New user, proceed to interests
+        if (!profile && data.user) {
+          // New user, create profile and proceed to interests
+          await createInitialProfile(data.user.id, data.user.email || '');
           router.replace('/onboarding/interests');
         }
         // Otherwise, UserContext will handle navigation to home

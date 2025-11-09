@@ -69,6 +69,30 @@ export default function InterestsScreen() {
     try {
       console.log('[Interests] Saving interests for user:', session.user.id);
       
+      // First, ensure the profile exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        console.log('[Interests] Profile does not exist, creating one');
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: session.user.id,
+            name: session.user.email?.split('@')[0] || 'User',
+            bio: '',
+          });
+
+        if (profileError) {
+          console.error('[Interests] Error creating profile:', profileError);
+          Alert.alert('Error', 'Failed to create profile. Please try again.');
+          return;
+        }
+      }
+
       // Save interests to database
       const interestsToInsert = selectedInterests.map(interest => ({
         user_id: session.user.id,
@@ -81,7 +105,7 @@ export default function InterestsScreen() {
 
       if (error) {
         console.error('[Interests] Error saving interests:', error);
-        Alert.alert('Error', 'Failed to save interests. Please try again.');
+        Alert.alert('Error', `Failed to save interests: ${error.message}`);
         return;
       }
 

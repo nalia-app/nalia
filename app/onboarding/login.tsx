@@ -57,6 +57,31 @@ export default function LoginScreen() {
     }
   }, []);
 
+  const createInitialProfile = async (userId: string, email: string) => {
+    try {
+      console.log('[Login] Creating initial profile for user:', userId);
+      
+      // Create a basic profile entry
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name: email.split('@')[0], // Use email prefix as temporary name
+          bio: '',
+        });
+
+      if (profileError) {
+        console.error('[Login] Error creating profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('[Login] Initial profile created successfully');
+    } catch (error) {
+      console.error('[Login] Exception creating profile:', error);
+      throw error;
+    }
+  };
+
   const handleEmailLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
@@ -79,6 +104,23 @@ export default function LoginScreen() {
       }
 
       console.log('[Login] Login successful:', data.user?.id);
+      
+      // Check if profile exists, create if not
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          console.log('[Login] No profile found, creating one');
+          await createInitialProfile(data.user.id, email);
+          // Redirect to onboarding
+          router.replace('/onboarding/interests');
+          return;
+        }
+      }
       
       // Navigation will be handled by UserContext
       // The app will automatically redirect to the home screen
@@ -130,10 +172,11 @@ export default function LoginScreen() {
           .from('profiles')
           .select('*')
           .eq('id', data.user?.id)
-          .single();
+          .maybeSingle();
 
-        if (!profile) {
-          // New user, proceed to interests
+        if (!profile && data.user) {
+          // New user, create profile and proceed to interests
+          await createInitialProfile(data.user.id, data.user.email || '');
           router.replace('/onboarding/interests');
         }
         // Otherwise, UserContext will handle navigation to home
@@ -196,10 +239,11 @@ export default function LoginScreen() {
           .from('profiles')
           .select('*')
           .eq('id', data.user?.id)
-          .single();
+          .maybeSingle();
 
-        if (!profile) {
-          // New user, proceed to interests
+        if (!profile && data.user) {
+          // New user, create profile and proceed to interests
+          await createInitialProfile(data.user.id, data.user.email || '');
           router.replace('/onboarding/interests');
         }
         // Otherwise, UserContext will handle navigation to home

@@ -6,16 +6,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { supabase } from "@/app/integrations/supabase/client";
+import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
+import { KeyboardAwareComposer } from "@/components/KeyboardAwareComposer";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   Pressable,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,9 +36,8 @@ export default function DirectMessageScreen() {
   const [otherUserName, setOtherUserName] = useState("");
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<any>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (otherUserId && user) {
@@ -121,9 +118,6 @@ export default function DirectMessageScreen() {
       }));
 
       setMessages(formattedMessages);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     } catch (error: any) {
       console.error("Error loading messages:", error);
     } finally {
@@ -161,7 +155,7 @@ export default function DirectMessageScreen() {
     const messageText = newMessage.trim();
     setSending(true);
     
-    // Clear input immediately and keep keyboard open
+    // Clear input immediately
     setNewMessage("");
 
     try {
@@ -187,11 +181,6 @@ export default function DirectMessageScreen() {
       });
 
       loadMessages();
-      
-      // Keep focus on input to maintain keyboard
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
     } catch (error: any) {
       console.error("Error sending message:", error);
       setNewMessage(messageText);
@@ -243,20 +232,13 @@ export default function DirectMessageScreen() {
           </View>
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoid}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={0}
-        >
-          <ScrollView
+        <View style={styles.contentContainer}>
+          <KeyboardAwareScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() =>
-              scrollViewRef.current?.scrollToEnd({ animated: true })
-            }
-            keyboardShouldPersistTaps="handled"
+            extraScrollHeight={100}
           >
             {messages.map((message) => (
               <View
@@ -295,45 +277,22 @@ export default function DirectMessageScreen() {
                 </Text>
               </View>
             )}
-          </ScrollView>
+            
+            {/* Extra space for composer */}
+            <View style={{ height: 120 }} />
+          </KeyboardAwareScrollView>
 
-          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Type a message..."
-                placeholderTextColor={colors.textSecondary}
-                value={newMessage}
-                onChangeText={setNewMessage}
-                multiline
-                maxLength={500}
-                blurOnSubmit={false}
-                editable={!sending}
-              />
-              <Pressable
-                style={[
-                  styles.sendButton,
-                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
-                ]}
-                onPress={handleSend}
-                disabled={!newMessage.trim() || sending}
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color={colors.text} />
-                ) : (
-                  <IconSymbol
-                    name="arrow.up"
-                    size={24}
-                    color={
-                      newMessage.trim() ? colors.text : colors.textSecondary
-                    }
-                  />
-                )}
-              </Pressable>
-            </View>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
+          <KeyboardAwareComposer
+            value={newMessage}
+            onChangeText={setNewMessage}
+            onSend={handleSend}
+            placeholder="Type a message..."
+            disabled={false}
+            sending={sending}
+            maxLines={5}
+            sendButtonColor={colors.primary}
+          />
+        </View>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -376,15 +335,15 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: colors.text,
   },
-  keyboardAvoid: {
+  contentContainer: {
     flex: 1,
+    position: 'relative',
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
     padding: 16,
-    paddingBottom: 8,
   },
   messageWrapper: {
     marginBottom: 12,
@@ -433,39 +392,5 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 16,
     color: colors.textSecondary,
-  },
-  inputWrapper: {
-    borderTopWidth: 1,
-    borderTopColor: colors.highlight,
-    backgroundColor: colors.card,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: colors.highlight,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.text,
-    maxHeight: 100,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.card,
   },
 });

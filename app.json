@@ -28,7 +28,8 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.Natively",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",

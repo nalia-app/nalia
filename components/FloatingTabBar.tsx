@@ -36,7 +36,16 @@ export default function FloatingTabBar({
   const pathname = usePathname();
 
   const handleTabPress = (route: string) => {
-    console.log('Tab pressed:', route);
+    console.log('Tab pressed:', route, 'Current pathname:', pathname);
+    
+    // Check if we're already on this route
+    const isAlreadyOnRoute = pathname.includes(route.replace('/(tabs)', ''));
+    
+    if (isAlreadyOnRoute) {
+      console.log('Already on this route, skipping navigation');
+      return;
+    }
+    
     router.push(route as any);
   };
 

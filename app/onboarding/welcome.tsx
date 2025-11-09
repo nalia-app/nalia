@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 64,
     fontFamily: 'PlayfairDisplay-Italic',
-    color: colors.primary,
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 16,
   },

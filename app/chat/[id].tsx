@@ -36,6 +36,7 @@ export default function ChatScreen() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [eventName, setEventName] = useState("Event Chat");
   const [participantCount, setParticipantCount] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -145,9 +146,10 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!message.trim() || !user) return;
+    if (!message.trim() || !user || sending) return;
 
     const messageText = message.trim();
+    setSending(true);
     setMessage("");
 
     try {
@@ -164,6 +166,8 @@ export default function ChatScreen() {
     } catch (error: any) {
       console.error("Error sending message:", error);
       setMessage(messageText); // Restore message on error
+    } finally {
+      setSending(false);
     }
   };
 
@@ -268,19 +272,20 @@ export default function ChatScreen() {
               value={message}
               onChangeText={setMessage}
               multiline
+              editable={!sending}
             />
             <Pressable
               style={[
                 styles.sendButton,
-                !message.trim() && styles.sendButtonDisabled,
+                (!message.trim() || sending) && styles.sendButtonDisabled,
               ]}
               onPress={handleSend}
-              disabled={!message.trim()}
+              disabled={!message.trim() || sending}
             >
               <IconSymbol
                 name="arrow.up.circle.fill"
                 size={36}
-                color={message.trim() ? colors.primary : colors.textSecondary}
+                color={message.trim() && !sending ? colors.primary : colors.textSecondary}
               />
             </Pressable>
           </View>

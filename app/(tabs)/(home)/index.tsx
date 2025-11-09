@@ -339,23 +339,9 @@ export default function HomeScreen() {
             filter: contrast(1.1) brightness(1.05);
           }
           
-          .leaflet-popup-content-wrapper {
-            background: rgba(30, 30, 30, 0.98);
-            color: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-          }
-          
-          .leaflet-popup-tip {
-            background: rgba(30, 30, 30, 0.98);
-          }
-          
-          .leaflet-popup-content {
-            margin: 16px;
-            font-size: 14px;
-            line-height: 1.6;
+          /* Hide default popups completely */
+          .leaflet-popup {
+            display: none !important;
           }
           
           .custom-marker {
@@ -423,36 +409,6 @@ export default function HomeScreen() {
                           0 0 80px rgba(3, 218, 198, 0.7);
             }
           }
-          
-          /* Style the popup content */
-          .popup-host {
-            font-weight: 600;
-            font-size: 16px;
-            color: #ffffff;
-            margin-bottom: 8px;
-          }
-          
-          .popup-description {
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 8px;
-          }
-          
-          .popup-detail {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-top: 4px;
-          }
-          
-          .popup-tag {
-            display: inline-block;
-            background: rgba(187, 134, 252, 0.3);
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-size: 11px;
-            margin-right: 4px;
-            margin-top: 4px;
-            color: rgba(255, 255, 255, 0.9);
-          }
         </style>
       </head>
       <body>
@@ -491,11 +447,10 @@ export default function HomeScreen() {
             });
             
             L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
-              .addTo(map)
-              .bindPopup('<div class="popup-host">Your Location</div>');
+              .addTo(map);
           }
           
-          // Add event markers with enhanced styling
+          // Add event markers with enhanced styling - NO POPUPS
           events.forEach(event => {
             const size = 40 + event.attendees * 3;
             const eventIcon = L.divIcon({
@@ -508,27 +463,12 @@ export default function HomeScreen() {
             const marker = L.marker([event.latitude, event.longitude], { icon: eventIcon })
               .addTo(map);
             
+            // Only send click event to React Native - no popup
             marker.on('click', () => {
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'eventClick',
                 event: event
               }));
-            });
-            
-            const tags = event.tags.map(tag => '<span class="popup-tag">#' + tag + '</span>').join('');
-            
-            const popupContent = 
-              '<div>' +
-              '<div class="popup-host">' + event.hostName + ' wanna...</div>' +
-              '<div class="popup-description">' + event.description + '</div>' +
-              '<div class="popup-detail">👥 ' + event.attendees + ' attending</div>' +
-              '<div class="popup-detail">🔒 ' + (event.isPublic ? 'Public' : 'Private') + '</div>' +
-              '<div style="margin-top: 8px;">' + tags + '</div>' +
-              '</div>';
-            
-            marker.bindPopup(popupContent, {
-              maxWidth: 250,
-              className: 'custom-popup'
             });
           });
           

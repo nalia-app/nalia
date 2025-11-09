@@ -61,6 +61,18 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Creating initial profile for user:', userId);
       
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (existingProfile) {
+        console.log('[Login] Profile already exists');
+        return;
+      }
+
       // Create a basic profile entry
       const { error: profileError } = await supabase
         .from('profiles')
@@ -115,9 +127,15 @@ export default function LoginScreen() {
 
         if (!profile) {
           console.log('[Login] No profile found, creating one');
-          await createInitialProfile(data.user.id, email);
-          // Redirect to onboarding
-          router.replace('/onboarding/interests');
+          try {
+            await createInitialProfile(data.user.id, email);
+            // Redirect to onboarding
+            router.replace('/onboarding/interests');
+          } catch (profileError) {
+            console.error('[Login] Profile creation failed:', profileError);
+            // Still proceed to interests
+            router.replace('/onboarding/interests');
+          }
           return;
         }
       }
@@ -168,16 +186,24 @@ export default function LoginScreen() {
         console.log('[Login] Google login successful:', data.user?.id);
         
         // Check if user needs onboarding
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user?.id)
-          .maybeSingle();
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
 
-        if (!profile && data.user) {
-          // New user, create profile and proceed to interests
-          await createInitialProfile(data.user.id, data.user.email || '');
-          router.replace('/onboarding/interests');
+          if (!profile) {
+            // New user, create profile and proceed to interests
+            try {
+              await createInitialProfile(data.user.id, data.user.email || '');
+              router.replace('/onboarding/interests');
+            } catch (profileError) {
+              console.error('[Login] Profile creation failed:', profileError);
+              // Still proceed to interests
+              router.replace('/onboarding/interests');
+            }
+          }
         }
         // Otherwise, UserContext will handle navigation to home
       } else {
@@ -235,16 +261,24 @@ export default function LoginScreen() {
         console.log('[Login] Apple login successful:', data.user?.id);
         
         // Check if user needs onboarding
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user?.id)
-          .maybeSingle();
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
 
-        if (!profile && data.user) {
-          // New user, create profile and proceed to interests
-          await createInitialProfile(data.user.id, data.user.email || '');
-          router.replace('/onboarding/interests');
+          if (!profile) {
+            // New user, create profile and proceed to interests
+            try {
+              await createInitialProfile(data.user.id, data.user.email || '');
+              router.replace('/onboarding/interests');
+            } catch (profileError) {
+              console.error('[Login] Profile creation failed:', profileError);
+              // Still proceed to interests
+              router.replace('/onboarding/interests');
+            }
+          }
         }
         // Otherwise, UserContext will handle navigation to home
       } else {

@@ -61,6 +61,18 @@ export default function SignupScreen() {
     try {
       console.log('[Signup] Creating initial profile for user:', userId);
       
+      // Check if profile already exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (existingProfile) {
+        console.log('[Signup] Profile already exists');
+        return;
+      }
+
       // Create a basic profile entry
       const { error: profileError } = await supabase
         .from('profiles')
@@ -112,22 +124,36 @@ export default function SignupScreen() {
       }
 
       console.log('[Signup] Signup successful:', data.user?.id);
+      console.log('[Signup] Session:', data.session ? 'exists' : 'null');
       
-      // Create initial profile
-      if (data.user) {
-        await createInitialProfile(data.user.id, email);
-      }
-
-      // Show email verification message
-      Alert.alert(
-        'Verify Your Email',
-        'Please check your email and click the verification link to complete your registration. You can continue with the onboarding process.',
-        [{ text: 'OK' }]
-      );
-
-      // If user is created, proceed to interests
-      if (data.user) {
-        router.replace('/onboarding/interests');
+      // Create initial profile if user and session exist
+      if (data.user && data.session) {
+        try {
+          await createInitialProfile(data.user.id, email);
+          
+          // Show email verification message
+          Alert.alert(
+            'Account Created',
+            'Please check your email and click the verification link to complete your registration.',
+            [{ text: 'OK', onPress: () => router.replace('/onboarding/interests') }]
+          );
+        } catch (profileError) {
+          console.error('[Signup] Profile creation failed:', profileError);
+          // Still proceed to interests even if profile creation fails
+          // The UserContext will handle creating the profile later
+          Alert.alert(
+            'Account Created',
+            'Please check your email and click the verification link. You can continue with the onboarding process.',
+            [{ text: 'OK', onPress: () => router.replace('/onboarding/interests') }]
+          );
+        }
+      } else {
+        // No session means email confirmation is required before proceeding
+        Alert.alert(
+          'Verify Your Email',
+          'Please check your email and click the verification link to complete your registration. After verification, you can log in.',
+          [{ text: 'OK', onPress: () => router.replace('/onboarding/login') }]
+        );
       }
     } catch (error: any) {
       console.error('[Signup] Exception:', error);
@@ -173,16 +199,24 @@ export default function SignupScreen() {
         console.log('[Signup] Google signup successful:', data.user?.id);
         
         // Check if user needs onboarding
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user?.id)
-          .maybeSingle();
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
 
-        if (!profile && data.user) {
-          // New user, create profile and proceed to interests
-          await createInitialProfile(data.user.id, data.user.email || '');
-          router.replace('/onboarding/interests');
+          if (!profile) {
+            // New user, create profile and proceed to interests
+            try {
+              await createInitialProfile(data.user.id, data.user.email || '');
+              router.replace('/onboarding/interests');
+            } catch (profileError) {
+              console.error('[Signup] Profile creation failed:', profileError);
+              // Still proceed to interests
+              router.replace('/onboarding/interests');
+            }
+          }
         }
         // Otherwise, UserContext will handle navigation to home
       } else {
@@ -240,16 +274,24 @@ export default function SignupScreen() {
         console.log('[Signup] Apple signup successful:', data.user?.id);
         
         // Check if user needs onboarding
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user?.id)
-          .maybeSingle();
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
 
-        if (!profile && data.user) {
-          // New user, create profile and proceed to interests
-          await createInitialProfile(data.user.id, data.user.email || '');
-          router.replace('/onboarding/interests');
+          if (!profile) {
+            // New user, create profile and proceed to interests
+            try {
+              await createInitialProfile(data.user.id, data.user.email || '');
+              router.replace('/onboarding/interests');
+            } catch (profileError) {
+              console.error('[Signup] Profile creation failed:', profileError);
+              // Still proceed to interests
+              router.replace('/onboarding/interests');
+            }
+          }
         }
         // Otherwise, UserContext will handle navigation to home
       } else {

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { colors } from "@/styles/commonStyles";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -15,29 +15,78 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { useRouter } from "expo-router";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface Chat {
   id: string;
-  event_id: string;
-  event_name: string;
-  host_name: string;
+  event_id?: string;
+  other_user_id?: string;
+  event_name?: string;
+  other_user_name?: string;
+  host_name?: string;
   lastMessage: string;
   timestamp: string;
   unread: number;
-  icon: string;
+  icon?: string;
+  type: 'event' | 'direct';
 }
+
+type FilterType = 'all' | 'events' | 'chats';
 
 export default function MessagesScreen() {
   const router = useRouter();
   const { user } = useUser();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (user) {
       loadChats();
+      setupRealtimeSubscription();
     }
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
   }, [user]);
+
+  const setupRealtimeSubscription = () => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`messages-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        () => {
+          console.log('New event message received');
+          loadChats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+        },
+        () => {
+          console.log('New direct message received');
+          loadChats();
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+  };
 
   const loadChats = async () => {
     if (!user) return;
@@ -46,7 +95,10 @@ export default function MessagesScreen() {
       setLoading(true);
       console.log("Loading chats");
 
-      // Get events where user is an approved attendee
+      const eventChats: Chat[] = [];
+      const directChats: Chat[] = [];
+
+      // Load event chats
       const { data: attendeeData, error: attendeeError } = await supabase
         .from("event_attendees")
         .select(`
@@ -64,7 +116,7 @@ export default function MessagesScreen() {
       if (attendeeError) throw attendeeError;
 
       // For each event, get the last message
-      const chatsPromises = (attendeeData || []).map(async (item) => {
+      const eventChatsPromises = (attendeeData || []).map(async (item) => {
         if (!item.events) return null;
 
         const event = item.events as any;
@@ -77,7 +129,7 @@ export default function MessagesScreen() {
           .limit(1)
           .single();
 
-        // Count unread messages (simplified - you could add a read_by field)
+        // Count unread messages
         const { count: unreadCount } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
@@ -99,20 +151,80 @@ export default function MessagesScreen() {
             : "New",
           unread: unreadCount || 0,
           icon: event.icon,
+          type: 'event' as const,
         };
       });
 
-      const chatsData = await Promise.all(chatsPromises);
-      const validChats = chatsData.filter((chat) => chat !== null) as Chat[];
+      const eventChatsData = await Promise.all(eventChatsPromises);
+      eventChats.push(...(eventChatsData.filter((chat) => chat !== null) as Chat[]));
 
-      // Sort by most recent
-      validChats.sort((a, b) => {
+      // Load direct message chats
+      const { data: directMessagesData, error: dmError } = await supabase
+        .from("direct_messages")
+        .select(`
+          id,
+          sender_id,
+          receiver_id,
+          text,
+          created_at,
+          read
+        `)
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false });
+
+      if (dmError) throw dmError;
+
+      // Group by conversation partner
+      const conversationsMap = new Map<string, any[]>();
+      
+      (directMessagesData || []).forEach((msg) => {
+        const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+        if (!conversationsMap.has(otherUserId)) {
+          conversationsMap.set(otherUserId, []);
+        }
+        conversationsMap.get(otherUserId)!.push(msg);
+      });
+
+      // Create chat objects for each conversation
+      const directChatsPromises = Array.from(conversationsMap.entries()).map(
+        async ([otherUserId, messages]) => {
+          const { data: otherUserProfile } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", otherUserId)
+            .single();
+
+          const lastMessage = messages[0];
+          const unreadCount = messages.filter(
+            (m) => m.receiver_id === user.id && !m.read
+          ).length;
+
+          return {
+            id: `dm-${otherUserId}`,
+            other_user_id: otherUserId,
+            other_user_name: otherUserProfile?.name || "Unknown",
+            lastMessage: lastMessage.text,
+            timestamp: formatTimestamp(lastMessage.created_at),
+            unread: unreadCount,
+            type: 'direct' as const,
+          };
+        }
+      );
+
+      const directChatsData = await Promise.all(directChatsPromises);
+      directChats.push(...directChatsData);
+
+      // Combine and sort all chats
+      const allChats = [...eventChats, ...directChats];
+      allChats.sort((a, b) => {
         if (a.timestamp === "New") return -1;
         if (b.timestamp === "New") return 1;
+        if (a.timestamp === "Just now") return -1;
+        if (b.timestamp === "Just now") return 1;
         return 0;
       });
 
-      setChats(validChats);
+      setChats(allChats);
     } catch (error: any) {
       console.error("Error loading chats:", error);
     } finally {
@@ -137,8 +249,19 @@ export default function MessagesScreen() {
 
   const handleChatPress = (chat: Chat) => {
     console.log("Opening chat:", chat.id);
-    router.push(`/chat/${chat.event_id}` as any);
+    if (chat.type === 'event') {
+      router.push(`/chat/${chat.event_id}` as any);
+    } else {
+      router.push(`/direct-message/${chat.other_user_id}` as any);
+    }
   };
+
+  const filteredChats = chats.filter((chat) => {
+    if (filter === 'all') return true;
+    if (filter === 'events') return chat.type === 'event';
+    if (filter === 'chats') return chat.type === 'direct';
+    return true;
+  });
 
   if (loading) {
     return (
@@ -156,7 +279,39 @@ export default function MessagesScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Messages</Text>
-          <Text style={styles.headerSubtitle}>Event Chats</Text>
+          <Text style={styles.headerSubtitle}>
+            {chats.filter(c => c.unread > 0).length > 0 
+              ? `${chats.filter(c => c.unread > 0).length} unread`
+              : 'All caught up'}
+          </Text>
+        </View>
+
+        {/* Filter Toggle */}
+        <View style={styles.filterContainer}>
+          <Pressable
+            style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
+            onPress={() => setFilter('all')}
+          >
+            <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
+              All
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.filterButton, filter === 'events' && styles.filterButtonActive]}
+            onPress={() => setFilter('events')}
+          >
+            <Text style={[styles.filterText, filter === 'events' && styles.filterTextActive]}>
+              Events
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.filterButton, filter === 'chats' && styles.filterButtonActive]}
+            onPress={() => setFilter('chats')}
+          >
+            <Text style={[styles.filterText, filter === 'chats' && styles.filterTextActive]}>
+              Chats
+            </Text>
+          </Pressable>
         </View>
 
         <ScrollView
@@ -164,21 +319,29 @@ export default function MessagesScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {chats.map((chat) => (
+          {filteredChats.map((chat) => (
             <Pressable
               key={chat.id}
-              style={styles.chatCard}
+              style={[styles.chatCard, chat.unread > 0 && styles.chatCardUnread]}
               onPress={() => handleChatPress(chat)}
             >
               <View style={styles.chatIcon}>
-                <Text style={styles.chatIconText}>{chat.icon}</Text>
+                {chat.type === 'event' ? (
+                  <Text style={styles.chatIconText}>{chat.icon}</Text>
+                ) : (
+                  <IconSymbol name="person.fill" size={28} color={colors.text} />
+                )}
               </View>
               <View style={styles.chatContent}>
                 <View style={styles.chatHeader}>
-                  <Text style={styles.chatEventName}>{chat.event_name}</Text>
+                  <Text style={styles.chatEventName}>
+                    {chat.type === 'event' ? chat.event_name : chat.other_user_name}
+                  </Text>
                   <Text style={styles.chatTimestamp}>{chat.timestamp}</Text>
                 </View>
-                <Text style={styles.chatHostName}>Host: {chat.host_name}</Text>
+                {chat.type === 'event' && (
+                  <Text style={styles.chatHostName}>Host: {chat.host_name}</Text>
+                )}
                 <Text style={styles.chatLastMessage} numberOfLines={1}>
                   {chat.lastMessage}
                 </Text>
@@ -191,12 +354,16 @@ export default function MessagesScreen() {
             </Pressable>
           ))}
 
-          {chats.length === 0 && (
+          {filteredChats.length === 0 && (
             <View style={styles.emptyState}>
               <IconSymbol name="message" size={64} color={colors.textSecondary} />
-              <Text style={styles.emptyText}>No active chats</Text>
+              <Text style={styles.emptyText}>No messages</Text>
               <Text style={styles.emptySubtext}>
-                Join an event to start chatting
+                {filter === 'events' 
+                  ? 'Join an event to start chatting'
+                  : filter === 'chats'
+                  ? 'Start a conversation with someone'
+                  : 'Join an event or message someone'}
               </Text>
             </View>
           )}
@@ -234,6 +401,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
   },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 8,
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  filterTextActive: {
+    color: colors.text,
+  },
   scrollView: {
     flex: 1,
   },
@@ -250,6 +445,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: colors.highlight,
+  },
+  chatCardUnread: {
+    borderColor: colors.primary,
+    borderWidth: 2,
   },
   chatIcon: {
     width: 56,
@@ -292,7 +491,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   unreadBadge: {
-    backgroundColor: colors.accent,
+    backgroundColor: '#FF3B30',
     borderRadius: 12,
     minWidth: 24,
     height: 24,
@@ -304,7 +503,7 @@ const styles = StyleSheet.create({
   unreadText: {
     fontSize: 12,
     fontWeight: "bold",
-    color: colors.text,
+    color: '#FFFFFF',
   },
   emptyState: {
     alignItems: "center",

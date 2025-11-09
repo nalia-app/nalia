@@ -5,46 +5,123 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  withSequence,
+} from 'react-native-reanimated';
+import { useEffect } from 'react';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    // Fade in animation
+    opacity.value = withTiming(1, { duration: 1000 });
+    
+    // Pulse animation for the button
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 1000 }),
+        withTiming(1, { duration: 1000 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const fadeInStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
 
   return (
-    <LinearGradient colors={[colors.background, '#0a0a0a']} style={styles.container}>
+    <LinearGradient 
+      colors={['#667eea', '#764ba2', '#f093fb']} 
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          <Text style={styles.logo}>nalia</Text>
-          <Text style={styles.tagline}>Turn ideas into real connections</Text>
-          
-          <View style={styles.features}>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>📍</Text>
-              <Text style={styles.featureText}>Discover spontaneous meetups nearby</Text>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>💬</Text>
-              <Text style={styles.featureText}>Connect with like-minded people</Text>
-            </View>
-            <View style={styles.feature}>
-              <Text style={styles.featureIcon}>✨</Text>
-              <Text style={styles.featureText}>Create your own events instantly</Text>
+        <Animated.View style={[styles.content, fadeInStyle]}>
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <Text style={styles.logo}>nalia</Text>
+            <View style={styles.taglineContainer}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                style={styles.taglineGradient}
+              >
+                <Text style={styles.tagline}>Turn ideas into real connections</Text>
+              </LinearGradient>
             </View>
           </View>
 
-          <View style={styles.buttonContainer}>
-            <Pressable
-              style={styles.button}
-              onPress={() => router.push('/onboarding/signup' as any)}
-            >
+          {/* Features Section */}
+          <View style={styles.features}>
+            <View style={styles.featureCard}>
               <LinearGradient
-                colors={[colors.primary, colors.secondary]}
-                style={styles.buttonGradient}
+                colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.1)']}
+                style={styles.featureGradient}
               >
-                <Text style={styles.buttonText}>Get Started</Text>
+                <Text style={styles.featureIcon}>📍</Text>
+                <Text style={styles.featureText}>Discover spontaneous meetups nearby</Text>
               </LinearGradient>
+            </View>
+            
+            <View style={styles.featureCard}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.1)']}
+                style={styles.featureGradient}
+              >
+                <Text style={styles.featureIcon}>💬</Text>
+                <Text style={styles.featureText}>Connect with like-minded people</Text>
+              </LinearGradient>
+            </View>
+            
+            <View style={styles.featureCard}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.1)']}
+                style={styles.featureGradient}
+              >
+                <Text style={styles.featureIcon}>✨</Text>
+                <Text style={styles.featureText}>Create your own events instantly</Text>
+              </LinearGradient>
+            </View>
+          </View>
+
+          {/* Button Section */}
+          <View style={styles.buttonContainer}>
+            <Animated.View style={animatedStyle}>
+              <Pressable
+                style={styles.button}
+                onPress={() => router.push('/onboarding/signup' as any)}
+              >
+                <LinearGradient
+                  colors={['#ffffff', '#f0f0f0']}
+                  style={styles.buttonGradient}
+                >
+                  <Text style={styles.buttonText}>Get Started</Text>
+                  <Text style={styles.buttonArrow}>→</Text>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+            
+            <Pressable
+              style={styles.loginButton}
+              onPress={() => router.push('/onboarding/login' as any)}
+            >
+              <Text style={styles.loginText}>Already have an account? Log in</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -60,53 +137,106 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 32,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 40,
+  },
+  logoSection: {
+    alignItems: 'center',
+    marginTop: 40,
   },
   logo: {
-    fontSize: 64,
+    fontSize: 72,
     fontFamily: 'PlayfairDisplay-Italic',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 10,
+  },
+  taglineContainer: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  taglineGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   tagline: {
-    fontSize: 20,
-    color: colors.text,
+    fontSize: 18,
+    color: '#667eea',
     textAlign: 'center',
-    marginBottom: 60,
+    fontWeight: '600',
   },
   features: {
-    gap: 32,
-    marginBottom: 60,
+    gap: 20,
+    marginVertical: 20,
   },
-  feature: {
+  featureCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  featureGradient: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 20,
     gap: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   featureIcon: {
-    fontSize: 32,
+    fontSize: 36,
   },
   featureText: {
     flex: 1,
-    fontSize: 18,
-    color: colors.text,
-    lineHeight: 24,
+    fontSize: 16,
+    color: '#FFFFFF',
+    lineHeight: 22,
+    fontWeight: '500',
   },
   buttonContainer: {
-    gap: 12,
+    gap: 16,
+    marginBottom: 20,
   },
   button: {
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   buttonGradient: {
-    paddingVertical: 16,
+    paddingVertical: 18,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#667eea',
+  },
+  buttonArrow: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#667eea',
+  },
+  loginButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  loginText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

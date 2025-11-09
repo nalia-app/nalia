@@ -40,6 +40,7 @@ export default function DirectMessageScreen() {
   const { id: otherUserId } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (otherUserId && user) {
@@ -157,11 +158,13 @@ export default function DirectMessageScreen() {
   const handleSend = async () => {
     if (!newMessage.trim() || !user || !otherUserId || sending) return;
 
-    try {
-      setSending(true);
-      const messageText = newMessage.trim();
-      setNewMessage("");
+    const messageText = newMessage.trim();
+    setSending(true);
+    
+    // Clear input immediately and keep keyboard open
+    setNewMessage("");
 
+    try {
       console.log("Sending direct message");
 
       const { error } = await supabase.from("direct_messages").insert({
@@ -184,9 +187,14 @@ export default function DirectMessageScreen() {
       });
 
       loadMessages();
+      
+      // Keep focus on input to maintain keyboard
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     } catch (error: any) {
       console.error("Error sending message:", error);
-      setNewMessage(newMessage);
+      setNewMessage(messageText);
     } finally {
       setSending(false);
     }
@@ -290,6 +298,7 @@ export default function DirectMessageScreen() {
 
           <View style={styles.inputContainer}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
               placeholder="Type a message..."
               placeholderTextColor={colors.textSecondary}
@@ -297,6 +306,7 @@ export default function DirectMessageScreen() {
               onChangeText={setNewMessage}
               multiline
               maxLength={500}
+              blurOnSubmit={false}
             />
             <Pressable
               style={[

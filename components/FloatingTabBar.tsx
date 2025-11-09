@@ -143,6 +143,7 @@ export default function FloatingTabBar({
         .eq('friend_id', user.id)
         .eq('status', 'pending');
 
+      console.log('Pending friend requests count:', count);
       setHasPendingRequests((count || 0) > 0);
     } catch (error) {
       console.error('Error checking pending requests:', error);
@@ -152,10 +153,13 @@ export default function FloatingTabBar({
   const handleTabPress = (route: string) => {
     console.log('Tab pressed:', route, 'Current pathname:', pathname);
     
-    // Check if we're already on this route
-    const isAlreadyOnRoute = pathname.includes(route.replace('/(tabs)', ''));
+    // Normalize routes for comparison
+    const normalizedRoute = route.replace('/(tabs)', '');
+    const normalizedPathname = pathname.replace('/(tabs)', '');
     
-    if (isAlreadyOnRoute) {
+    // Check if we're already on this exact route
+    if (normalizedPathname === normalizedRoute || 
+        (normalizedRoute === '/(home)' && normalizedPathname === '/')) {
       console.log('Already on this route, skipping navigation');
       return;
     }
@@ -164,7 +168,15 @@ export default function FloatingTabBar({
   };
 
   const isActive = (route: string) => {
-    return pathname.includes(route.replace('/(tabs)', ''));
+    const normalizedRoute = route.replace('/(tabs)', '');
+    const normalizedPathname = pathname.replace('/(tabs)', '');
+    
+    // Special handling for home route
+    if (normalizedRoute === '/(home)') {
+      return normalizedPathname === '/' || normalizedPathname === '/(home)';
+    }
+    
+    return normalizedPathname.includes(normalizedRoute);
   };
 
   const shouldShowBadge = (tabName: string) => {

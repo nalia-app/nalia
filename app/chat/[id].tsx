@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -41,6 +42,7 @@ export default function ChatScreen() {
   const [participantCount, setParticipantCount] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (user && id) {
@@ -150,6 +152,8 @@ export default function ChatScreen() {
 
     const messageText = message.trim();
     setSending(true);
+    
+    // Clear input immediately and keep keyboard open
     setMessage("");
 
     try {
@@ -163,6 +167,11 @@ export default function ChatScreen() {
       if (error) throw error;
 
       console.log("Message sent successfully");
+      
+      // Keep focus on input to maintain keyboard
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     } catch (error: any) {
       console.error("Error sending message:", error);
       setMessage(messageText); // Restore message on error
@@ -266,6 +275,7 @@ export default function ChatScreen() {
 
           <View style={styles.inputContainer}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
               placeholder="Type a message..."
               placeholderTextColor={colors.textSecondary}
@@ -273,6 +283,7 @@ export default function ChatScreen() {
               onChangeText={setMessage}
               multiline
               editable={!sending}
+              blurOnSubmit={false}
             />
             <Pressable
               style={[

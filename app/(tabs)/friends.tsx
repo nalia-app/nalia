@@ -126,6 +126,7 @@ export default function FriendsScreen() {
       });
 
       setRequests(formattedRequests);
+      console.log('Loaded friend requests:', formattedRequests.length);
     } catch (error: any) {
       console.error("Error loading friend requests:", error);
     }
@@ -265,8 +266,9 @@ export default function FriendsScreen() {
       });
 
       Alert.alert("Success", "Friend request accepted!");
-      loadFriends();
-      loadRequests();
+      
+      // Reload both friends and requests to update the UI and badge
+      await Promise.all([loadFriends(), loadRequests()]);
     } catch (error: any) {
       console.error("Error accepting friend request:", error);
       Alert.alert("Error", "Failed to accept friend request");
@@ -286,7 +288,9 @@ export default function FriendsScreen() {
       if (deleteError) throw deleteError;
 
       Alert.alert("Success", "Friend request declined");
-      loadRequests();
+      
+      // Reload requests to update the UI and badge
+      await loadRequests();
     } catch (error: any) {
       console.error("Error declining friend request:", error);
       Alert.alert("Error", "Failed to decline friend request");

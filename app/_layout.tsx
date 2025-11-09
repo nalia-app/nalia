@@ -59,6 +59,12 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false, animation: 'default' }}>
               <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/welcome" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/signup" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/login" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/interests" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/profile-setup" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding/permissions" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="event-details"
@@ -97,6 +103,13 @@ export default function RootLayout() {
               />
               <Stack.Screen
                 name="user-profile/[id]"
+                options={{
+                  presentation: "modal",
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="event/[id]"
                 options={{
                   presentation: "modal",
                   headerShown: false,

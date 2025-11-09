@@ -8,6 +8,7 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -112,12 +113,8 @@ export default function EventDetailScreen() {
 
       if (error) throw error;
 
-      Alert.alert(
-        "Success",
-        event?.is_public
-          ? "You've joined the event!"
-          : "Your request has been sent to the host"
-      );
+      // No success pop-up, just reload the event
+      console.log("Successfully joined event");
 
       // Create notification for host
       await supabase.from("notifications").insert({
@@ -214,8 +211,9 @@ export default function EventDetailScreen() {
             <View style={styles.eventIcon}>
               <Text style={styles.eventIconText}>{event.icon}</Text>
             </View>
-            <Text style={styles.hostText}>{event.host_name} wanna...</Text>
-            <Text style={styles.description}>{event.description}</Text>
+            <Text style={styles.description}>
+              {event.host_name} wanna {event.description}
+            </Text>
             {isHost && (
               <View style={styles.hostBadge}>
                 <Text style={styles.hostBadgeText}>You&apos;re hosting</Text>
@@ -284,7 +282,14 @@ export default function EventDetailScreen() {
             {approvedAttendees.map((attendee) => (
               <View key={attendee.id} style={styles.attendeeCard}>
                 <View style={styles.attendeeAvatar}>
-                  <IconSymbol name="person.fill" size={20} color={colors.text} />
+                  {attendee.profiles.avatar_url ? (
+                    <Image
+                      source={{ uri: attendee.profiles.avatar_url }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <IconSymbol name="person.fill" size={20} color={colors.text} />
+                  )}
                 </View>
                 <Text style={styles.attendeeName}>{attendee.profiles.name}</Text>
                 {attendee.user_id === event.host_id && (
@@ -400,12 +405,6 @@ const styles = StyleSheet.create({
   eventIconText: {
     fontSize: 48,
   },
-  hostText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.primary,
-    marginBottom: 8,
-  },
   description: {
     fontSize: 24,
     fontWeight: "bold",
@@ -489,6 +488,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   attendeeName: {
     fontSize: 16,

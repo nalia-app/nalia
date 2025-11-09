@@ -70,6 +70,18 @@ export default function FloatingTabBar({
             checkUnreadMessages();
           }
         )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'message_reads',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            checkUnreadMessages();
+          }
+        )
         .subscribe();
 
       const friendsChannel = supabase
@@ -106,7 +118,7 @@ export default function FloatingTabBar({
         .eq('receiver_id', user.id)
         .eq('read', false);
 
-      // Check for recent event messages (simplified - messages from last 24h that aren't from user)
+      // Check for unread event messages
       const { data: attendeeData } = await supabase
         .from('event_attendees')
         .select('event_id')
@@ -117,14 +129,26 @@ export default function FloatingTabBar({
 
       let eventMessageCount = 0;
       if (eventIds.length > 0) {
-        const { count } = await supabase
+        // Get all messages from user's events that aren't from the user
+        const { data: allMessages } = await supabase
           .from('messages')
-          .select('*', { count: 'exact', head: true })
+          .select('id')
           .in('event_id', eventIds)
-          .neq('sender_id', user.id)
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-        
-        eventMessageCount = count || 0;
+          .neq('sender_id', user.id);
+
+        if (allMessages && allMessages.length > 0) {
+          const messageIds = allMessages.map((m) => m.id);
+          
+          // Check which messages have been read
+          const { data: readMessages } = await supabase
+            .from('message_reads')
+            .select('message_id')
+            .eq('user_id', user.id)
+            .in('message_id', messageIds);
+
+          const readMessageIds = new Set(readMessages?.map((r) => r.message_id) || []);
+          eventMessageCount = messageIds.filter((id) => !readMessageIds.has(id)).length;
+        }
       }
 
       setHasUnreadMessages((dmCount || 0) > 0 || eventMessageCount > 0);

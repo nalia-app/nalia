@@ -49,6 +49,7 @@ export default function CreateEventScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState("");
+  const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
     loadLocation();
@@ -115,6 +116,7 @@ export default function CreateEventScreen() {
             font-size: 24px;
             box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
             animation: pulse 2s infinite ease-in-out;
+            cursor: move;
           }
           @keyframes pulse {
             0%, 100% { 
@@ -133,13 +135,15 @@ export default function CreateEventScreen() {
         <script>
           // Initialize map with extended zoom range
           const map = L.map('map', {
-            zoomControl: false,
+            zoomControl: true,
             attributionControl: false,
-            minZoom: 3,  // Allow much more zoom out
-            maxZoom: 20  // Allow more zoom in
+            minZoom: 3,
+            maxZoom: 20,
+            tap: true,
+            tapTolerance: 15
           }).setView([${lat}, ${lng}], 15);
           
-          // Add MapTiler Streets tile layer with larger text
+          // Add MapTiler Streets tile layer
           L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
             attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>',
             maxZoom: 20,
@@ -148,7 +152,7 @@ export default function CreateEventScreen() {
             zoomOffset: -1
           }).addTo(map);
           
-          // Add marker
+          // Add draggable marker
           let marker = L.marker([${lat}, ${lng}], {
             icon: L.divIcon({
               className: 'custom-marker',
@@ -162,6 +166,7 @@ export default function CreateEventScreen() {
           // Handle marker drag
           marker.on('dragend', (e) => {
             const position = e.target.getLatLng();
+            console.log('Marker dragged to:', position);
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'locationSelected',
               lat: position.lat,
@@ -169,8 +174,9 @@ export default function CreateEventScreen() {
             }));
           });
           
-          // Handle map clicks
+          // Handle map clicks to move marker
           map.on('click', (e) => {
+            console.log('Map clicked at:', e.latlng);
             marker.setLatLng(e.latlng);
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'locationSelected',
@@ -178,6 +184,8 @@ export default function CreateEventScreen() {
               lng: e.latlng.lng
             }));
           });
+          
+          console.log('Map initialized successfully');
         </script>
       </body>
       </html>
@@ -187,12 +195,13 @@ export default function CreateEventScreen() {
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+      console.log('[CreateEvent] WebView message received:', data);
       if (data.type === 'locationSelected') {
         setSelectedLocation({ lat: data.lat, lng: data.lng });
-        console.log('Location selected:', data.lat, data.lng);
+        console.log('[CreateEvent] Location updated:', data.lat, data.lng);
       }
     } catch (error) {
-      console.log('Error parsing WebView message:', error);
+      console.log('[CreateEvent] Error parsing WebView message:', error);
     }
   };
 
@@ -336,7 +345,11 @@ export default function CreateEventScreen() {
                 <Pressable
                   key={icon}
                   style={[styles.iconButton, selectedIcon === icon && styles.iconButtonActive]}
-                  onPress={() => setSelectedIcon(icon)}
+                  onPress={() => {
+                    setSelectedIcon(icon);
+                    // Force map to reload with new icon
+                    setMapKey(prev => prev + 1);
+                  }}
                 >
                   <Text style={styles.iconText}>{icon}</Text>
                 </Pressable>
@@ -346,15 +359,18 @@ export default function CreateEventScreen() {
 
           {/* Map */}
           <View style={styles.section}>
-            <Text style={styles.label}>Location (tap or drag to adjust)</Text>
+            <Text style={styles.label}>Location (tap or drag marker to adjust)</Text>
             <View style={styles.mapContainer}>
               <WebView
+                key={mapKey}
                 source={{ html: generateMapHTML() }}
                 style={styles.map}
                 onMessage={handleWebViewMessage}
                 javaScriptEnabled={true}
                 domStorageEnabled={true}
                 scrollEnabled={false}
+                bounces={false}
+                allowsInlineMediaPlayback={true}
               />
             </View>
             <TextInput

@@ -83,6 +83,19 @@ export default function MessagesScreen() {
           loadChats();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_reads',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log('Message read status updated');
+          loadChats();
+        }
+      )
       .subscribe();
 
     channelRef.current = channel;
@@ -115,7 +128,7 @@ export default function MessagesScreen() {
 
       if (attendeeError) throw attendeeError;
 
-      // For each event, get the last message
+      // For each event, get the last message and unread count
       const eventChatsPromises = (attendeeData || []).map(async (item) => {
         if (!item.events) return null;
 
@@ -129,16 +142,26 @@ export default function MessagesScreen() {
           .limit(1)
           .single();
 
-        // Count unread messages
-        const { count: unreadCount } = await supabase
+        // Count unread messages (messages not in message_reads for this user)
+        const { data: allMessages } = await supabase
           .from("messages")
-          .select("*", { count: "exact", head: true })
+          .select("id")
           .eq("event_id", event.id)
-          .neq("sender_id", user.id)
-          .gte(
-            "created_at",
-            new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-          );
+          .neq("sender_id", user.id);
+
+        let unreadCount = 0;
+        if (allMessages && allMessages.length > 0) {
+          const messageIds = allMessages.map((m) => m.id);
+          
+          const { data: readMessages } = await supabase
+            .from("message_reads")
+            .select("message_id")
+            .eq("user_id", user.id)
+            .in("message_id", messageIds);
+
+          const readMessageIds = new Set(readMessages?.map((r) => r.message_id) || []);
+          unreadCount = messageIds.filter((id) => !readMessageIds.has(id)).length;
+        }
 
         return {
           id: event.id,
@@ -149,7 +172,7 @@ export default function MessagesScreen() {
           timestamp: lastMessage
             ? formatTimestamp(lastMessage.created_at)
             : "New",
-          unread: unreadCount || 0,
+          unread: unreadCount,
           icon: event.icon,
           type: 'event' as const,
         };

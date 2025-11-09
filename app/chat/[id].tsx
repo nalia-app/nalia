@@ -48,6 +48,7 @@ export default function ChatScreen() {
     if (user && id) {
       loadEventDetails();
       loadMessages();
+      markMessagesAsRead();
       setupRealtimeSubscription();
     }
 
@@ -81,6 +82,35 @@ export default function ChatScreen() {
       setParticipantCount(count || 0);
     } catch (error: any) {
       console.error("Error loading event details:", error);
+    }
+  };
+
+  const markMessagesAsRead = async () => {
+    if (!user || !id) return;
+
+    try {
+      // Get all messages in this event
+      const { data: eventMessages } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("event_id", id)
+        .neq("sender_id", user.id);
+
+      if (!eventMessages || eventMessages.length === 0) return;
+
+      // Mark all as read by inserting into message_reads (on conflict do nothing)
+      const readRecords = eventMessages.map((msg) => ({
+        message_id: msg.id,
+        user_id: user.id,
+      }));
+
+      await supabase
+        .from("message_reads")
+        .upsert(readRecords, { onConflict: "message_id,user_id" });
+
+      console.log("Marked messages as read");
+    } catch (error: any) {
+      console.error("Error marking messages as read:", error);
     }
   };
 
@@ -141,6 +171,9 @@ export default function ChatScreen() {
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 100);
+        
+        // Mark new messages as read
+        markMessagesAsRead();
       })
       .subscribe((status) => {
         console.log("Realtime subscription status:", status);

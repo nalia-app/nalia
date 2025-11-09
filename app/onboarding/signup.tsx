@@ -3,11 +3,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/styles/commonStyles';
 import { useUser } from '@/contexts/UserContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/app/integrations/supabase/client';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -15,6 +17,21 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+
+  useEffect(() => {
+    // Configure Google Sign In
+    GoogleSignin.configure({
+      webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual Web Client ID from Google Cloud Console
+      iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com', // Optional: iOS Client ID
+      offlineAccess: false,
+    });
+
+    // Check if Apple Authentication is available
+    if (Platform.OS === 'ios') {
+      AppleAuthentication.isAvailableAsync().then(setAppleAuthAvailable);
+    }
+  }, []);
 
   const handleEmailSignup = async () => {
     if (!email || !password) {
@@ -71,50 +88,117 @@ export default function SignupScreen() {
     try {
       console.log('[Signup] Attempting Google signup');
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'https://natively.dev/auth/callback',
+      // Check if device supports Google Play services
+      await GoogleSignin.hasPlayServices();
+      
+      // Sign in with Google
+      const userInfo = await GoogleSignin.signIn();
+      console.log('[Signup] Google sign in successful:', userInfo);
+      
+      if (userInfo.data?.idToken) {
+        // Sign in to Supabase with the Google ID token
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: userInfo.data.idToken,
+        });
+
+        if (error) {
+          console.error('[Signup] Supabase Google error:', error);
+          Alert.alert('Google Signup Error', error.message);
+          return;
         }
-      });
 
-      if (error) {
-        console.error('[Signup] Google error:', error);
-        Alert.alert('Google Signup Error', error.message);
-        return;
+        console.log('[Signup] Google signup successful:', data.user?.id);
+        
+        // Check if user needs onboarding
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user?.id)
+          .single();
+
+        if (!profile) {
+          // New user, proceed to interests
+          router.replace('/onboarding/interests');
+        }
+        // Otherwise, UserContext will handle navigation to home
+      } else {
+        throw new Error('No ID token received from Google');
       }
-
-      console.log('[Signup] Google signup initiated');
     } catch (error: any) {
       console.error('[Signup] Google exception:', error);
-      Alert.alert('Error', error.message || 'An error occurred with Google signup');
+      
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        console.log('[Signup] User cancelled Google sign in');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('Error', 'Google sign in is already in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play services not available or outdated');
+      } else {
+        Alert.alert('Error', error.message || 'An error occurred with Google signup');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleAppleSignup = async () => {
+    if (!appleAuthAvailable) {
+      Alert.alert('Not Available', 'Apple Sign In is only available on iOS 13+');
+      return;
+    }
+
     setLoading(true);
     try {
       console.log('[Signup] Attempting Apple signup');
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: 'https://natively.dev/auth/callback',
-        }
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
       });
 
-      if (error) {
-        console.error('[Signup] Apple error:', error);
-        Alert.alert('Apple Signup Error', error.message);
-        return;
-      }
+      console.log('[Signup] Apple sign in successful:', credential);
 
-      console.log('[Signup] Apple signup initiated');
+      if (credential.identityToken) {
+        // Sign in to Supabase with the Apple ID token
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+        });
+
+        if (error) {
+          console.error('[Signup] Supabase Apple error:', error);
+          Alert.alert('Apple Signup Error', error.message);
+          return;
+        }
+
+        console.log('[Signup] Apple signup successful:', data.user?.id);
+        
+        // Check if user needs onboarding
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user?.id)
+          .single();
+
+        if (!profile) {
+          // New user, proceed to interests
+          router.replace('/onboarding/interests');
+        }
+        // Otherwise, UserContext will handle navigation to home
+      } else {
+        throw new Error('No identity token received from Apple');
+      }
     } catch (error: any) {
       console.error('[Signup] Apple exception:', error);
-      Alert.alert('Error', error.message || 'An error occurred with Apple signup');
+      
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        console.log('[Signup] User cancelled Apple sign in');
+      } else {
+        Alert.alert('Error', error.message || 'An error occurred with Apple signup');
+      }
     } finally {
       setLoading(false);
     }
@@ -184,14 +268,24 @@ export default function SignupScreen() {
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </Pressable>
 
-          <Pressable
-            style={[styles.socialButton, loading && styles.buttonDisabled]}
-            onPress={handleAppleSignup}
-            disabled={loading}
-          >
-            <IconSymbol name="logo.apple" size={24} color={colors.text} />
-            <Text style={styles.socialButtonText}>Continue with Apple</Text>
-          </Pressable>
+          {Platform.OS === 'ios' && appleAuthAvailable && (
+            <Pressable
+              style={[styles.socialButton, loading && styles.buttonDisabled]}
+              onPress={handleAppleSignup}
+              disabled={loading}
+            >
+              <IconSymbol name="logo.apple" size={24} color={colors.text} />
+              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            </Pressable>
+          )}
+
+          {Platform.OS === 'android' && (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                Apple Sign In is only available on iOS devices
+              </Text>
+            </View>
+          )}
 
           <Pressable
             style={styles.loginLink}
@@ -302,6 +396,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
+  },
+  infoBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  infoText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
   },
   loginLink: {
     marginTop: 24,

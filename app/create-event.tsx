@@ -86,6 +86,11 @@ export default function CreateEventScreen() {
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <style>
+          * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+          }
           body, html {
             margin: 0;
             padding: 0;
@@ -93,18 +98,21 @@ export default function CreateEventScreen() {
             width: 100%;
             overflow: hidden;
             background: #0a0a0a;
-            touch-action: none;
+            touch-action: pan-x pan-y;
           }
           #map {
             height: 100%;
             width: 100%;
             background: #0a0a0a;
-            touch-action: none;
+            touch-action: pan-x pan-y;
           }
           .leaflet-container {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 16px;
+            touch-action: pan-x pan-y;
+          }
+          .leaflet-marker-icon {
             touch-action: none;
           }
           .custom-marker {
@@ -119,7 +127,7 @@ export default function CreateEventScreen() {
             font-size: 24px;
             box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
             animation: pulse 2s infinite ease-in-out;
-            cursor: move;
+            cursor: pointer;
             touch-action: none;
           }
           @keyframes pulse {
@@ -139,16 +147,18 @@ export default function CreateEventScreen() {
         <script>
           console.log('[CreateEvent Map] Initializing map...');
           
-          // Initialize map WITHOUT zoom control buttons and with extended zoom range
+          // Initialize map WITHOUT zoom control buttons
           const map = L.map('map', {
             zoomControl: false,
             attributionControl: false,
             minZoom: 3,
             maxZoom: 20,
             tap: true,
-            tapTolerance: 20,
+            tapTolerance: 15,
             touchZoom: true,
-            dragging: true
+            dragging: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true
           }).setView([${lat}, ${lng}], 15);
           
           console.log('[CreateEvent Map] Map initialized at:', ${lat}, ${lng});
@@ -173,13 +183,19 @@ export default function CreateEventScreen() {
               iconAnchor: [20, 20]
             }),
             draggable: true,
-            autoPan: true
+            autoPan: true,
+            autoPanPadding: [50, 50],
+            autoPanSpeed: 10
           }).addTo(map);
           
           console.log('[CreateEvent Map] Marker added');
           
-          // Handle marker drag
+          // Track if marker is being dragged
+          let isDraggingMarker = false;
+          
+          // Handle marker drag events
           marker.on('dragstart', (e) => {
+            isDraggingMarker = true;
             console.log('[CreateEvent Map] Marker drag started');
           });
           
@@ -196,12 +212,21 @@ export default function CreateEventScreen() {
               lat: position.lat,
               lng: position.lng
             }));
+            // Reset drag flag after a short delay
+            setTimeout(() => {
+              isDraggingMarker = false;
+            }, 100);
           });
           
-          // Handle map clicks to move marker
+          // Handle map clicks to move marker (only if not dragging)
           map.on('click', (e) => {
+            if (isDraggingMarker) {
+              console.log('[CreateEvent Map] Ignoring click - marker is being dragged');
+              return;
+            }
             console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng);
             marker.setLatLng(e.latlng);
+            map.panTo(e.latlng);
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'locationSelected',
               lat: e.latlng.lat,
@@ -209,9 +234,23 @@ export default function CreateEventScreen() {
             }));
           });
           
+          // Prevent map drag from interfering with marker placement
+          map.on('dragstart', () => {
+            console.log('[CreateEvent Map] Map drag started');
+          });
+          
+          map.on('dragend', () => {
+            console.log('[CreateEvent Map] Map drag ended');
+          });
+          
           // Log when map is ready
           map.whenReady(() => {
             console.log('[CreateEvent Map] Map is ready and interactive');
+            // Force a resize to ensure proper rendering
+            setTimeout(() => {
+              map.invalidateSize();
+              console.log('[CreateEvent Map] Map size invalidated');
+            }, 100);
           });
           
           console.log('[CreateEvent Map] All event handlers attached');
@@ -384,7 +423,7 @@ export default function CreateEventScreen() {
 
           {/* Map */}
           <View style={styles.section}>
-            <Text style={styles.label}>Location (tap or drag marker to adjust)</Text>
+            <Text style={styles.label}>Location (tap map or drag marker to set)</Text>
             <View style={styles.mapContainer}>
               <WebView
                 ref={webViewRef}
@@ -396,12 +435,18 @@ export default function CreateEventScreen() {
                 scrollEnabled={false}
                 bounces={false}
                 allowsInlineMediaPlayback={true}
+                scalesPageToFit={false}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
                 onError={(syntheticEvent) => {
                   const { nativeEvent } = syntheticEvent;
                   console.error('[CreateEvent] WebView error:', nativeEvent);
                 }}
                 onLoad={() => {
                   console.log('[CreateEvent] WebView loaded successfully');
+                }}
+                onLoadEnd={() => {
+                  console.log('[CreateEvent] WebView load ended');
                 }}
               />
             </View>

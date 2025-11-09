@@ -44,7 +44,7 @@ export default function WelcomeScreen() {
 
   return (
     <LinearGradient 
-      colors={['#667eea', '#764ba2', '#f093fb']} 
+      colors={['#1a1a2e', '#16213e', '#0f3460', '#533483']} 
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -59,7 +59,7 @@ export default function WelcomeScreen() {
                 colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
                 style={styles.taglineGradient}
               >
-                <Text style={styles.tagline}>Turn ideas into real connections</Text>
+                <Text style={styles.tagline}>Meet people who share your interests</Text>
               </LinearGradient>
             </View>
           </View>
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 18,
-    color: '#667eea',
+    color: '#16213e',
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#667eea',
+    color: '#16213e',
   },
   buttonArrow: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#667eea',
+    color: '#16213e',
   },
   loginButton: {
     paddingVertical: 12,

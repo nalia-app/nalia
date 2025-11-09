@@ -11,7 +11,6 @@ import {
   Platform,
   ActivityIndicator,
   Image,
-  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -265,8 +264,8 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -327,7 +326,7 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -356,7 +355,7 @@ export default function ChatScreen() {
                 />
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
@@ -486,13 +485,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.highlight,
-    paddingTop: 16,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingBottom: 0,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   input: {
     flex: 1,

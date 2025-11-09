@@ -246,8 +246,8 @@ export default function DirectMessageScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -298,7 +298,7 @@ export default function DirectMessageScreen() {
             )}
           </ScrollView>
 
-          <View style={[styles.inputWrapper, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -333,7 +333,7 @@ export default function DirectMessageScreen() {
                 )}
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
@@ -439,13 +439,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.highlight,
     backgroundColor: colors.card,
-    paddingTop: 16,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingBottom: 0,
+    paddingTop: 16,
+    paddingBottom: 16,
     gap: 12,
   },
   input: {

@@ -190,7 +190,10 @@ export default function EventDetailScreen() {
     );
   }
 
-  const approvedAttendees = event.attendees.filter((a) => a.status === "approved");
+  // Filter out host from attendees list and only show approved attendees
+  const approvedAttendees = event.attendees.filter(
+    (a) => a.status === "approved" && a.user_id !== event.host_id
+  );
   const isHost = user?.id === event.host_id;
   
   // Total attendees including host
@@ -209,6 +212,9 @@ export default function EventDetailScreen() {
 
   // Combine host and attendees with host first
   const allAttendees = [hostAttendee, ...approvedAttendees];
+
+  // Format description to always start with lowercase
+  const formattedDescription = event.description.charAt(0).toLowerCase() + event.description.slice(1);
 
   return (
     <LinearGradient
@@ -236,7 +242,7 @@ export default function EventDetailScreen() {
             <Text style={styles.description}>
               <Text style={styles.hostNameText}>{event.host_name}</Text>
               <Text style={styles.wannaText}> wanna </Text>
-              <Text style={styles.descriptionHighlight}>{event.description}</Text>
+              <Text style={styles.descriptionHighlight}>{formattedDescription}</Text>
             </Text>
             {isHost && (
               <View style={styles.hostBadge}>

@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Keyboard,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,6 +25,7 @@ interface Message {
   id: string;
   sender_id: string;
   sender_name: string;
+  sender_avatar: string | null;
   text: string;
   created_at: string;
   isMe: boolean;
@@ -121,7 +122,10 @@ export default function ChatScreen() {
 
       const { data, error } = await supabase
         .from("messages")
-        .select("*")
+        .select(`
+          *,
+          profiles:sender_id(avatar_url)
+        `)
         .eq("event_id", id)
         .order("created_at", { ascending: true });
 
@@ -129,6 +133,7 @@ export default function ChatScreen() {
 
       const formattedMessages = (data || []).map((msg) => ({
         ...msg,
+        sender_avatar: (msg.profiles as any)?.avatar_url || null,
         isMe: msg.sender_id === user?.id,
       }));
 
@@ -165,6 +170,7 @@ export default function ChatScreen() {
           ...prev,
           {
             ...newMessage,
+            sender_avatar: null, // Will be loaded on next refresh
             isMe: newMessage.sender_id === user?.id,
           },
         ]);
@@ -258,7 +264,7 @@ export default function ChatScreen() {
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={100}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -280,7 +286,19 @@ export default function ChatScreen() {
                 ]}
               >
                 {!msg.isMe && (
-                  <Text style={styles.senderName}>{msg.sender_name}</Text>
+                  <View style={styles.messageHeader}>
+                    <View style={styles.senderAvatar}>
+                      {msg.sender_avatar ? (
+                        <Image
+                          source={{ uri: msg.sender_avatar }}
+                          style={styles.avatarImage}
+                        />
+                      ) : (
+                        <IconSymbol name="person.fill" size={14} color={colors.text} />
+                      )}
+                    </View>
+                    <Text style={styles.senderName}>{msg.sender_name}</Text>
+                  </View>
                 )}
                 <View
                   style={[
@@ -401,11 +419,31 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     alignItems: "flex-start",
   },
+  messageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+    marginLeft: 4,
+  },
+  senderAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.highlight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 6,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
   senderName: {
     fontSize: 12,
     color: colors.primary,
-    marginBottom: 4,
-    marginLeft: 12,
+    fontWeight: "600",
   },
   messageBubble: {
     paddingHorizontal: 16,

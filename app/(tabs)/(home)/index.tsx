@@ -58,6 +58,7 @@ export default function HomeScreen() {
   const [selectedEvent, setSelectedEvent] = useState<EventBubble | null>(null);
   const [showEventPreview, setShowEventPreview] = useState(false);
   const webViewRef = useRef<WebView>(null);
+  const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
     console.log('[HomeScreen] Initializing...');
@@ -77,6 +78,8 @@ export default function HomeScreen() {
         (payload) => {
           console.log('[HomeScreen] Event change detected:', payload);
           loadEvents();
+          // Force map to reload with new events
+          setMapKey(prev => prev + 1);
         }
       )
       .subscribe();
@@ -299,7 +302,11 @@ export default function HomeScreen() {
 
   // Generate HTML for the map with MapTiler Streets and improved zoom/labels
   const generateMapHTML = () => {
-    const eventsJSON = JSON.stringify(filteredEvents);
+    const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
+      ...event,
+      // Format description to always start with lowercase
+      description: event.description.charAt(0).toLowerCase() + event.description.slice(1)
+    })));
     const userLocationJSON = location ? JSON.stringify({
       lat: location.coords.latitude,
       lng: location.coords.longitude
@@ -507,6 +514,7 @@ export default function HomeScreen() {
       {/* Map Container */}
       <View style={styles.mapContainer}>
         <WebView
+          key={mapKey}
           ref={webViewRef}
           source={{ html: generateMapHTML() }}
           style={styles.webView}
@@ -666,7 +674,10 @@ export default function HomeScreen() {
               <Text style={styles.previewTitle}>
                 <Text style={styles.previewHostName}>{selectedEvent?.hostName}</Text>
                 <Text style={styles.previewWanna}> wanna </Text>
-                <Text style={styles.previewDescription}>{selectedEvent?.description}</Text>
+                <Text style={styles.previewDescription}>
+                  {selectedEvent?.description && 
+                    selectedEvent.description.charAt(0).toLowerCase() + selectedEvent.description.slice(1)}
+                </Text>
               </Text>
 
               {/* Event Details */}

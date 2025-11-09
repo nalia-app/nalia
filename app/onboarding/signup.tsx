@@ -8,8 +8,19 @@ import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/app/integrations/supabase/client';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
+
+// Dynamically import Google Sign-In to handle cases where it's not available
+let GoogleSignin: any = null;
+let statusCodes: any = null;
+
+try {
+  const googleSignInModule = require('@react-native-google-signin/google-signin');
+  GoogleSignin = googleSignInModule.GoogleSignin;
+  statusCodes = googleSignInModule.statusCodes;
+} catch (error) {
+  console.warn('[Signup] Google Sign-In module not available:', error);
+}
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -18,14 +29,27 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+  const [googleSignInAvailable, setGoogleSignInAvailable] = useState(false);
 
   useEffect(() => {
-    // Configure Google Sign In
-    GoogleSignin.configure({
-      webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual Web Client ID from Google Cloud Console
-      iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com', // Optional: iOS Client ID
-      offlineAccess: false,
-    });
+    // Configure Google Sign In if available
+    if (GoogleSignin) {
+      try {
+        GoogleSignin.configure({
+          webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual Web Client ID from Google Cloud Console
+          iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com', // Optional: iOS Client ID
+          offlineAccess: false,
+        });
+        setGoogleSignInAvailable(true);
+        console.log('[Signup] Google Sign-In configured successfully');
+      } catch (error) {
+        console.error('[Signup] Error configuring Google Sign-In:', error);
+        setGoogleSignInAvailable(false);
+      }
+    } else {
+      console.warn('[Signup] Google Sign-In not available - native module not found');
+      setGoogleSignInAvailable(false);
+    }
 
     // Check if Apple Authentication is available
     if (Platform.OS === 'ios') {
@@ -84,6 +108,14 @@ export default function SignupScreen() {
   };
 
   const handleGoogleSignup = async () => {
+    if (!googleSignInAvailable || !GoogleSignin) {
+      Alert.alert(
+        'Not Available',
+        'Google Sign-In is not available. Please use email signup or try rebuilding the app with "npx expo prebuild --clean".'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       console.log('[Signup] Attempting Google signup');
@@ -128,11 +160,11 @@ export default function SignupScreen() {
     } catch (error: any) {
       console.error('[Signup] Google exception:', error);
       
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      if (statusCodes && error.code === statusCodes.SIGN_IN_CANCELLED) {
         console.log('[Signup] User cancelled Google sign in');
-      } else if (error.code === statusCodes.IN_PROGRESS) {
+      } else if (statusCodes && error.code === statusCodes.IN_PROGRESS) {
         Alert.alert('Error', 'Google sign in is already in progress');
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      } else if (statusCodes && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         Alert.alert('Error', 'Google Play services not available or outdated');
       } else {
         Alert.alert('Error', error.message || 'An error occurred with Google signup');
@@ -259,14 +291,22 @@ export default function SignupScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <Pressable
-            style={[styles.socialButton, loading && styles.buttonDisabled]}
-            onPress={handleGoogleSignup}
-            disabled={loading}
-          >
-            <IconSymbol name="logo.google" size={24} color={colors.text} />
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
-          </Pressable>
+          {googleSignInAvailable ? (
+            <Pressable
+              style={[styles.socialButton, loading && styles.buttonDisabled]}
+              onPress={handleGoogleSignup}
+              disabled={loading}
+            >
+              <IconSymbol name="logo.google" size={24} color={colors.text} />
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                Google Sign-In requires native setup. Please run: npx expo prebuild --clean
+              </Text>
+            </View>
+          )}
 
           {Platform.OS === 'ios' && appleAuthAvailable && (
             <Pressable

@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,9 +43,26 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [eventName, setEventName] = useState("Event Chat");
   const [participantCount, setParticipantCount] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (user && id) {
@@ -264,8 +282,8 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -326,7 +344,12 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
+          <View 
+            style={[
+              styles.inputWrapper,
+              !keyboardVisible && { paddingBottom: insets.bottom }
+            ]}
+          >
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -355,7 +378,7 @@ export default function ChatScreen() {
                 />
               </Pressable>
             </View>
-          </SafeAreaView>
+          </View>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
@@ -490,8 +513,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   input: {
     flex: 1,

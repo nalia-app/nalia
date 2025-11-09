@@ -17,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -37,11 +38,28 @@ export default function DirectMessageScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [otherUserName, setOtherUserName] = useState("");
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (otherUserId && user) {
@@ -246,8 +264,8 @@ export default function DirectMessageScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -298,7 +316,12 @@ export default function DirectMessageScreen() {
             )}
           </ScrollView>
 
-          <SafeAreaView edges={["bottom"]} style={styles.inputWrapper}>
+          <View 
+            style={[
+              styles.inputWrapper,
+              !keyboardVisible && { paddingBottom: insets.bottom }
+            ]}
+          >
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -333,7 +356,7 @@ export default function DirectMessageScreen() {
                 )}
               </Pressable>
             </View>
-          </SafeAreaView>
+          </View>
         </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
@@ -444,8 +467,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     gap: 12,
   },
   input: {

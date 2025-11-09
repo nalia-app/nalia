@@ -300,7 +300,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Generate HTML for the map with MapTiler Streets and improved zoom/labels
+  // Generate HTML for the map with futuristic bubble styling
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
       ...event,
@@ -354,47 +354,155 @@ export default function HomeScreen() {
           .custom-marker {
             background: transparent;
             border: none;
-            font-size: 32px;
             text-align: center;
             line-height: 1;
             cursor: pointer;
           }
           
+          /* Futuristic bubble with multiple layers */
           .bubble-marker {
-            background: linear-gradient(135deg, rgba(187, 134, 252, 0.9), rgba(3, 218, 198, 0.9));
-            border: 2px solid rgba(255, 255, 255, 0.6);
-            border-radius: 50%;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 8px 24px rgba(187, 134, 252, 0.4),
-                        0 0 40px rgba(3, 218, 198, 0.2);
-            animation: pulse 2s infinite ease-in-out;
-            transition: all 0.3s ease;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           }
           
+          /* Inner core with gradient */
+          .bubble-core {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, 
+              rgba(138, 43, 226, 0.9) 0%,
+              rgba(75, 0, 130, 0.85) 40%,
+              rgba(25, 25, 112, 0.8) 100%);
+            box-shadow: 
+              inset 0 0 20px rgba(138, 43, 226, 0.6),
+              inset 0 0 40px rgba(75, 0, 130, 0.4);
+          }
+          
+          /* Middle glow layer */
+          .bubble-glow {
+            position: absolute;
+            width: 110%;
+            height: 110%;
+            border-radius: 50%;
+            background: radial-gradient(circle, 
+              rgba(138, 43, 226, 0.4) 0%,
+              rgba(75, 0, 130, 0.2) 50%,
+              transparent 70%);
+            filter: blur(8px);
+            animation: glowPulse 3s ease-in-out infinite;
+          }
+          
+          /* Outer ring */
+          .bubble-ring {
+            position: absolute;
+            width: 120%;
+            height: 120%;
+            border-radius: 50%;
+            border: 2px solid rgba(138, 43, 226, 0.6);
+            box-shadow: 
+              0 0 20px rgba(138, 43, 226, 0.8),
+              0 0 40px rgba(75, 0, 130, 0.6),
+              inset 0 0 20px rgba(138, 43, 226, 0.3);
+            animation: ringPulse 3s ease-in-out infinite;
+          }
+          
+          /* Outer glow aura */
+          .bubble-aura {
+            position: absolute;
+            width: 140%;
+            height: 140%;
+            border-radius: 50%;
+            background: radial-gradient(circle, 
+              rgba(138, 43, 226, 0.3) 0%,
+              rgba(75, 0, 130, 0.15) 40%,
+              transparent 70%);
+            filter: blur(15px);
+            animation: auraPulse 4s ease-in-out infinite;
+          }
+          
+          /* Icon container */
+          .bubble-icon {
+            position: relative;
+            z-index: 10;
+            font-size: 28px;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+            animation: iconFloat 3s ease-in-out infinite;
+          }
+          
+          /* Hover effects */
           .bubble-marker:hover {
-            transform: scale(1.1);
-            box-shadow: 0 12px 32px rgba(187, 134, 252, 0.6),
-                        0 0 60px rgba(3, 218, 198, 0.4);
+            transform: scale(1.15);
           }
           
-          @keyframes pulse {
+          .bubble-marker:hover .bubble-core {
+            background: radial-gradient(circle at 30% 30%, 
+              rgba(138, 43, 226, 1) 0%,
+              rgba(75, 0, 130, 0.95) 40%,
+              rgba(25, 25, 112, 0.9) 100%);
+            box-shadow: 
+              inset 0 0 30px rgba(138, 43, 226, 0.8),
+              inset 0 0 60px rgba(75, 0, 130, 0.6);
+          }
+          
+          .bubble-marker:hover .bubble-ring {
+            border-color: rgba(138, 43, 226, 1);
+            box-shadow: 
+              0 0 30px rgba(138, 43, 226, 1),
+              0 0 60px rgba(75, 0, 130, 0.8),
+              inset 0 0 30px rgba(138, 43, 226, 0.5);
+          }
+          
+          /* Animations */
+          @keyframes glowPulse {
             0%, 100% { 
-              transform: scale(1); 
-              opacity: 0.95;
-              box-shadow: 0 8px 24px rgba(187, 134, 252, 0.4),
-                          0 0 40px rgba(3, 218, 198, 0.2);
+              opacity: 0.6;
+              transform: scale(1);
             }
             50% { 
-              transform: scale(1.05); 
               opacity: 1;
-              box-shadow: 0 12px 32px rgba(187, 134, 252, 0.6),
-                          0 0 60px rgba(3, 218, 198, 0.4);
+              transform: scale(1.1);
             }
           }
           
+          @keyframes ringPulse {
+            0%, 100% { 
+              opacity: 0.8;
+              transform: scale(1) rotate(0deg);
+            }
+            50% { 
+              opacity: 1;
+              transform: scale(1.05) rotate(180deg);
+            }
+          }
+          
+          @keyframes auraPulse {
+            0%, 100% { 
+              opacity: 0.4;
+              transform: scale(1);
+            }
+            50% { 
+              opacity: 0.7;
+              transform: scale(1.15);
+            }
+          }
+          
+          @keyframes iconFloat {
+            0%, 100% { 
+              transform: translateY(0px);
+            }
+            50% { 
+              transform: translateY(-3px);
+            }
+          }
+          
+          /* User location marker */
           .user-marker {
             background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.4));
             border: 3px solid rgba(255, 255, 255, 0.9);
@@ -428,14 +536,14 @@ export default function HomeScreen() {
           const map = L.map('map', {
             zoomControl: false,
             attributionControl: false,
-            minZoom: 3,  // Allow much more zoom out
-            maxZoom: 20  // Allow more zoom in
+            minZoom: 3,
+            maxZoom: 20
           }).setView([${mapCenter.lat}, ${mapCenter.lng}], 14);
           
           // Store map globally for external access
           window.map = map;
           
-          // Add MapTiler Streets tile layer with larger text
+          // Add MapTiler Streets tile layer
           L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
             attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 20,
@@ -457,12 +565,34 @@ export default function HomeScreen() {
               .addTo(map);
           }
           
-          // Add event markers with enhanced styling - NO POPUPS
+          // Calculate bubble size based on attendees
+          function calculateBubbleSize(attendees) {
+            // Base size: 50px
+            // Scale: +8px per attendee
+            // Min: 50px, Max: 150px
+            const baseSize = 50;
+            const scale = 8;
+            const maxSize = 150;
+            const calculatedSize = baseSize + (attendees * scale);
+            return Math.min(calculatedSize, maxSize);
+          }
+          
+          // Add event markers with futuristic styling
           events.forEach(event => {
-            const size = 40 + event.attendees * 3;
+            const size = calculateBubbleSize(event.attendees);
+            const iconSize = Math.min(28 + (event.attendees * 2), 48);
+            
             const eventIcon = L.divIcon({
               className: 'custom-marker',
-              html: '<div class="bubble-marker" style="width:' + size + 'px;height:' + size + 'px;">' + event.icon + '</div>',
+              html: \`
+                <div class="bubble-marker" style="width:\${size}px; height:\${size}px;">
+                  <div class="bubble-aura"></div>
+                  <div class="bubble-glow"></div>
+                  <div class="bubble-ring"></div>
+                  <div class="bubble-core"></div>
+                  <div class="bubble-icon" style="font-size:\${iconSize}px;">\${event.icon}</div>
+                </div>
+              \`,
               iconSize: [size, size],
               iconAnchor: [size/2, size/2]
             });

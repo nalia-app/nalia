@@ -237,11 +237,11 @@ export default function ChatScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={[colors.background, "#0a0a0a"]}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <LinearGradient
+        colors={[colors.background, "#0a0a0a"]}
+        style={styles.gradient}
+      >
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
@@ -264,8 +264,8 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -326,7 +326,7 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <SafeAreaView style={styles.inputWrapper} edges={["bottom"]}>
+          <View style={styles.inputWrapper}>
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -355,18 +355,19 @@ export default function ChatScreen() {
                 />
               </Pressable>
             </View>
-          </SafeAreaView>
+          </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </LinearGradient>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
-  safeArea: {
+  gradient: {
     flex: 1,
   },
   loadingContainer: {
@@ -484,6 +485,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.highlight,
+    paddingBottom: Platform.OS === "ios" ? 0 : 8,
   },
   inputContainer: {
     flexDirection: "row",

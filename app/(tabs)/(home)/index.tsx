@@ -258,7 +258,7 @@ export default function HomeScreen() {
     router.push("/people-nearby" as any);
   };
 
-  // Generate HTML for the map with MapTiler Streets
+  // Generate HTML for the map with MapTiler Streets and improved zoom/labels
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents);
     const userLocationJSON = location ? JSON.stringify({
@@ -292,6 +292,12 @@ export default function HomeScreen() {
           .leaflet-container {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
+          }
+          
+          /* Make map labels bigger and more readable */
+          .leaflet-tile-pane {
+            filter: contrast(1.1) brightness(1.05);
           }
           
           .leaflet-popup-content-wrapper {
@@ -416,20 +422,24 @@ export default function HomeScreen() {
           const events = ${eventsJSON};
           const userLocation = ${userLocationJSON};
           
-          // Initialize map without zoom controls
+          // Initialize map with extended zoom range
           const map = L.map('map', {
             zoomControl: false,
-            attributionControl: false
+            attributionControl: false,
+            minZoom: 3,  // Allow much more zoom out
+            maxZoom: 20  // Allow more zoom in
           }).setView([${mapCenter.lat}, ${mapCenter.lng}], 14);
           
           // Store map globally for external access
           window.map = map;
           
-          // Add MapTiler Streets tile layer
-          L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=DRK7TsTMDfLaHMdlzmoz', {
+          // Add MapTiler Streets tile layer with larger text
+          L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
             attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 20,
-            minZoom: 10
+            minZoom: 3,
+            tileSize: 512,
+            zoomOffset: -1
           }).addTo(map);
           
           // Add user location marker if available

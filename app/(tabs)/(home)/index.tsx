@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   Platform,
+  Image,
 } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
@@ -502,9 +503,16 @@ export default function HomeScreen() {
                 <IconSymbol name="bell.fill" size={20} color={colors.text} />
               </Pressable>
               <Pressable style={styles.avatarButton} onPress={handleProfile}>
-                <View style={styles.avatar}>
-                  <IconSymbol name="person.fill" size={16} color={colors.text} />
-                </View>
+                {user?.photoUri ? (
+                  <Image 
+                    source={{ uri: user.photoUri }} 
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <View style={styles.avatar}>
+                    <IconSymbol name="person.fill" size={16} color={colors.text} />
+                  </View>
+                )}
               </Pressable>
             </View>
           </View>
@@ -650,6 +658,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  avatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: colors.primary,
   },

@@ -835,7 +835,7 @@ export default function CreateEventScreen() {
                 onPress={() => setIsPublic(true)}
               >
                 <Text style={[styles.toggleText, isPublic && styles.toggleTextActive]}>
-                  Public
+                  Open to everyone
                 </Text>
               </Pressable>
               <Pressable
@@ -843,7 +843,7 @@ export default function CreateEventScreen() {
                 onPress={() => setIsPublic(false)}
               >
                 <Text style={[styles.toggleText, !isPublic && styles.toggleTextActive]}>
-                  Private
+                  I approve who joins
                 </Text>
               </Pressable>
             </View>

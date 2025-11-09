@@ -216,8 +216,10 @@ export default function MyEventsScreen() {
               </View>
               <View style={styles.eventContent}>
                 <View style={styles.eventHeader}>
-                  <Text style={styles.eventHost}>
-                    {event.host_name} wanna...
+                  <Text style={styles.eventTitle}>
+                    <Text style={styles.eventHost}>{event.host_name}</Text>
+                    <Text style={styles.eventWanna}> wanna </Text>
+                    <Text style={styles.eventAction}>{event.description}</Text>
                   </Text>
                   {event.isHosting && (
                     <View style={styles.hostBadge}>
@@ -225,7 +227,6 @@ export default function MyEventsScreen() {
                     </View>
                   )}
                 </View>
-                <Text style={styles.eventDescription}>{event.description}</Text>
                 <View style={styles.eventDetails}>
                   <View style={styles.eventDetailItem}>
                     <IconSymbol
@@ -372,30 +373,36 @@ const styles = StyleSheet.create({
   },
   eventHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  eventHost: {
+  eventTitle: {
     fontSize: 16,
     fontWeight: "600",
+    flex: 1,
+    lineHeight: 22,
+  },
+  eventHost: {
     color: colors.text,
+  },
+  eventWanna: {
+    color: colors.text,
+  },
+  eventAction: {
+    color: colors.secondary,
   },
   hostBadge: {
     backgroundColor: colors.accent,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    marginLeft: 8,
   },
   hostBadgeText: {
     fontSize: 10,
     fontWeight: "700",
     color: colors.text,
-  },
-  eventDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12,
   },
   eventDetails: {
     flexDirection: "row",

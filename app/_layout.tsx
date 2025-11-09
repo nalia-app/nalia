@@ -15,6 +15,7 @@ import {
   PlayfairDisplay_700Bold,
   PlayfairDisplay_700Bold_Italic,
 } from '@expo-google-fonts/playfair-display';
+import { updateRecurringEvents } from "@/utils/recurringEventsUtils";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,6 +27,14 @@ function RootLayoutNav() {
   const { user, isOnboarded, isLoading } = useUser();
   const segments = useSegments();
   const router = useRouter();
+
+  // Update recurring events when app starts
+  useEffect(() => {
+    if (user && isOnboarded) {
+      console.log('[RootLayout] Updating recurring events...');
+      updateRecurringEvents();
+    }
+  }, [user, isOnboarded]);
 
   useEffect(() => {
     if (isLoading) {

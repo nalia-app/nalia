@@ -30,6 +30,9 @@ const EMOJI_CATEGORIES = {
   Other: ["💼", "🛍️", "✈️", "🚗", "📷", "🎓", "💡"],
 };
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEK_OF_MONTH = ["First", "Second", "Third", "Fourth", "Last"];
+
 const { width, height } = Dimensions.get("window");
 
 export default function CreateEventScreen() {
@@ -46,6 +49,14 @@ export default function CreateEventScreen() {
   const [isPublic, setIsPublic] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<"weekly" | "monthly">("weekly");
+  
+  // For weekly recurring
+  const [selectedWeekday, setSelectedWeekday] = useState(new Date().getDay());
+  
+  // For monthly recurring
+  const [selectedWeekOfMonth, setSelectedWeekOfMonth] = useState(0); // 0=first, 1=second, etc.
+  const [selectedMonthlyWeekday, setSelectedMonthlyWeekday] = useState(new Date().getDay());
+  
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState("");
@@ -345,6 +356,67 @@ export default function CreateEventScreen() {
     }
   };
 
+  const getNextOccurrenceDate = () => {
+    if (!isRecurring) {
+      return date.toISOString().split("T")[0];
+    }
+
+    const now = new Date();
+    
+    if (recurrenceType === "weekly") {
+      // Find next occurrence of selected weekday
+      const today = now.getDay();
+      let daysUntilNext = selectedWeekday - today;
+      if (daysUntilNext <= 0) {
+        daysUntilNext += 7;
+      }
+      const nextDate = new Date(now);
+      nextDate.setDate(now.getDate() + daysUntilNext);
+      return nextDate.toISOString().split("T")[0];
+    } else {
+      // Monthly: find next occurrence of selected week and weekday
+      const nextDate = new Date(now);
+      nextDate.setDate(1); // Start from first of month
+      
+      // Move to next month if we're past the target date this month
+      const testDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      let occurrenceCount = 0;
+      let targetDate = null;
+      
+      // Find the nth occurrence of the weekday in current month
+      for (let day = 1; day <= 31; day++) {
+        testDate.setDate(day);
+        if (testDate.getMonth() !== now.getMonth()) break;
+        if (testDate.getDay() === selectedMonthlyWeekday) {
+          if (occurrenceCount === selectedWeekOfMonth) {
+            targetDate = new Date(testDate);
+            break;
+          }
+          occurrenceCount++;
+        }
+      }
+      
+      // If target date is in the past or doesn't exist, move to next month
+      if (!targetDate || targetDate < now) {
+        nextDate.setMonth(now.getMonth() + 1);
+        nextDate.setDate(1);
+        occurrenceCount = 0;
+        
+        for (let day = 1; day <= 31; day++) {
+          nextDate.setDate(day);
+          if (nextDate.getDay() === selectedMonthlyWeekday) {
+            if (occurrenceCount === selectedWeekOfMonth) {
+              return nextDate.toISOString().split("T")[0];
+            }
+            occurrenceCount++;
+          }
+        }
+      }
+      
+      return targetDate ? targetDate.toISOString().split("T")[0] : now.toISOString().split("T")[0];
+    }
+  };
+
   const handleCreate = async () => {
     if (!description.trim()) {
       Alert.alert("Missing Information", "Please enter a description");
@@ -371,27 +443,41 @@ export default function CreateEventScreen() {
         .filter((tag) => tag.length > 0);
 
       // Format date and time
-      const eventDate = date.toISOString().split("T")[0];
+      const eventDate = isRecurring ? getNextOccurrenceDate() : date.toISOString().split("T")[0];
       const eventTime = time.toTimeString().split(" ")[0].substring(0, 5);
 
       // Create event
-      const { data: eventData, error: eventError } = await supabase
+      const eventData: any = {
+        host_id: user.id,
+        host_name: user.name,
+        description: description.trim(),
+        icon: selectedIcon,
+        latitude: selectedLocation.lat,
+        longitude: selectedLocation.lng,
+        location_name: locationName.trim() || null,
+        event_date: eventDate,
+        event_time: eventTime,
+        is_public: isPublic,
+        is_recurring: isRecurring,
+        recurrence_type: isRecurring ? recurrenceType : null,
+        tags: tagArray,
+      };
+
+      // Add recurring event fields
+      if (isRecurring) {
+        if (recurrenceType === "weekly") {
+          eventData.recurrence_day_of_week = selectedWeekday;
+          eventData.recurrence_day_name = WEEKDAYS[selectedWeekday];
+        } else {
+          eventData.recurrence_week_of_month = selectedWeekOfMonth + 1; // Store as 1-based
+          eventData.recurrence_day_of_week = selectedMonthlyWeekday;
+          eventData.recurrence_day_name = WEEKDAYS[selectedMonthlyWeekday];
+        }
+      }
+
+      const { data: createdEvent, error: eventError } = await supabase
         .from("events")
-        .insert({
-          host_id: user.id,
-          host_name: user.name,
-          description: description.trim(),
-          icon: selectedIcon,
-          latitude: selectedLocation.lat,
-          longitude: selectedLocation.lng,
-          location_name: locationName.trim() || null,
-          event_date: eventDate,
-          event_time: eventTime,
-          is_public: isPublic,
-          is_recurring: isRecurring,
-          recurrence_type: isRecurring ? recurrenceType : null,
-          tags: tagArray,
-        })
+        .insert(eventData)
         .select()
         .single();
 
@@ -401,13 +487,13 @@ export default function CreateEventScreen() {
         return;
       }
 
-      console.log("[CreateEvent] Event created successfully:", eventData.id);
+      console.log("[CreateEvent] Event created successfully:", createdEvent.id);
 
       // Add host as attendee
       const { error: attendeeError } = await supabase
         .from("event_attendees")
         .insert({
-          event_id: eventData.id,
+          event_id: createdEvent.id,
           user_id: user.id,
           status: "approved",
         });
@@ -549,21 +635,160 @@ export default function CreateEventScreen() {
             />
           </View>
 
-          {/* Date & Time */}
+          {/* Recurring Event Checkbox */}
           <View style={styles.section}>
-            <Text style={styles.label}>Date & Time</Text>
-            <View style={styles.dateTimeRow}>
-              <Pressable style={styles.dateTimeButton} onPress={() => setShowDatePicker(true)}>
-                <IconSymbol name="calendar" size={20} color={colors.text} />
-                <Text style={styles.dateTimeText}>{date.toLocaleDateString()}</Text>
+            <View style={styles.checkboxRow}>
+              <Pressable
+                style={styles.checkbox}
+                onPress={() => setIsRecurring(!isRecurring)}
+              >
+                {isRecurring && <IconSymbol name="checkmark" size={20} color={colors.text} />}
               </Pressable>
-              <Pressable style={styles.dateTimeButton} onPress={() => setShowTimePicker(true)}>
-                <IconSymbol name="clock" size={20} color={colors.text} />
-                <Text style={styles.dateTimeText}>
-                  {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </Text>
-              </Pressable>
+              <Text style={styles.checkboxLabel}>Recurring Event</Text>
             </View>
+            {isRecurring && (
+              <View style={styles.toggleRow}>
+                <Pressable
+                  style={[
+                    styles.toggleButton,
+                    recurrenceType === "weekly" && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setRecurrenceType("weekly")}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      recurrenceType === "weekly" && styles.toggleTextActive,
+                    ]}
+                  >
+                    Weekly
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.toggleButton,
+                    recurrenceType === "monthly" && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setRecurrenceType("monthly")}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      recurrenceType === "monthly" && styles.toggleTextActive,
+                    ]}
+                  >
+                    Monthly
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+
+          {/* Date & Time - Different UI for recurring events */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              {isRecurring ? "Time" : "Date & Time"}
+            </Text>
+            
+            {!isRecurring ? (
+              <View style={styles.dateTimeRow}>
+                <Pressable style={styles.dateTimeButton} onPress={() => setShowDatePicker(true)}>
+                  <IconSymbol name="calendar" size={20} color={colors.text} />
+                  <Text style={styles.dateTimeText}>{date.toLocaleDateString()}</Text>
+                </Pressable>
+                <Pressable style={styles.dateTimeButton} onPress={() => setShowTimePicker(true)}>
+                  <IconSymbol name="clock" size={20} color={colors.text} />
+                  <Text style={styles.dateTimeText}>
+                    {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {recurrenceType === "weekly" ? (
+                  <View style={styles.weekdaySelector}>
+                    {WEEKDAYS.map((day, index) => (
+                      <Pressable
+                        key={day}
+                        style={[
+                          styles.weekdayButton,
+                          selectedWeekday === index && styles.weekdayButtonActive,
+                        ]}
+                        onPress={() => setSelectedWeekday(index)}
+                      >
+                        <Text
+                          style={[
+                            styles.weekdayText,
+                            selectedWeekday === index && styles.weekdayTextActive,
+                          ]}
+                        >
+                          {day.substring(0, 3)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.monthlySelector}>
+                    <View style={styles.pickerRow}>
+                      <Text style={styles.pickerLabel}>Every</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+                        {WEEK_OF_MONTH.map((week, index) => (
+                          <Pressable
+                            key={week}
+                            style={[
+                              styles.pickerButton,
+                              selectedWeekOfMonth === index && styles.pickerButtonActive,
+                            ]}
+                            onPress={() => setSelectedWeekOfMonth(index)}
+                          >
+                            <Text
+                              style={[
+                                styles.pickerButtonText,
+                                selectedWeekOfMonth === index && styles.pickerButtonTextActive,
+                              ]}
+                            >
+                              {week}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    </View>
+                    <View style={styles.pickerRow}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+                        {WEEKDAYS.map((day, index) => (
+                          <Pressable
+                            key={day}
+                            style={[
+                              styles.pickerButton,
+                              selectedMonthlyWeekday === index && styles.pickerButtonActive,
+                            ]}
+                            onPress={() => setSelectedMonthlyWeekday(index)}
+                          >
+                            <Text
+                              style={[
+                                styles.pickerButtonText,
+                                selectedMonthlyWeekday === index && styles.pickerButtonTextActive,
+                              ]}
+                            >
+                              {day}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                      <Text style={styles.pickerLabel}>of every month</Text>
+                    </View>
+                  </View>
+                )}
+                
+                <Pressable style={styles.timeButton} onPress={() => setShowTimePicker(true)}>
+                  <IconSymbol name="clock" size={20} color={colors.text} />
+                  <Text style={styles.dateTimeText}>
+                    {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+            
             {showDatePicker && (
               <DateTimePicker
                 value={date}
@@ -622,55 +847,6 @@ export default function CreateEventScreen() {
                 </Text>
               </Pressable>
             </View>
-          </View>
-
-          {/* Recurring */}
-          <View style={styles.section}>
-            <View style={styles.checkboxRow}>
-              <Pressable
-                style={styles.checkbox}
-                onPress={() => setIsRecurring(!isRecurring)}
-              >
-                {isRecurring && <IconSymbol name="checkmark" size={20} color={colors.text} />}
-              </Pressable>
-              <Text style={styles.checkboxLabel}>Recurring Event</Text>
-            </View>
-            {isRecurring && (
-              <View style={styles.toggleRow}>
-                <Pressable
-                  style={[
-                    styles.toggleButton,
-                    recurrenceType === "weekly" && styles.toggleButtonActive,
-                  ]}
-                  onPress={() => setRecurrenceType("weekly")}
-                >
-                  <Text
-                    style={[
-                      styles.toggleText,
-                      recurrenceType === "weekly" && styles.toggleTextActive,
-                    ]}
-                  >
-                    Weekly
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.toggleButton,
-                    recurrenceType === "monthly" && styles.toggleButtonActive,
-                  ]}
-                  onPress={() => setRecurrenceType("monthly")}
-                >
-                  <Text
-                    style={[
-                      styles.toggleText,
-                      recurrenceType === "monthly" && styles.toggleTextActive,
-                    ]}
-                  >
-                    Monthly
-                  </Text>
-                </Pressable>
-              </View>
-            )}
           </View>
 
           {/* Create Button */}
@@ -823,6 +999,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.highlight,
   },
+  timeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+    marginTop: 12,
+  },
   dateTimeText: {
     fontSize: 16,
     color: colors.text,
@@ -872,6 +1059,73 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     fontWeight: "500",
+  },
+  weekdaySelector: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  weekdayButton: {
+    flex: 1,
+    minWidth: 45,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.highlight,
+  },
+  weekdayButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  weekdayText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  weekdayTextActive: {
+    color: colors.text,
+  },
+  monthlySelector: {
+    gap: 12,
+    marginBottom: 12,
+  },
+  pickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pickerLabel: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: "500",
+  },
+  pickerScroll: {
+    flex: 1,
+  },
+  pickerButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+    marginRight: 8,
+  },
+  pickerButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  pickerButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  pickerButtonTextActive: {
+    color: colors.text,
   },
   createButton: {
     marginTop: 32,

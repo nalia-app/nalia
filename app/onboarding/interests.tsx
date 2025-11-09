@@ -32,6 +32,14 @@ const SUGGESTED_INTERESTS = [
   '🐕 Pets',
 ];
 
+// Helper function to capitalize first letter of each word
+const capitalizeInterest = (interest: string): string => {
+  return interest
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export default function InterestsScreen() {
   const router = useRouter();
   const { session } = useUser();
@@ -48,8 +56,9 @@ export default function InterestsScreen() {
   };
 
   const addCustomInterest = () => {
-    if (customInterest.trim() && !selectedInterests.includes(customInterest.trim())) {
-      setSelectedInterests([...selectedInterests, customInterest.trim()]);
+    const trimmedInterest = customInterest.trim();
+    if (trimmedInterest && !selectedInterests.includes(capitalizeInterest(trimmedInterest))) {
+      setSelectedInterests([...selectedInterests, capitalizeInterest(trimmedInterest)]);
       setCustomInterest('');
     }
   };
@@ -93,10 +102,10 @@ export default function InterestsScreen() {
         }
       }
 
-      // Save interests to database
+      // Save interests to database with proper capitalization
       const interestsToInsert = selectedInterests.map(interest => ({
         user_id: session.user.id,
-        interest,
+        interest: capitalizeInterest(interest),
       }));
 
       const { error } = await supabase

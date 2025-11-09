@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   Image,
+  Modal,
 } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
@@ -40,6 +41,9 @@ interface EventBubble {
   icon: string;
   isPublic: boolean;
   tags: string[];
+  eventDate: string;
+  eventTime: string;
+  locationName: string | null;
 }
 
 export default function HomeScreen() {
@@ -51,6 +55,8 @@ export default function HomeScreen() {
   const [events, setEvents] = useState<EventBubble[]>([]);
   const [loading, setLoading] = useState(true);
   const [nearbyCount, setNearbyCount] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<EventBubble | null>(null);
+  const [showEventPreview, setShowEventPreview] = useState(false);
   const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
@@ -195,6 +201,9 @@ export default function HomeScreen() {
             icon: event.icon,
             isPublic: event.is_public || false,
             tags: event.tags || [],
+            eventDate: event.event_date,
+            eventTime: event.event_time,
+            locationName: event.location_name,
           };
         })
       );
@@ -256,6 +265,36 @@ export default function HomeScreen() {
   const handlePeopleNearby = () => {
     console.log("People nearby pressed");
     router.push("/people-nearby" as any);
+  };
+
+  const handleEventClick = (event: EventBubble) => {
+    setSelectedEvent(event);
+    setShowEventPreview(true);
+  };
+
+  const handleViewDetails = () => {
+    if (selectedEvent) {
+      setShowEventPreview(false);
+      router.push(`/event/${selectedEvent.id}` as any);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return "Tomorrow";
+    } else {
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    }
   };
 
   // Generate HTML for the map with MapTiler Streets and improved zoom/labels
@@ -514,7 +553,7 @@ export default function HomeScreen() {
       if (data.type === 'eventClick') {
         const eventData = data.event;
         console.log('Event clicked:', eventData.id);
-        router.push(`/event/${eventData.id}` as any);
+        handleEventClick(eventData);
       } else if (data.type === 'mapClick') {
         console.log('Map clicked at:', data.lat, data.lng);
       }
@@ -653,6 +692,100 @@ export default function HomeScreen() {
           <IconSymbol name="plus" size={32} color={colors.text} />
         </LinearGradient>
       </Pressable>
+
+      {/* Event Preview Modal */}
+      <Modal
+        visible={showEventPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEventPreview(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay}
+          onPress={() => setShowEventPreview(false)}
+        >
+          <Pressable 
+            style={styles.eventPreviewCard}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <LinearGradient
+              colors={["rgba(30, 30, 30, 0.98)", "rgba(20, 20, 20, 0.98)"]}
+              style={styles.eventPreviewGradient}
+            >
+              {/* Event Icon */}
+              <View style={styles.previewIconContainer}>
+                <LinearGradient
+                  colors={[colors.primary, colors.secondary]}
+                  style={styles.previewIconGradient}
+                >
+                  <Text style={styles.previewIcon}>{selectedEvent?.icon}</Text>
+                </LinearGradient>
+              </View>
+
+              {/* Event Title */}
+              <Text style={styles.previewTitle}>
+                <Text style={styles.previewHostName}>{selectedEvent?.hostName}</Text>
+                <Text style={styles.previewWanna}> wanna </Text>
+                <Text style={styles.previewDescription}>{selectedEvent?.description}</Text>
+              </Text>
+
+              {/* Event Details */}
+              <View style={styles.previewDetails}>
+                <View style={styles.previewDetailRow}>
+                  <IconSymbol name="calendar" size={18} color={colors.primary} />
+                  <Text style={styles.previewDetailText}>
+                    {selectedEvent && formatDate(selectedEvent.eventDate)} at {selectedEvent?.eventTime}
+                  </Text>
+                </View>
+                <View style={styles.previewDetailRow}>
+                  <IconSymbol name="location" size={18} color={colors.primary} />
+                  <Text style={styles.previewDetailText}>
+                    {selectedEvent?.locationName || "Location set"}
+                  </Text>
+                </View>
+                <View style={styles.previewDetailRow}>
+                  <IconSymbol name="person.2.fill" size={18} color={colors.primary} />
+                  <Text style={styles.previewDetailText}>
+                    {selectedEvent?.attendees} {selectedEvent?.attendees === 1 ? "person" : "people"} attending
+                  </Text>
+                </View>
+                <View style={styles.previewDetailRow}>
+                  <IconSymbol 
+                    name={selectedEvent?.isPublic ? "globe" : "lock"} 
+                    size={18} 
+                    color={colors.primary} 
+                  />
+                  <Text style={styles.previewDetailText}>
+                    {selectedEvent?.isPublic ? "Public Event" : "Private Event"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Tags */}
+              {selectedEvent && selectedEvent.tags.length > 0 && (
+                <View style={styles.previewTags}>
+                  {selectedEvent.tags.map((tag, index) => (
+                    <View key={index} style={styles.previewTag}>
+                      <Text style={styles.previewTagText}>#{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* More Details Button */}
+              <Pressable style={styles.moreDetailsButton} onPress={handleViewDetails}>
+                <LinearGradient
+                  colors={[colors.primary, colors.secondary]}
+                  style={styles.moreDetailsGradient}
+                >
+                  <Text style={styles.moreDetailsText}>View Full Details</Text>
+                  <IconSymbol name="arrow.right" size={18} color={colors.text} />
+                </LinearGradient>
+              </Pressable>
+            </LinearGradient>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -842,5 +975,109 @@ const styles = StyleSheet.create({
     height: 64,
     justifyContent: "center",
     alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  eventPreviewCard: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 24,
+    overflow: "hidden",
+    boxShadow: "0px 12px 40px rgba(187, 134, 252, 0.4)",
+    elevation: 20,
+  },
+  eventPreviewGradient: {
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  previewIconContainer: {
+    alignSelf: "center",
+    marginBottom: 20,
+    borderRadius: 40,
+    overflow: "hidden",
+  },
+  previewIconGradient: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  previewIcon: {
+    fontSize: 40,
+  },
+  previewTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 30,
+  },
+  previewHostName: {
+    color: colors.text,
+  },
+  previewWanna: {
+    color: colors.text,
+  },
+  previewDescription: {
+    color: colors.secondary,
+  },
+  previewDetails: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  previewDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  previewDetailText: {
+    fontSize: 15,
+    color: colors.text,
+    flex: 1,
+  },
+  previewTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
+  previewTag: {
+    backgroundColor: "rgba(187, 134, 252, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(187, 134, 252, 0.4)",
+  },
+  previewTagText: {
+    fontSize: 13,
+    color: colors.secondary,
+    fontWeight: "600",
+  },
+  moreDetailsButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  moreDetailsGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  moreDetailsText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
   },
 });

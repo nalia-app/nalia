@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,6 +43,9 @@ interface EventDetails {
       avatar_url: string | null;
     };
   }>;
+  host_profile: {
+    avatar_url: string | null;
+  };
 }
 
 export default function EventDetailScreen() {
@@ -71,7 +75,8 @@ export default function EventDetailScreen() {
             user_id,
             status,
             profiles(name, avatar_url)
-          )
+          ),
+          host_profile:profiles!events_host_id_fkey(avatar_url)
         `)
         .eq("id", id)
         .single();
@@ -187,6 +192,23 @@ export default function EventDetailScreen() {
 
   const approvedAttendees = event.attendees.filter((a) => a.status === "approved");
   const isHost = user?.id === event.host_id;
+  
+  // Total attendees including host
+  const totalAttendees = approvedAttendees.length + 1;
+
+  // Create host attendee object for display
+  const hostAttendee = {
+    id: 'host',
+    user_id: event.host_id,
+    status: 'approved',
+    profiles: {
+      name: event.host_name,
+      avatar_url: event.host_profile?.avatar_url || null,
+    }
+  };
+
+  // Combine host and attendees with host first
+  const allAttendees = [hostAttendee, ...approvedAttendees];
 
   return (
     <LinearGradient
@@ -212,7 +234,9 @@ export default function EventDetailScreen() {
               <Text style={styles.eventIconText}>{event.icon}</Text>
             </View>
             <Text style={styles.description}>
-              {event.host_name} wanna {event.description}
+              <Text style={styles.hostNameText}>{event.host_name}</Text>
+              <Text style={styles.wannaText}> wanna </Text>
+              <Text style={styles.descriptionHighlight}>{event.description}</Text>
             </Text>
             {isHost && (
               <View style={styles.hostBadge}>
@@ -277,9 +301,9 @@ export default function EventDetailScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Attendees ({approvedAttendees.length})
+              Attendees ({totalAttendees})
             </Text>
-            {approvedAttendees.map((attendee) => (
+            {allAttendees.map((attendee, index) => (
               <View key={attendee.id} style={styles.attendeeCard}>
                 <View style={styles.attendeeAvatar}>
                   {attendee.profiles.avatar_url ? (
@@ -411,6 +435,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: "center",
     marginBottom: 16,
+  },
+  hostNameText: {
+    color: colors.text,
+  },
+  wannaText: {
+    color: colors.text,
+  },
+  descriptionHighlight: {
+    color: colors.secondary,
   },
   hostBadge: {
     backgroundColor: colors.accent,

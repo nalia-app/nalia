@@ -28,6 +28,14 @@ interface RecentEvent {
   icon: string;
 }
 
+// Helper function to capitalize first letter of each word
+const capitalizeInterest = (interest: string): string => {
+  return interest
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useUser();
@@ -133,17 +141,20 @@ export default function ProfileScreen() {
   };
 
   const handleAddInterest = async () => {
-    if (!newInterest.trim() || !user) return;
+    const trimmedInterest = newInterest.trim();
+    if (!trimmedInterest || !user) return;
+
+    const capitalizedInterest = capitalizeInterest(trimmedInterest);
 
     try {
       const { error } = await supabase.from("interests").insert({
         user_id: user.id,
-        interest: newInterest.trim(),
+        interest: capitalizedInterest,
       });
 
       if (error) throw error;
 
-      setInterests([...interests, newInterest.trim()]);
+      setInterests([...interests, capitalizedInterest]);
       setNewInterest("");
       setShowAddInterest(false);
       Alert.alert("Success", "Interest added successfully");

@@ -46,6 +46,10 @@ export default function ProfileScreen() {
     router.push("/edit-profile" as any);
   };
 
+  const handleSettings = () => {
+    router.push("/settings" as any);
+  };
+
   const handleShareProfile = async () => {
     try {
       await Share.share({
@@ -85,7 +89,7 @@ export default function ProfileScreen() {
         <Text style={styles.title}>Profile</Text>
         <Pressable
           style={styles.settingsButton}
-          onPress={() => Alert.alert("Settings", "Open settings")}
+          onPress={handleSettings}
         >
           <IconSymbol name="gear" size={24} color={colors.text} />
         </Pressable>

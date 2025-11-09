@@ -26,6 +26,7 @@ import { useUser } from "@/contexts/UserContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { supabase } from "@/app/integrations/supabase/client";
+import { calculateDistance } from "@/utils/locationUtils";
 
 const { width, height } = Dimensions.get("window");
 
@@ -49,6 +50,7 @@ export default function HomeScreen() {
   const [mapCenter, setMapCenter] = useState({ lat: 37.7849, lng: -122.4094 });
   const [events, setEvents] = useState<EventBubble[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nearbyCount, setNearbyCount] = useState(0);
   const webViewRef = useRef<WebView>(null);
 
   useEffect(() => {
@@ -79,6 +81,12 @@ export default function HomeScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (location) {
+      loadNearbyCount();
+    }
+  }, [location]);
+
   const loadLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -90,8 +98,58 @@ export default function HomeScreen() {
       setLocation(loc);
       setMapCenter({ lat: loc.coords.latitude, lng: loc.coords.longitude });
       console.log("[HomeScreen] Location obtained:", loc.coords);
+
+      // Update user's location in database
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({
+            last_latitude: loc.coords.latitude,
+            last_longitude: loc.coords.longitude,
+            last_location_updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+      }
     } catch (error) {
       console.error("[HomeScreen] Error getting location:", error);
+    }
+  };
+
+  const loadNearbyCount = async () => {
+    try {
+      if (!location || !user) return;
+
+      console.log("[HomeScreen] Loading nearby users count...");
+
+      // Fetch all users who want to appear in nearby (excluding current user)
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("id, last_latitude, last_longitude")
+        .eq("show_in_nearby", true)
+        .neq("id", user.id)
+        .not("last_latitude", "is", null)
+        .not("last_longitude", "is", null);
+
+      if (error) {
+        console.error("[HomeScreen] Error loading nearby count:", error);
+        return;
+      }
+
+      // Calculate distances and count users within 50km
+      const nearbyUsers = (profiles || []).filter((profile) => {
+        const distance = calculateDistance(
+          location.coords.latitude,
+          location.coords.longitude,
+          profile.last_latitude!,
+          profile.last_longitude!
+        );
+        return distance <= 50;
+      });
+
+      console.log(`[HomeScreen] Found ${nearbyUsers.length} users nearby`);
+      setNearbyCount(nearbyUsers.length);
+    } catch (error) {
+      console.error("[HomeScreen] Error in loadNearbyCount:", error);
     }
   };
 
@@ -193,6 +251,11 @@ export default function HomeScreen() {
   const handleProfile = () => {
     console.log("Profile pressed");
     router.push("/(tabs)/profile" as any);
+  };
+
+  const handlePeopleNearby = () => {
+    console.log("People nearby pressed");
+    router.push("/people-nearby" as any);
   };
 
   // Generate HTML for the map with MapTiler Streets
@@ -555,6 +618,22 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      {/* People Nearby Indicator */}
+      {nearbyCount > 0 && (
+        <Pressable style={styles.nearbyContainer} onPress={handlePeopleNearby}>
+          <LinearGradient
+            colors={["rgba(187, 134, 252, 0.95)", "rgba(3, 218, 198, 0.95)"]}
+            style={styles.nearbyGradient}
+          >
+            <IconSymbol name="person.2.fill" size={16} color={colors.text} />
+            <Text style={styles.nearbyText}>
+              {nearbyCount} {nearbyCount === 1 ? "person" : "people"} nearby
+            </Text>
+            <IconSymbol name="chevron.right" size={14} color={colors.text} />
+          </LinearGradient>
+        </Pressable>
+      )}
+
       {/* Floating Create Button */}
       <Pressable style={styles.createButton} onPress={handleCreateEvent}>
         <LinearGradient
@@ -699,6 +778,29 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   filterTextActive: {
+    color: colors.text,
+  },
+  nearbyContainer: {
+    position: "absolute",
+    top: 190,
+    left: 20,
+    right: 20,
+    borderRadius: 12,
+    overflow: "hidden",
+    boxShadow: "0px 4px 12px rgba(187, 134, 252, 0.4)",
+    elevation: 8,
+  },
+  nearbyGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  nearbyText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: colors.text,
   },
   centerButton: {

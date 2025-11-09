@@ -8,14 +8,15 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
-import { supabase } from "@/app/integrations/supabase/client";
+import { colors } from "@/styles/commonStyles";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/app/integrations/supabase/client";
 
 interface UserProfile {
   id: string;
@@ -27,6 +28,7 @@ interface UserProfile {
   mutualEvents: number;
   isFriend: boolean;
   friendshipStatus: string | null;
+  avatar_url: string | null;
 }
 
 interface RecentEvent {
@@ -37,25 +39,23 @@ interface RecentEvent {
 }
 
 export default function UserProfileScreen() {
-  const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { id } = useLocalSearchParams();
   const { user } = useUser();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user && id) {
+    if (id && user) {
       loadProfile();
     }
   }, [id, user]);
 
   const loadProfile = async () => {
-    if (!user) return;
-
     try {
+      console.log("[UserProfile] Loading profile for user:", id);
       setLoading(true);
-      console.log("Loading profile for user:", id);
 
       // Get user profile
       const { data: profileData, error: profileError } = await supabase
@@ -64,21 +64,26 @@ export default function UserProfileScreen() {
         .eq("id", id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("[UserProfile] Error loading profile:", profileError);
+        Alert.alert("Error", "Failed to load user profile");
+        router.back();
+        return;
+      }
 
-      // Get interests
+      // Get user interests
       const { data: interestsData } = await supabase
         .from("interests")
         .select("interest")
         .eq("user_id", id);
 
-      // Count hosted events
+      // Get hosted events count
       const { count: hostedCount } = await supabase
         .from("events")
         .select("*", { count: "exact", head: true })
         .eq("host_id", id);
 
-      // Count attended events
+      // Get attended events count
       const { count: attendedCount } = await supabase
         .from("event_attendees")
         .select("*", { count: "exact", head: true })
@@ -89,23 +94,10 @@ export default function UserProfileScreen() {
       const { data: friendshipData } = await supabase
         .from("friendships")
         .select("status")
-        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
-        .or(`user_id.eq.${id},friend_id.eq.${id}`)
-        .single();
-
-      // Count mutual events
-      const { data: userEvents } = await supabase
-        .from("event_attendees")
-        .select("event_id")
-        .eq("user_id", user.id);
-
-      const userEventIds = userEvents?.map((e) => e.event_id) || [];
-
-      const { count: mutualCount } = await supabase
-        .from("event_attendees")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", id)
-        .in("event_id", userEventIds);
+        .or(
+          `and(user_id.eq.${user?.id},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${user?.id})`
+        )
+        .maybeSingle();
 
       // Get recent events
       const { data: eventsData } = await supabase
@@ -115,24 +107,25 @@ export default function UserProfileScreen() {
         .order("event_date", { ascending: false })
         .limit(3);
 
-      setProfile({
+      const userProfile: UserProfile = {
         id: profileData.id,
         name: profileData.name,
-        bio: profileData.bio || "No bio yet",
-        interests:
-          interestsData?.map((i) => i.interest.replace("#", "")) || [],
+        bio: profileData.bio || "",
+        interests: interestsData?.map((i) => i.interest) || [],
         hostedEvents: hostedCount || 0,
         attendedEvents: attendedCount || 0,
-        mutualEvents: mutualCount || 0,
-        isFriend: !!friendshipData,
+        mutualEvents: 0, // TODO: Calculate mutual events
+        isFriend: friendshipData?.status === "accepted",
         friendshipStatus: friendshipData?.status || null,
-      });
+        avatar_url: profileData.avatar_url,
+      };
 
+      setProfile(userProfile);
       setRecentEvents(eventsData || []);
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      Alert.alert("Error", "Failed to load profile");
-    } finally {
+      setLoading(false);
+    } catch (error) {
+      console.error("[UserProfile] Error in loadProfile:", error);
+      Alert.alert("Error", "Failed to load user profile");
       setLoading(false);
     }
   };
@@ -141,171 +134,198 @@ export default function UserProfileScreen() {
     if (!user || !profile) return;
 
     try {
+      if (profile.isFriend) {
+        Alert.alert("Already Friends", "You are already friends with this user");
+        return;
+      }
+
+      if (profile.friendshipStatus === "pending") {
+        Alert.alert(
+          "Request Pending",
+          "Your friend request is pending approval"
+        );
+        return;
+      }
+
       const { error } = await supabase.from("friendships").insert({
         user_id: user.id,
         friend_id: profile.id,
         status: "pending",
       });
 
-      if (error) throw error;
-
-      // Create notification
-      await supabase.from("notifications").insert({
-        user_id: profile.id,
-        type: "friend",
-        title: "Friend Request",
-        message: `${user.name} wants to connect`,
-        related_id: user.id,
-      });
+      if (error) {
+        console.error("[UserProfile] Error sending friend request:", error);
+        Alert.alert("Error", "Failed to send friend request");
+        return;
+      }
 
       Alert.alert("Success", "Friend request sent!");
-      loadProfile();
-    } catch (error: any) {
-      console.error("Error sending friend request:", error);
+      loadProfile(); // Reload to update status
+    } catch (error) {
+      console.error("[UserProfile] Error in handleAddFriend:", error);
       Alert.alert("Error", "Failed to send friend request");
     }
   };
 
   const handleMessage = () => {
-    console.log("Opening chat with user:", id);
-    // For now, show alert since direct messaging isn't fully implemented
-    Alert.alert("Info", "Direct messaging coming soon!");
+    if (!profile) return;
+    console.log("[UserProfile] Starting chat with user:", profile.id);
+    router.push(`/direct-message/${profile.id}` as any);
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const now = new Date();
+    const diffTime = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-
-    const diffDays = Math.floor(
-      (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
-
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
     return date.toLocaleDateString();
+  };
+
+  const handleBack = () => {
+    router.back();
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!profile) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Profile not found</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>User not found</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <LinearGradient
-      colors={[colors.background, "#0a0a0a"]}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <IconSymbol name="chevron.left" size={24} color={colors.text} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.placeholder} />
-        </View>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={handleBack}>
+          <IconSymbol name="chevron.left" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.placeholder} />
+      </View>
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarLarge}>
-              <IconSymbol name="person.fill" size={48} color={colors.text} />
-            </View>
-            <Text style={styles.name}>{profile.name}</Text>
-            <Text style={styles.bio}>{profile.bio}</Text>
-
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile.hostedEvents}</Text>
-                <Text style={styles.statLabel}>Hosted</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile.attendedEvents}</Text>
-                <Text style={styles.statLabel}>Attended</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile.mutualEvents}</Text>
-                <Text style={styles.statLabel}>Mutual</Text>
-              </View>
-            </View>
-
-            <View style={styles.actionButtons}>
-              <Pressable style={styles.messageButton} onPress={handleMessage}>
-                <LinearGradient
-                  colors={[colors.primary, colors.secondary]}
-                  style={styles.messageButtonGradient}
-                >
-                  <IconSymbol
-                    name="message.fill"
-                    size={20}
-                    color={colors.text}
-                  />
-                  <Text style={styles.messageButtonText}>Send Message</Text>
-                </LinearGradient>
-              </Pressable>
-
-              {!profile.isFriend && (
-                <Pressable
-                  style={styles.addFriendButton}
-                  onPress={handleAddFriend}
-                >
-                  <IconSymbol
-                    name="person.badge.plus"
-                    size={20}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.addFriendText}>Add Friend</Text>
-                </Pressable>
-              )}
-
-              {profile.friendshipStatus === "pending" && (
-                <View style={styles.pendingBadge}>
-                  <Text style={styles.pendingText}>Request Pending</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarContainer}>
+            <LinearGradient
+              colors={[colors.primary, colors.secondary]}
+              style={styles.avatarGradient}
+            >
+              {profile.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <View style={styles.avatar}>
+                  <IconSymbol name="person.fill" size={48} color={colors.text} />
                 </View>
               )}
+            </LinearGradient>
+          </View>
+          <Text style={styles.name}>{profile.name}</Text>
+          {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <Pressable style={styles.primaryButton} onPress={handleMessage}>
+              <LinearGradient
+                colors={[colors.primary, colors.secondary]}
+                style={styles.primaryButtonGradient}
+              >
+                <IconSymbol name="message.fill" size={16} color={colors.text} />
+                <Text style={styles.primaryButtonText}>Message</Text>
+              </LinearGradient>
+            </Pressable>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={handleAddFriend}
+            >
+              <IconSymbol
+                name={profile.isFriend ? "person.fill.checkmark" : "person.badge.plus"}
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={styles.secondaryButtonText}>
+                {profile.isFriend
+                  ? "Friends"
+                  : profile.friendshipStatus === "pending"
+                  ? "Pending"
+                  : "Add Friend"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Stats */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile.hostedEvents}</Text>
+            <Text style={styles.statLabel}>Hosted</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile.attendedEvents}</Text>
+            <Text style={styles.statLabel}>Attended</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile.mutualEvents}</Text>
+            <Text style={styles.statLabel}>Mutual</Text>
+          </View>
+        </View>
+
+        {/* Interests */}
+        {profile.interests.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Interests</Text>
+            <View style={styles.interestsContainer}>
+              {profile.interests.map((interest, index) => (
+                <View key={index} style={styles.interestTag}>
+                  <Text style={styles.interestText}>{interest}</Text>
+                </View>
+              ))}
             </View>
           </View>
+        )}
 
-          {profile.interests.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Interests</Text>
-              <View style={styles.interestsContainer}>
-                {profile.interests.map((interest, index) => (
-                  <View key={index} style={styles.interestTag}>
-                    <Text style={styles.interestText}>#{interest}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {recentEvents.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Events</Text>
-              {recentEvents.map((event) => (
-                <Pressable
-                  key={event.id}
-                  style={styles.eventCard}
-                  onPress={() => router.push(`/event/${event.id}` as any)}
+        {/* Recent Events */}
+        {recentEvents.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Events</Text>
+            {recentEvents.map((event) => (
+              <Pressable
+                key={event.id}
+                style={styles.eventCard}
+                onPress={() => router.push(`/event/${event.id}` as any)}
+              >
+                <LinearGradient
+                  colors={[
+                    "rgba(187, 134, 252, 0.1)",
+                    "rgba(3, 218, 198, 0.1)",
+                  ]}
+                  style={styles.eventCardGradient}
                 >
                   <View style={styles.eventIcon}>
                     <Text style={styles.eventIconText}>{event.icon}</Text>
@@ -316,96 +336,148 @@ export default function UserProfileScreen() {
                       {formatDate(event.event_date)}
                     </Text>
                   </View>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+                  <IconSymbol
+                    name="chevron.right"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </LinearGradient>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: colors.background,
-  },
-  errorText: {
-    fontSize: 18,
-    color: colors.textSecondary,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.highlight,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
   },
   placeholder: {
     width: 40,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorText: {
+    fontSize: 18,
+    color: colors.textSecondary,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   profileHeader: {
     alignItems: "center",
-    paddingVertical: 32,
     paddingHorizontal: 20,
+    paddingVertical: 24,
   },
-  avatarLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarContainer: {
+    marginBottom: 16,
+  },
+  avatarGradient: {
+    padding: 4,
+    borderRadius: 64,
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: colors.card,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: colors.primary,
-    marginBottom: 16,
+  },
+  avatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
   },
   name: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: "700",
     color: colors.text,
     marginBottom: 8,
   },
   bio: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 22,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  primaryButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  primaryButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
   },
   statsContainer: {
     flexDirection: "row",
-    alignItems: "center",
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
+    marginHorizontal: 20,
     marginBottom: 24,
-    width: "100%",
+    borderRadius: 16,
+    padding: 20,
   },
   statItem: {
     flex: 1,
@@ -413,67 +485,17 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: colors.primary,
+    fontWeight: "700",
+    color: colors.text,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
   },
   statDivider: {
     width: 1,
-    height: 40,
     backgroundColor: colors.highlight,
-  },
-  actionButtons: {
-    width: "100%",
-    gap: 12,
-  },
-  messageButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  messageButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    gap: 8,
-  },
-  messageButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  addFriendButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    gap: 8,
-  },
-  addFriendText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  pendingBadge: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    alignItems: "center",
-  },
-  pendingText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.primary,
   },
   section: {
     paddingHorizontal: 20,
@@ -481,9 +503,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   interestsContainer: {
     flexDirection: "row",
@@ -493,22 +515,25 @@ const styles = StyleSheet.create({
   interestTag: {
     backgroundColor: colors.card,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.highlight,
+    borderColor: colors.primary,
   },
   interestText: {
     fontSize: 14,
-    color: colors.secondary,
+    color: colors.primary,
+    fontWeight: "500",
   },
   eventCard: {
-    flexDirection: "row",
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  eventCardGradient: {
+    flexDirection: "row",
     alignItems: "center",
+    padding: 12,
     borderWidth: 1,
     borderColor: colors.highlight,
   },
@@ -516,7 +541,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.highlight,
+    backgroundColor: colors.card,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -531,10 +556,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   eventDate: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
   },
 });

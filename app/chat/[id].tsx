@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -263,8 +264,8 @@ export default function ChatScreen() {
 
         <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
           <ScrollView
             ref={scrollViewRef}
@@ -274,6 +275,7 @@ export default function ChatScreen() {
             onContentSizeChange={() =>
               scrollViewRef.current?.scrollToEnd({ animated: true })
             }
+            keyboardShouldPersistTaps="handled"
           >
             {messages.map((msg) => (
               <View
@@ -324,33 +326,36 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textSecondary}
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              editable={!sending}
-              blurOnSubmit={false}
-            />
-            <Pressable
-              style={[
-                styles.sendButton,
-                (!message.trim() || sending) && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSend}
-              disabled={!message.trim() || sending}
-            >
-              <IconSymbol
-                name="arrow.up.circle.fill"
-                size={36}
-                color={message.trim() && !sending ? colors.primary : colors.textSecondary}
+          <SafeAreaView style={styles.inputWrapper} edges={["bottom"]}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="Type a message..."
+                placeholderTextColor={colors.textSecondary}
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                editable={!sending}
+                blurOnSubmit={false}
+                returnKeyType="default"
               />
-            </Pressable>
-          </View>
+              <Pressable
+                style={[
+                  styles.sendButton,
+                  (!message.trim() || sending) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSend}
+                disabled={!message.trim() || sending}
+              >
+                <IconSymbol
+                  name="arrow.up.circle.fill"
+                  size={36}
+                  color={message.trim() && !sending ? colors.primary : colors.textSecondary}
+                />
+              </Pressable>
+            </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
@@ -406,6 +411,7 @@ const styles = StyleSheet.create({
   messagesContent: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingBottom: 8,
   },
   messageWrapper: {
     marginBottom: 16,
@@ -474,14 +480,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginHorizontal: 12,
   },
+  inputWrapper: {
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.highlight,
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.highlight,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   input: {
     flex: 1,

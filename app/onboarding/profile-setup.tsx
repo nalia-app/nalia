@@ -44,25 +44,62 @@ export default function ProfileSetupScreen() {
 
     setLoading(true);
     try {
-      console.log('[ProfileSetup] Creating profile for user:', session.user.id);
+      console.log('[ProfileSetup] Updating profile for user:', session.user.id);
       
-      // Create profile in database
-      const { error } = await supabase
+      // Check if profile exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .insert({
-          id: session.user.id,
-          name: name.trim(),
-          bio: bio.trim() || null,
-          avatar_url: photoUri || null,
-        });
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('[ProfileSetup] Error creating profile:', error);
-        Alert.alert('Error', 'Failed to create profile. Please try again.');
+      if (checkError) {
+        console.error('[ProfileSetup] Error checking profile:', checkError);
+        Alert.alert('Error', 'Failed to check profile. Please try again.');
         return;
       }
 
-      console.log('[ProfileSetup] Profile created successfully');
+      if (existingProfile) {
+        // Profile exists, update it
+        console.log('[ProfileSetup] Profile exists, updating...');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            name: name.trim(),
+            bio: bio.trim() || null,
+            avatar_url: photoUri || null,
+          })
+          .eq('id', session.user.id);
+
+        if (updateError) {
+          console.error('[ProfileSetup] Error updating profile:', updateError);
+          Alert.alert('Error', 'Failed to update profile. Please try again.');
+          return;
+        }
+
+        console.log('[ProfileSetup] Profile updated successfully');
+      } else {
+        // Profile doesn't exist, create it
+        console.log('[ProfileSetup] Profile does not exist, creating...');
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: session.user.id,
+            name: name.trim(),
+            bio: bio.trim() || null,
+            avatar_url: photoUri || null,
+          });
+
+        if (insertError) {
+          console.error('[ProfileSetup] Error creating profile:', insertError);
+          Alert.alert('Error', 'Failed to create profile. Please try again.');
+          return;
+        }
+
+        console.log('[ProfileSetup] Profile created successfully');
+      }
+
+      // Navigate to permissions screen
       router.push('/onboarding/permissions');
     } catch (error: any) {
       console.error('[ProfileSetup] Exception:', error);
@@ -123,7 +160,7 @@ export default function ProfileSetupScreen() {
             disabled={!name.trim() || loading}
           >
             <Text style={styles.continueButtonText}>
-              {loading ? 'Creating Profile...' : 'Continue'}
+              {loading ? 'Saving Profile...' : 'Continue'}
             </Text>
           </Pressable>
         </View>

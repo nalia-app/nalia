@@ -84,15 +84,17 @@ export const KeyboardAwareComposer: React.FC<KeyboardAwareComposerProps> = ({
   const handleSend = () => {
     if (!value.trim() || disabled || sending) return;
     
+    // Call the parent's onSend function
     onSend();
     
     // Reset input height
     setInputHeight(40);
     
-    // Keep keyboard open and refocus input
-    setTimeout(() => {
+    // Keep the input focused to maintain keyboard visibility
+    // Use requestAnimationFrame to ensure this happens after the state update
+    requestAnimationFrame(() => {
       inputRef.current?.focus();
-    }, 50);
+    });
   };
 
   const handleContentSizeChange = (event: any) => {

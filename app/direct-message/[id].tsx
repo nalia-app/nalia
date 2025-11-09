@@ -154,9 +154,6 @@ export default function DirectMessageScreen() {
 
     const messageText = newMessage.trim();
     setSending(true);
-    
-    // Clear input immediately
-    setNewMessage("");
 
     try {
       console.log("Sending direct message");
@@ -181,9 +178,12 @@ export default function DirectMessageScreen() {
       });
 
       loadMessages();
+      
+      // Clear the message input after successful send
+      setNewMessage("");
     } catch (error: any) {
       console.error("Error sending message:", error);
-      setNewMessage(messageText);
+      // Don't clear message on error so user can retry
     } finally {
       setSending(false);
     }

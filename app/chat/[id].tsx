@@ -181,9 +181,6 @@ export default function ChatScreen() {
 
     const messageText = message.trim();
     setSending(true);
-    
-    // Clear input immediately
-    setMessage("");
 
     try {
       const { error } = await supabase.from("messages").insert({
@@ -196,9 +193,12 @@ export default function ChatScreen() {
       if (error) throw error;
 
       console.log("Message sent successfully");
+      
+      // Clear the message input after successful send
+      setMessage("");
     } catch (error: any) {
       console.error("Error sending message:", error);
-      setMessage(messageText); // Restore message on error
+      // Don't clear message on error so user can retry
     } finally {
       setSending(false);
     }

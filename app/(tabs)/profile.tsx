@@ -20,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/app/integrations/supabase/client";
+import { prepareInterestForStorage, areInterestsEqual } from "@/utils/emojiUtils";
 
 interface RecentEvent {
   id: string;
@@ -27,14 +28,6 @@ interface RecentEvent {
   event_date: string;
   icon: string;
 }
-
-// Helper function to capitalize first letter of each word
-const capitalizeInterest = (interest: string): string => {
-  return interest
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-};
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -126,7 +119,7 @@ export default function ProfileScreen() {
         setRecentEvents(hostedEvents || []);
       }
 
-      // Load interests
+      // Load interests (stored without emojis in DB)
       const { data: interestsData } = await supabase
         .from("interests")
         .select("interest")
@@ -144,17 +137,28 @@ export default function ProfileScreen() {
     const trimmedInterest = newInterest.trim();
     if (!trimmedInterest || !user) return;
 
-    const capitalizedInterest = capitalizeInterest(trimmedInterest);
+    // Prepare interest for storage (strip emojis and capitalize)
+    const preparedInterest = prepareInterestForStorage(trimmedInterest);
+
+    // Check if this interest already exists (ignoring emojis)
+    const interestExists = interests.some(existing => 
+      areInterestsEqual(existing, preparedInterest)
+    );
+
+    if (interestExists) {
+      Alert.alert("Duplicate Interest", "You have already added this interest.");
+      return;
+    }
 
     try {
       const { error } = await supabase.from("interests").insert({
         user_id: user.id,
-        interest: capitalizedInterest,
+        interest: preparedInterest, // Save without emojis
       });
 
       if (error) throw error;
 
-      setInterests([...interests, capitalizedInterest]);
+      setInterests([...interests, preparedInterest]);
       setNewInterest("");
       setShowAddInterest(false);
       Alert.alert("Success", "Interest added successfully");
@@ -429,12 +433,15 @@ export default function ProfileScreen() {
             <Text style={styles.modalTitle}>Add Interest</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Enter interest..."
+              placeholder="Enter interest (e.g., ☕ Coffee or Coffee)..."
               placeholderTextColor={colors.textSecondary}
               value={newInterest}
               onChangeText={setNewInterest}
               autoFocus
             />
+            <Text style={styles.modalHint}>
+              Emojis will be removed when saving to ensure consistency
+            </Text>
             <View style={styles.modalButtons}>
               <Pressable
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -706,7 +713,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: colors.text,
+    marginBottom: 8,
+  },
+  modalHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
     marginBottom: 20,
+    textAlign: "center",
+    fontStyle: "italic",
   },
   modalButtons: {
     flexDirection: "row",

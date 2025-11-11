@@ -20,6 +20,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { stripEmojis } from "@/utils/emojiUtils";
 
 const EMOJI_CATEGORIES = {
   Social: ["☕", "🍺", "🍕", "🍔", "🎉", "🎊", "🎈"],
@@ -436,11 +437,18 @@ export default function CreateEventScreen() {
     try {
       console.log("[CreateEvent] Creating event...");
 
-      // Parse tags
+      // Parse tags and strip emojis to ensure consistency
+      // This ensures #coffee and #☕️ coffee are treated as the same tag
       const tagArray = tags
         .split(",")
-        .map((tag) => tag.trim().toLowerCase())
+        .map((tag) => {
+          const trimmed = tag.trim();
+          const withoutEmojis = stripEmojis(trimmed);
+          return withoutEmojis.toLowerCase();
+        })
         .filter((tag) => tag.length > 0);
+
+      console.log("[CreateEvent] Tags after emoji stripping:", tagArray);
 
       // Format date and time
       const eventDate = isRecurring ? getNextOccurrenceDate() : date.toISOString().split("T")[0];
@@ -817,6 +825,9 @@ export default function CreateEventScreen() {
           {/* Tags */}
           <View style={styles.section}>
             <Text style={styles.label}>Tags (comma-separated)</Text>
+            <Text style={styles.hint}>
+              Emojis will be removed to ensure #coffee and #☕ coffee match
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="coffee, networking, casual"
@@ -903,6 +914,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.text,
     marginBottom: 12,
+  },
+  hint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    fontStyle: "italic",
   },
   input: {
     backgroundColor: colors.card,

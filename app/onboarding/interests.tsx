@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/app/integrations/supabase/client';
+import { prepareInterestForStorage, areInterestsEqual } from '@/utils/emojiUtils';
 
 const SUGGESTED_INTERESTS = [
   '☕ Coffee',
@@ -32,14 +33,6 @@ const SUGGESTED_INTERESTS = [
   '🐕 Pets',
 ];
 
-// Helper function to capitalize first letter of each word
-const capitalizeInterest = (interest: string): string => {
-  return interest
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-};
-
 export default function InterestsScreen() {
   const router = useRouter();
   const { session } = useUser();
@@ -48,8 +41,16 @@ export default function InterestsScreen() {
   const [loading, setLoading] = useState(false);
 
   const toggleInterest = (interest: string) => {
-    if (selectedInterests.includes(interest)) {
-      setSelectedInterests(selectedInterests.filter(i => i !== interest));
+    // Check if this interest (without emoji) already exists
+    const interestExists = selectedInterests.some(existing => 
+      areInterestsEqual(existing, interest)
+    );
+
+    if (interestExists) {
+      // Remove the interest (compare without emojis)
+      setSelectedInterests(selectedInterests.filter(i => 
+        !areInterestsEqual(i, interest)
+      ));
     } else {
       setSelectedInterests([...selectedInterests, interest]);
     }
@@ -57,10 +58,20 @@ export default function InterestsScreen() {
 
   const addCustomInterest = () => {
     const trimmedInterest = customInterest.trim();
-    if (trimmedInterest && !selectedInterests.includes(capitalizeInterest(trimmedInterest))) {
-      setSelectedInterests([...selectedInterests, capitalizeInterest(trimmedInterest)]);
-      setCustomInterest('');
+    if (!trimmedInterest) return;
+
+    // Check if this interest (without emoji) already exists
+    const interestExists = selectedInterests.some(existing => 
+      areInterestsEqual(existing, trimmedInterest)
+    );
+
+    if (interestExists) {
+      Alert.alert('Duplicate Interest', 'You have already added this interest.');
+      return;
     }
+
+    setSelectedInterests([...selectedInterests, trimmedInterest]);
+    setCustomInterest('');
   };
 
   const handleContinue = async () => {
@@ -102,11 +113,13 @@ export default function InterestsScreen() {
         }
       }
 
-      // Save interests to database with proper capitalization
+      // Save interests to database WITHOUT emojis
       const interestsToInsert = selectedInterests.map(interest => ({
         user_id: session.user.id,
-        interest: capitalizeInterest(interest),
+        interest: prepareInterestForStorage(interest), // Strip emojis before saving
       }));
+
+      console.log('[Interests] Prepared interests for storage:', interestsToInsert);
 
       const { error } = await supabase
         .from('interests')
@@ -140,25 +153,31 @@ export default function InterestsScreen() {
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
           <View style={styles.interestsGrid}>
-            {SUGGESTED_INTERESTS.map((interest) => (
-              <Pressable
-                key={interest}
-                style={[
-                  styles.interestChip,
-                  selectedInterests.includes(interest) && styles.interestChipSelected,
-                ]}
-                onPress={() => toggleInterest(interest)}
-              >
-                <Text
+            {SUGGESTED_INTERESTS.map((interest) => {
+              const isSelected = selectedInterests.some(selected => 
+                areInterestsEqual(selected, interest)
+              );
+              
+              return (
+                <Pressable
+                  key={interest}
                   style={[
-                    styles.interestText,
-                    selectedInterests.includes(interest) && styles.interestTextSelected,
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected,
                   ]}
+                  onPress={() => toggleInterest(interest)}
                 >
-                  {interest}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.interestText,
+                      isSelected && styles.interestTextSelected,
+                    ]}
+                  >
+                    {interest}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           <View style={styles.customSection}>
@@ -183,8 +202,8 @@ export default function InterestsScreen() {
             <View style={styles.selectedSection}>
               <Text style={styles.selectedTitle}>Your interests:</Text>
               <View style={styles.selectedGrid}>
-                {selectedInterests.map((interest) => (
-                  <View key={interest} style={styles.selectedChip}>
+                {selectedInterests.map((interest, index) => (
+                  <View key={`${interest}-${index}`} style={styles.selectedChip}>
                     <Text style={styles.selectedText}>{interest}</Text>
                     <Pressable onPress={() => toggleInterest(interest)}>
                       <IconSymbol name="xmark" size={16} color={colors.text} />

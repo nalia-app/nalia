@@ -80,8 +80,6 @@ export default function HomeScreen() {
         (payload) => {
           console.log('[HomeScreen] Event change detected:', payload);
           loadEvents();
-          // Force map to reload with new events
-          setMapKey(prev => prev + 1);
         }
       )
       .subscribe();
@@ -99,6 +97,14 @@ export default function HomeScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
+
+  // Force map reload when events change
+  useEffect(() => {
+    if (events.length > 0) {
+      console.log('[HomeScreen] Events updated, reloading map. Event count:', events.length);
+      setMapKey(prev => prev + 1);
+    }
+  }, [events]);
 
   const loadLocation = async () => {
     try {
@@ -182,14 +188,14 @@ export default function HomeScreen() {
     try {
       console.log('[HomeScreen] Loading events...');
       
-      // Get today's date
+      // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
+      console.log('[HomeScreen] Today\'s date:', today);
       
-      // Fetch events from database
+      // Fetch events from database - get all events (we'll filter expired ones in code)
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
-        .gte('event_date', today)
         .order('event_date', { ascending: true })
         .order('event_time', { ascending: true });
 
@@ -199,12 +205,21 @@ export default function HomeScreen() {
         return;
       }
 
-      console.log('[HomeScreen] Loaded events:', eventsData?.length || 0);
+      console.log('[HomeScreen] Raw events from database:', eventsData?.length || 0);
+      if (eventsData && eventsData.length > 0) {
+        console.log('[HomeScreen] Sample event dates:', eventsData.slice(0, 3).map(e => ({ date: e.event_date, time: e.event_time, desc: e.description })));
+      }
 
       // Filter out expired non-recurring events
-      const activeEvents = (eventsData || []).filter(event => 
-        !isEventExpired(event.event_date, event.event_time, event.is_recurring)
-      );
+      const activeEvents = (eventsData || []).filter(event => {
+        const expired = isEventExpired(event.event_date, event.event_time, event.is_recurring);
+        if (expired) {
+          console.log('[HomeScreen] Filtering out expired event:', event.description, event.event_date);
+        }
+        return !expired;
+      });
+
+      console.log('[HomeScreen] Active events after filtering:', activeEvents.length);
 
       // Get attendee counts for each event
       const eventsWithAttendees = await Promise.all(
@@ -234,6 +249,7 @@ export default function HomeScreen() {
         })
       );
 
+      console.log('[HomeScreen] Events with attendees:', eventsWithAttendees.length);
       setEvents(eventsWithAttendees);
       setLoading(false);
     } catch (error) {
@@ -334,6 +350,8 @@ export default function HomeScreen() {
       lat: location.coords.latitude,
       lng: location.coords.longitude
     }) : 'null';
+
+    console.log('[HomeScreen] Generating map HTML with', filteredEvents.length, 'events');
 
     return `
       <!DOCTYPE html>
@@ -596,8 +614,14 @@ export default function HomeScreen() {
       <body>
         <div id="map"></div>
         <script>
+          console.log('[Map] Initializing with', ${filteredEvents.length}, 'events');
           const events = ${eventsJSON};
           const userLocation = ${userLocationJSON};
+          
+          console.log('[Map] Events to display:', events.length);
+          events.forEach((e, i) => {
+            console.log('[Map] Event', i, ':', e.description, 'at', e.latitude, e.longitude);
+          });
           
           // Initialize map with extended zoom range
           const map = L.map('map', {
@@ -645,9 +669,12 @@ export default function HomeScreen() {
           }
           
           // Add event markers with smaller, colorful, translucent bubbles
-          events.forEach(event => {
+          console.log('[Map] Adding', events.length, 'event markers to map');
+          events.forEach((event, index) => {
             const size = calculateBubbleSize(event.attendees);
             const iconSize = Math.min(20 + (event.attendees * 1.5), 38);
+            
+            console.log('[Map] Adding marker', index, 'for event:', event.description, 'at', event.latitude, event.longitude);
             
             const eventIcon = L.divIcon({
               className: 'custom-marker',
@@ -667,14 +694,19 @@ export default function HomeScreen() {
             const marker = L.marker([event.latitude, event.longitude], { icon: eventIcon })
               .addTo(map);
             
+            console.log('[Map] Marker', index, 'added successfully');
+            
             // Only send click event to React Native - no popup
             marker.on('click', () => {
+              console.log('[Map] Marker clicked:', event.description);
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'eventClick',
                 event: event
               }));
             });
           });
+          
+          console.log('[Map] All markers added. Total markers:', events.length);
           
           // Handle map clicks
           map.on('click', (e) => {

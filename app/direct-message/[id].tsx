@@ -52,6 +52,7 @@ export default function DirectMessageScreen() {
         supabase.removeChannel(channelRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otherUserId, user]);
 
   const loadOtherUser = async () => {

@@ -50,6 +50,7 @@ export const KeyboardAwareScrollView: React.FC<KeyboardAwareScrollViewProps> = (
       keyboardWillShow.remove();
       keyboardWillHide.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleKeyboardShow = (event: KeyboardEvent) => {

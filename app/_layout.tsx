@@ -66,6 +66,7 @@ function RootLayoutNav() {
         router.replace('/(tabs)/(home)/' as any);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isOnboarded, isLoading, segments]);
 
   return (

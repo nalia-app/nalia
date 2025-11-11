@@ -54,6 +54,7 @@ export const KeyboardAwareComposer: React.FC<KeyboardAwareComposerProps> = ({
       keyboardWillShow.remove();
       keyboardWillHide.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleKeyboardShow = (event: KeyboardEvent) => {

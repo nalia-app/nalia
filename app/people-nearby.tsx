@@ -42,6 +42,7 @@ export default function PeopleNearbyScreen() {
 
   useEffect(() => {
     loadNearbyUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadNearbyUsers = async () => {

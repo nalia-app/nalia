@@ -50,6 +50,7 @@ export default function UserProfileScreen() {
     if (id && user) {
       loadProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user]);
 
   const loadProfile = async () => {

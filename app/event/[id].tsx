@@ -34,7 +34,7 @@ interface EventDetails {
   is_recurring: boolean;
   recurrence_type: string | null;
   tags: string[];
-  attendees: Array<{
+  attendees: {
     id: string;
     user_id: string;
     status: string;
@@ -42,7 +42,7 @@ interface EventDetails {
       name: string;
       avatar_url: string | null;
     };
-  }>;
+  }[];
   host_profile: {
     avatar_url: string | null;
   };
@@ -59,6 +59,7 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     loadEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadEvent = async () => {

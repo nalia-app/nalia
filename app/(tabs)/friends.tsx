@@ -62,6 +62,7 @@ export default function FriendsScreen() {
         supabase.removeChannel(channelRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const setupRealtimeSubscription = () => {

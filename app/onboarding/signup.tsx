@@ -15,6 +15,7 @@ let GoogleSignin: any = null;
 let statusCodes: any = null;
 
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const googleSignInModule = require('@react-native-google-signin/google-signin');
   GoogleSignin = googleSignInModule.GoogleSignin;
   statusCodes = googleSignInModule.statusCodes;

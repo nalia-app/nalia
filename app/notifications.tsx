@@ -47,6 +47,7 @@ export default function NotificationsScreen() {
         channelRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadNotifications = async () => {

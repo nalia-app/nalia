@@ -105,6 +105,7 @@ export default function FloatingTabBar({
         supabase.removeChannel(friendsChannel);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const checkUnreadMessages = async () => {

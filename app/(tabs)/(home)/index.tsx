@@ -90,12 +90,14 @@ export default function HomeScreen() {
       console.log('[HomeScreen] Cleaning up subscriptions');
       supabase.removeChannel(eventsChannel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (location) {
       loadNearbyCount();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
   const loadLocation = async () => {

@@ -25,7 +25,7 @@ interface Event {
   event_time: string;
   icon: string;
   tags: string[];
-  attendees: Array<{ status: string }>;
+  attendees: { status: string }[];
   isHosting: boolean;
 }
 
@@ -40,6 +40,7 @@ export default function MyEventsScreen() {
     if (user) {
       loadEvents();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadEvents = async () => {

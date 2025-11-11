@@ -15,6 +15,7 @@ export default function OnboardingIndex() {
     } else {
       router.replace('/onboarding/welcome' as any);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboarded]);
 
   return (

@@ -61,6 +61,7 @@ export default function CreateEventScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState("");
+  const [mapZoom, setMapZoom] = useState(15); // Store current zoom level
   const [mapKey, setMapKey] = useState(0);
   const webViewRef = useRef<WebView>(null);
 
@@ -101,7 +102,7 @@ export default function CreateEventScreen() {
     const lat = selectedLocation?.lat || location.coords.latitude;
     const lng = selectedLocation?.lng || location.coords.longitude;
 
-    console.log('[CreateEvent] Generating map HTML for location:', lat, lng);
+    console.log('[CreateEvent] Generating map HTML for location:', lat, lng, 'zoom:', mapZoom);
 
     return `
       <!DOCTYPE html>
@@ -185,7 +186,7 @@ export default function CreateEventScreen() {
         <div id="map"></div>
         <script>
           console.log('[CreateEvent Map] Starting initialization...');
-          console.log('[CreateEvent Map] Target location: ${lat}, ${lng}');
+          console.log('[CreateEvent Map] Target location: ${lat}, ${lng}, zoom: ${mapZoom}');
           
           try {
             // Initialize map WITHOUT zoom control buttons
@@ -205,9 +206,9 @@ export default function CreateEventScreen() {
             
             console.log('[CreateEvent Map] Map object created successfully');
             
-            // Set the view immediately
-            map.setView([${lat}, ${lng}], 15);
-            console.log('[CreateEvent Map] View set to:', ${lat}, ${lng});
+            // Set the view with the stored zoom level
+            map.setView([${lat}, ${lng}], ${mapZoom});
+            console.log('[CreateEvent Map] View set to:', ${lat}, ${lng}, 'zoom:', ${mapZoom});
             
             // Add MapTiler Streets tile layer
             const tileLayer = L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
@@ -246,7 +247,7 @@ export default function CreateEventScreen() {
                 map.invalidateSize(true);
                 console.log('[CreateEvent Map] Map size invalidated');
                 
-                // Pan to center to ensure proper positioning
+                // Pan to center to ensure proper positioning (without changing zoom)
                 map.panTo([${lat}, ${lng}], { animate: false });
                 
                 // Now add the marker at the center with proper anchor
@@ -266,7 +267,7 @@ export default function CreateEventScreen() {
                 
                 console.log('[CreateEvent Map] Marker added at:', ${lat}, ${lng});
                 
-                // Ensure marker is visible by panning to it
+                // Ensure marker is visible by panning to it (without changing zoom)
                 setTimeout(() => {
                   map.panTo([${lat}, ${lng}], { animate: false });
                   console.log('[CreateEvent Map] Final pan to marker position');
@@ -286,14 +287,16 @@ export default function CreateEventScreen() {
                 
                 marker.on('dragend', (e) => {
                   const position = e.target.getLatLng();
-                  console.log('[CreateEvent Map] Marker drag ended at:', position.lat, position.lng);
+                  const currentZoom = map.getZoom();
+                  console.log('[CreateEvent Map] Marker drag ended at:', position.lat, position.lng, 'zoom:', currentZoom);
                   
-                  // Send location update
+                  // Send location update with current zoom level
                   if (window.ReactNativeWebView) {
                     window.ReactNativeWebView.postMessage(JSON.stringify({
                       type: 'locationSelected',
                       lat: position.lat,
-                      lng: position.lng
+                      lng: position.lng,
+                      zoom: currentZoom
                     }));
                   }
                   
@@ -311,7 +314,8 @@ export default function CreateEventScreen() {
                     console.log('[CreateEvent Map] Ignoring click - marker is being dragged');
                     return;
                   }
-                  console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng);
+                  const currentZoom = map.getZoom();
+                  console.log('[CreateEvent Map] Map clicked at:', e.latlng.lat, e.latlng.lng, 'zoom:', currentZoom);
                   
                   if (marker) {
                     marker.setLatLng(e.latlng);
@@ -321,9 +325,22 @@ export default function CreateEventScreen() {
                       window.ReactNativeWebView.postMessage(JSON.stringify({
                         type: 'locationSelected',
                         lat: e.latlng.lat,
-                        lng: e.latlng.lng
+                        lng: e.latlng.lng,
+                        zoom: currentZoom
                       }));
                     }
+                  }
+                });
+                
+                // Track zoom changes and send to React Native
+                map.on('zoomend', () => {
+                  const currentZoom = map.getZoom();
+                  console.log('[CreateEvent Map] Zoom ended, level:', currentZoom);
+                  if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'zoomChanged',
+                      zoom: currentZoom
+                    }));
                   }
                 });
                 
@@ -344,10 +361,6 @@ export default function CreateEventScreen() {
               console.log('[CreateEvent Map] Zoom started');
             });
             
-            map.on('zoomend', () => {
-              console.log('[CreateEvent Map] Zoom ended, level:', map.getZoom());
-            });
-            
             console.log('[CreateEvent Map] Initialization complete');
           } catch (error) {
             console.error('[CreateEvent Map] Error during initialization:', error);
@@ -363,9 +376,19 @@ export default function CreateEventScreen() {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       console.log('[CreateEvent] WebView message received:', data);
+      
       if (data.type === 'locationSelected') {
+        // Update location without changing zoom
         setSelectedLocation({ lat: data.lat, lng: data.lng });
-        console.log('[CreateEvent] Location updated to:', data.lat, data.lng);
+        // Update zoom level if provided
+        if (data.zoom !== undefined) {
+          setMapZoom(data.zoom);
+        }
+        console.log('[CreateEvent] Location updated to:', data.lat, data.lng, 'zoom:', data.zoom);
+      } else if (data.type === 'zoomChanged') {
+        // Update stored zoom level
+        setMapZoom(data.zoom);
+        console.log('[CreateEvent] Zoom level updated to:', data.zoom);
       }
     } catch (error) {
       console.log('[CreateEvent] Error parsing WebView message:', error);

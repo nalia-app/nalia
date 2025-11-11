@@ -396,9 +396,17 @@ export default function CreateEventScreen() {
     }
   };
 
+  // Helper function to format date in local timezone as YYYY-MM-DD
+  const formatDateLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const getNextOccurrenceDate = () => {
     if (!isRecurring) {
-      return date.toISOString().split("T")[0];
+      return formatDateLocal(date);
     }
 
     const now = new Date();
@@ -412,7 +420,7 @@ export default function CreateEventScreen() {
       }
       const nextDate = new Date(now);
       nextDate.setDate(now.getDate() + daysUntilNext);
-      return nextDate.toISOString().split("T")[0];
+      return formatDateLocal(nextDate);
     } else {
       // Monthly: find next occurrence of selected week and weekday
       const nextDate = new Date(now);
@@ -446,14 +454,14 @@ export default function CreateEventScreen() {
           nextDate.setDate(day);
           if (nextDate.getDay() === selectedMonthlyWeekday) {
             if (occurrenceCount === selectedWeekOfMonth) {
-              return nextDate.toISOString().split("T")[0];
+              return formatDateLocal(nextDate);
             }
             occurrenceCount++;
           }
         }
       }
       
-      return targetDate ? targetDate.toISOString().split("T")[0] : now.toISOString().split("T")[0];
+      return targetDate ? formatDateLocal(targetDate) : formatDateLocal(now);
     }
   };
 
@@ -489,9 +497,12 @@ export default function CreateEventScreen() {
 
       console.log("[CreateEvent] Tags after emoji stripping:", tagArray);
 
-      // Format date and time
-      const eventDate = isRecurring ? getNextOccurrenceDate() : date.toISOString().split("T")[0];
+      // Format date and time using local timezone
+      const eventDate = isRecurring ? getNextOccurrenceDate() : formatDateLocal(date);
       const eventTime = time.toTimeString().split(" ")[0].substring(0, 5);
+
+      console.log("[CreateEvent] Event date (local):", eventDate);
+      console.log("[CreateEvent] Event time:", eventTime);
 
       // Create event
       const eventData: any = {

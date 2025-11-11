@@ -115,6 +115,9 @@ export default function CreateEventScreen() {
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
           }
           body, html {
             margin: 0;
@@ -158,6 +161,8 @@ export default function CreateEventScreen() {
             box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
             animation: pulse 2s infinite ease-in-out;
             cursor: grab;
+            margin-left: -20px;
+            margin-top: -20px;
           }
           .custom-marker:active {
             cursor: grabbing;
@@ -236,18 +241,22 @@ export default function CreateEventScreen() {
             map.whenReady(() => {
               console.log('[CreateEvent Map] Map is ready');
               
-              // Force map to recalculate size
+              // Force map to recalculate size and invalidate
               setTimeout(() => {
-                map.invalidateSize();
+                map.invalidateSize(true);
                 console.log('[CreateEvent Map] Map size invalidated');
                 
-                // Now add the marker at the center
+                // Pan to center to ensure proper positioning
+                map.panTo([${lat}, ${lng}], { animate: false });
+                
+                // Now add the marker at the center with proper anchor
                 marker = L.marker([${lat}, ${lng}], {
                   icon: L.divIcon({
-                    className: 'custom-marker',
-                    html: '${selectedIcon}',
+                    className: 'custom-marker-wrapper',
+                    html: '<div class="custom-marker">${selectedIcon}</div>',
                     iconSize: [40, 40],
-                    iconAnchor: [20, 20]
+                    iconAnchor: [20, 20],
+                    popupAnchor: [0, -20]
                   }),
                   draggable: true,
                   autoPan: true,
@@ -256,6 +265,12 @@ export default function CreateEventScreen() {
                 }).addTo(map);
                 
                 console.log('[CreateEvent Map] Marker added at:', ${lat}, ${lng});
+                
+                // Ensure marker is visible by panning to it
+                setTimeout(() => {
+                  map.panTo([${lat}, ${lng}], { animate: false });
+                  console.log('[CreateEvent Map] Final pan to marker position');
+                }, 100);
                 
                 // Handle marker drag events
                 marker.on('dragstart', (e) => {
@@ -313,7 +328,7 @@ export default function CreateEventScreen() {
                 });
                 
                 console.log('[CreateEvent Map] All event handlers attached');
-              }, 300);
+              }, 500);
             });
             
             // Log map events for debugging

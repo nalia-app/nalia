@@ -56,6 +56,7 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [isAttending, setIsAttending] = useState(false);
   const [attendeeStatus, setAttendeeStatus] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadEvent();
@@ -167,6 +168,57 @@ export default function EventDetailScreen() {
     ]);
   };
 
+  const handleDeleteEvent = async () => {
+    if (!user || !event) return;
+
+    // Verify user is the host
+    if (event.host_id !== user.id) {
+      Alert.alert("Error", "Only the host can delete this event");
+      return;
+    }
+
+    Alert.alert(
+      "Delete Event",
+      "Are you sure you want to delete this event? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              console.log("Deleting event:", id);
+
+              // Delete the event (RLS policy ensures only host can delete)
+              const { error } = await supabase
+                .from("events")
+                .delete()
+                .eq("id", id as string);
+
+              if (error) throw error;
+
+              console.log("Event deleted successfully");
+              Alert.alert("Success", "Event deleted successfully", [
+                {
+                  text: "OK",
+                  onPress: () => {
+                    // Navigate back to home or my events
+                    router.back();
+                  },
+                },
+              ]);
+            } catch (error: any) {
+              console.error("Error deleting event:", error);
+              Alert.alert("Error", "Failed to delete event. Please try again.");
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleOpenChat = () => {
     if (!isAttending || attendeeStatus !== "approved") {
       Alert.alert("Info", "You must be an approved attendee to access the chat");
@@ -228,7 +280,20 @@ export default function EventDetailScreen() {
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Event Details</Text>
-          <View style={styles.placeholder} />
+          {isHost && (
+            <Pressable 
+              style={styles.deleteButton} 
+              onPress={handleDeleteEvent}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color="#ff4444" />
+              ) : (
+                <IconSymbol name="trash" size={24} color="#ff4444" />
+              )}
+            </Pressable>
+          )}
+          {!isHost && <View style={styles.placeholder} />}
         </View>
 
         <ScrollView
@@ -368,6 +433,25 @@ export default function EventDetailScreen() {
               )}
             </View>
           )}
+
+          {isHost && (
+            <View style={styles.actionButtons}>
+              <Pressable 
+                style={styles.deleteEventButton} 
+                onPress={handleDeleteEvent}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#ff4444" />
+                ) : (
+                  <>
+                    <IconSymbol name="trash" size={20} color="#ff4444" />
+                    <Text style={styles.deleteEventButtonText}>Delete Event</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -407,6 +491,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     color: colors.text,
+  },
+  deleteButton: {
+    padding: 8,
+    width: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   placeholder: {
     width: 40,
@@ -607,6 +697,22 @@ const styles = StyleSheet.create({
     borderColor: "#ff4444",
   },
   leaveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ff4444",
+  },
+  deleteEventButton: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#ff4444",
+  },
+  deleteEventButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#ff4444",

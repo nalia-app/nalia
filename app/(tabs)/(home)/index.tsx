@@ -84,9 +84,27 @@ export default function HomeScreen() {
       )
       .subscribe();
 
+    // Subscribe to real-time event_attendees changes
+    const attendeesChannel = supabase
+      .channel('attendees-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_attendees'
+        },
+        (payload) => {
+          console.log('[HomeScreen] Attendee change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
     return () => {
       console.log('[HomeScreen] Cleaning up subscriptions');
       supabase.removeChannel(eventsChannel);
+      supabase.removeChannel(attendeesChannel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -224,17 +242,21 @@ export default function HomeScreen() {
       // Get attendee counts for each event
       const eventsWithAttendees = await Promise.all(
         activeEvents.map(async (event) => {
+          // Count only approved attendees (excluding host)
           const { count } = await supabase
             .from('event_attendees')
             .select('*', { count: 'exact', head: true })
             .eq('event_id', event.id)
             .eq('status', 'approved');
 
+          const attendeeCount = (count || 0) + 1; // +1 for host
+          console.log(`[HomeScreen] Event "${event.description}" has ${attendeeCount} attendees (${count || 0} approved + 1 host)`);
+
           return {
             id: event.id,
             hostName: event.host_name,
             description: event.description,
-            attendees: (count || 0) + 1, // +1 for host
+            attendees: attendeeCount,
             latitude: event.latitude,
             longitude: event.longitude,
             icon: event.icon,
@@ -309,9 +331,34 @@ export default function HomeScreen() {
     router.push("/people-nearby" as any);
   };
 
-  const handleEventClick = (event: EventBubble) => {
-    setSelectedEvent(event);
-    setShowEventPreview(true);
+  const handleEventClick = async (event: EventBubble) => {
+    console.log('[HomeScreen] Event clicked, fetching fresh data for event:', event.id);
+    
+    // Fetch fresh attendee count for this specific event
+    try {
+      const { count } = await supabase
+        .from('event_attendees')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', event.id)
+        .eq('status', 'approved');
+
+      const freshAttendeeCount = (count || 0) + 1; // +1 for host
+      console.log(`[HomeScreen] Fresh attendee count for "${event.description}": ${freshAttendeeCount}`);
+
+      // Update the event with fresh data
+      const updatedEvent = {
+        ...event,
+        attendees: freshAttendeeCount
+      };
+
+      setSelectedEvent(updatedEvent);
+      setShowEventPreview(true);
+    } catch (error) {
+      console.error('[HomeScreen] Error fetching fresh attendee count:', error);
+      // Fall back to cached data
+      setSelectedEvent(event);
+      setShowEventPreview(true);
+    }
   };
 
   const handleViewDetails = () => {
@@ -620,7 +667,7 @@ export default function HomeScreen() {
           
           console.log('[Map] Events to display:', events.length);
           events.forEach((e, i) => {
-            console.log('[Map] Event', i, ':', e.description, 'at', e.latitude, e.longitude);
+            console.log('[Map] Event', i, ':', e.description, 'with', e.attendees, 'attendees at', e.latitude, e.longitude);
           });
           
           // Initialize map with extended zoom range
@@ -674,7 +721,7 @@ export default function HomeScreen() {
             const size = calculateBubbleSize(event.attendees);
             const iconSize = Math.min(20 + (event.attendees * 1.5), 38);
             
-            console.log('[Map] Adding marker', index, 'for event:', event.description, 'at', event.latitude, event.longitude);
+            console.log('[Map] Adding marker', index, 'for event:', event.description, 'with', event.attendees, 'attendees, bubble size:', size, 'px');
             
             const eventIcon = L.divIcon({
               className: 'custom-marker',

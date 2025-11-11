@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 
 interface Event {
   id: string;
@@ -36,12 +37,15 @@ export default function MyEventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      loadEvents();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  // Load events when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[MyEventsScreen] Screen focused, reloading events");
+      if (user) {
+        loadEvents();
+      }
+    }, [user])
+  );
 
   const loadEvents = async () => {
     if (!user) return;
@@ -97,6 +101,7 @@ export default function MyEventsScreen() {
           new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
       );
 
+      console.log(`[MyEventsScreen] Loaded ${allEvents.length} events`);
       setEvents(allEvents);
     } catch (error: any) {
       console.error("Error loading events:", error);

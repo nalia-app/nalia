@@ -26,7 +26,7 @@ interface Event {
   event_time: string;
   icon: string;
   tags: string[];
-  attendees: { status: string }[];
+  attendees: number;
   isHosting: boolean;
 }
 
@@ -47,20 +47,64 @@ export default function MyEventsScreen() {
     }, [user])
   );
 
+  // Subscribe to realtime updates
+  useEffect(() => {
+    if (!user) return;
+
+    console.log("[MyEventsScreen] Setting up realtime subscriptions");
+
+    // Subscribe to event_attendees changes
+    const attendeesChannel = supabase
+      .channel('my-events-attendees')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_attendees'
+        },
+        (payload) => {
+          console.log('[MyEventsScreen] Attendee change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to events changes
+    const eventsChannel = supabase
+      .channel('my-events-events')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events'
+        },
+        (payload) => {
+          console.log('[MyEventsScreen] Event change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[MyEventsScreen] Cleaning up subscriptions');
+      supabase.removeChannel(attendeesChannel);
+      supabase.removeChannel(eventsChannel);
+    };
+  }, [user]);
+
   const loadEvents = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      console.log("Loading user events");
+      console.log("[MyEventsScreen] Loading user events");
 
       // Get events where user is host
       const { data: hostedEvents, error: hostedError } = await supabase
         .from("events")
-        .select(`
-          *,
-          attendees:event_attendees(status)
-        `)
+        .select("*")
         .eq("host_id", user.id)
         .order("event_date", { ascending: true });
 
@@ -80,31 +124,74 @@ export default function MyEventsScreen() {
 
       if (attendingError) throw attendingError;
 
-      // Format hosted events
-      const formattedHosted = (hostedEvents || []).map((event) => ({
-        ...event,
-        isHosting: true,
-      }));
+      // Get attendee counts for hosted events
+      const hostedEventsWithCounts = await Promise.all(
+        (hostedEvents || []).map(async (event) => {
+          const { count } = await supabase
+            .from('event_attendees')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'approved');
 
-      // Format attending events
-      const formattedAttending = (attendingData || [])
-        .filter((item) => item.events)
-        .map((item) => ({
-          ...(item.events as any),
-          attendees: [],
-          isHosting: false,
-        }));
+          const attendeeCount = count || 0;
+          console.log(`[MyEventsScreen] Hosted event "${event.description}" has ${attendeeCount} attendees`);
+
+          return {
+            id: event.id,
+            host_id: event.host_id,
+            host_name: event.host_name,
+            description: event.description,
+            event_date: event.event_date,
+            event_time: event.event_time,
+            icon: event.icon,
+            tags: event.tags || [],
+            attendees: attendeeCount,
+            isHosting: true,
+          };
+        })
+      );
+
+      // Get attendee counts for attending events
+      const attendingEventsWithCounts = await Promise.all(
+        (attendingData || [])
+          .filter((item) => item.events)
+          .map(async (item) => {
+            const event = item.events as any;
+            
+            const { count } = await supabase
+              .from('event_attendees')
+              .select('*', { count: 'exact', head: true })
+              .eq('event_id', event.id)
+              .eq('status', 'approved');
+
+            const attendeeCount = count || 0;
+            console.log(`[MyEventsScreen] Attending event "${event.description}" has ${attendeeCount} attendees`);
+
+            return {
+              id: event.id,
+              host_id: event.host_id,
+              host_name: event.host_name,
+              description: event.description,
+              event_date: event.event_date,
+              event_time: event.event_time,
+              icon: event.icon,
+              tags: event.tags || [],
+              attendees: attendeeCount,
+              isHosting: false,
+            };
+          })
+      );
 
       // Combine and sort
-      const allEvents = [...formattedHosted, ...formattedAttending].sort(
+      const allEvents = [...hostedEventsWithCounts, ...attendingEventsWithCounts].sort(
         (a, b) =>
           new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
       );
 
-      console.log(`[MyEventsScreen] Loaded ${allEvents.length} events`);
+      console.log(`[MyEventsScreen] Loaded ${allEvents.length} events with attendee counts`);
       setEvents(allEvents);
     } catch (error: any) {
-      console.error("Error loading events:", error);
+      console.error("[MyEventsScreen] Error loading events:", error);
     } finally {
       setLoading(false);
     }
@@ -261,7 +348,7 @@ export default function MyEventsScreen() {
                       color={colors.textSecondary}
                     />
                     <Text style={styles.eventDetailText}>
-                      {event.attendees?.length || 0}
+                      {event.attendees}
                     </Text>
                   </View>
                 </View>

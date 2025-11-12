@@ -352,15 +352,22 @@ export default function MessagesScreen() {
               style={[styles.chatCard, chat.unread > 0 && styles.chatCardUnread]}
               onPress={() => handleChatPress(chat)}
             >
-              <View style={styles.chatIcon}>
-                {chat.type === 'event' ? (
+              {chat.type === 'event' ? (
+                <LinearGradient
+                  colors={[colors.primary, colors.secondary]}
+                  style={styles.chatIconGradient}
+                >
                   <Text style={styles.chatIconText}>{chat.icon}</Text>
-                ) : chat.avatar_url ? (
-                  <Image source={{ uri: chat.avatar_url }} style={styles.avatarImage} />
-                ) : (
-                  <IconSymbol name="person.fill" size={28} color={colors.text} />
-                )}
-              </View>
+                </LinearGradient>
+              ) : (
+                <View style={styles.chatIcon}>
+                  {chat.avatar_url ? (
+                    <Image source={{ uri: chat.avatar_url }} style={styles.avatarImage} />
+                  ) : (
+                    <IconSymbol name="person.fill" size={28} color={colors.text} />
+                  )}
+                </View>
+              )}
               <View style={styles.chatContent}>
                 <View style={styles.chatHeader}>
                   <Text style={styles.chatEventName}>
@@ -479,6 +486,17 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderWidth: 2,
   },
+  chatIconGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  chatIconText: {
+    fontSize: 28,
+  },
   chatIcon: {
     width: 56,
     height: 56,
@@ -488,9 +506,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
     overflow: "hidden",
-  },
-  chatIconText: {
-    fontSize: 28,
   },
   avatarImage: {
     width: 56,

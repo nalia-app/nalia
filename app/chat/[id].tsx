@@ -233,13 +233,16 @@ export default function ChatScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </Pressable>
-          <View style={styles.headerIconContainer}>
+          <LinearGradient
+            colors={[colors.primary, colors.secondary]}
+            style={styles.headerIconGradient}
+          >
             {eventIcon ? (
               <Text style={styles.headerIcon}>{eventIcon}</Text>
             ) : (
               <IconSymbol name="calendar" size={24} color={colors.text} />
             )}
-          </View>
+          </LinearGradient>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {eventName}
@@ -356,11 +359,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  headerIconContainer: {
+  headerIconGradient: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,

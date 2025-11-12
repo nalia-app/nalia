@@ -242,15 +242,15 @@ export default function HomeScreen() {
       // Get attendee counts for each event
       const eventsWithAttendees = await Promise.all(
         activeEvents.map(async (event) => {
-          // Count only approved attendees (excluding host)
+          // Count all approved attendees (including host, since host is in event_attendees table)
           const { count } = await supabase
             .from('event_attendees')
             .select('*', { count: 'exact', head: true })
             .eq('event_id', event.id)
             .eq('status', 'approved');
 
-          const attendeeCount = (count || 0) + 1; // +1 for host
-          console.log(`[HomeScreen] Event "${event.description}" has ${attendeeCount} attendees (${count || 0} approved + 1 host)`);
+          const attendeeCount = count || 0; // No need to add 1 since host is already in the table
+          console.log(`[HomeScreen] Event "${event.description}" has ${attendeeCount} attendees (including host)`);
 
           return {
             id: event.id,
@@ -342,7 +342,7 @@ export default function HomeScreen() {
         .eq('event_id', event.id)
         .eq('status', 'approved');
 
-      const freshAttendeeCount = (count || 0) + 1; // +1 for host
+      const freshAttendeeCount = count || 0; // No need to add 1 since host is already in the table
       console.log(`[HomeScreen] Fresh attendee count for "${event.description}": ${freshAttendeeCount}`);
 
       // Update the event with fresh data

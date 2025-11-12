@@ -225,7 +225,9 @@ export default function MyEventsScreen() {
                   <Text style={styles.eventTitle}>
                     <Text style={styles.eventHost}>{event.host_name}</Text>
                     <Text style={styles.eventWanna}> wanna </Text>
-                    <Text style={styles.eventAction}>{event.description}</Text>
+                    <Text style={styles.eventAction}>
+                      {event.description.charAt(0).toLowerCase() + event.description.slice(1)}
+                    </Text>
                   </Text>
                   {event.isHosting && (
                     <View style={styles.hostBadge}>

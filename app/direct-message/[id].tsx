@@ -15,6 +15,7 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -34,6 +35,7 @@ export default function DirectMessageScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [otherUserName, setOtherUserName] = useState("");
+  const [otherUserAvatar, setOtherUserAvatar] = useState<string | null>(null);
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
   const scrollViewRef = useRef<any>(null);
@@ -59,12 +61,13 @@ export default function DirectMessageScreen() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("name")
+        .select("name, avatar_url")
         .eq("id", otherUserId)
         .single();
 
       if (error) throw error;
       setOtherUserName(data.name);
+      setOtherUserAvatar(data.avatar_url);
     } catch (error: any) {
       console.error("Error loading other user:", error);
     }
@@ -228,6 +231,13 @@ export default function DirectMessageScreen() {
           <Pressable style={styles.backButton} onPress={handleBack}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </Pressable>
+          <View style={styles.headerAvatarContainer}>
+            {otherUserAvatar ? (
+              <Image source={{ uri: otherUserAvatar }} style={styles.headerAvatar} />
+            ) : (
+              <IconSymbol name="person.fill" size={24} color={colors.text} />
+            )}
+          </View>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>{otherUserName}</Text>
           </View>
@@ -327,6 +337,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+  },
+  headerAvatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.highlight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    overflow: "hidden",
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   headerContent: {
     flex: 1,

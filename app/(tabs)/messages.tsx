@@ -9,6 +9,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -28,6 +29,7 @@ interface Chat {
   timestamp: string;
   unread: number;
   icon?: string;
+  avatar_url?: string | null;
   type: 'event' | 'direct';
 }
 
@@ -214,7 +216,7 @@ export default function MessagesScreen() {
         async ([otherUserId, messages]) => {
           const { data: otherUserProfile } = await supabase
             .from("profiles")
-            .select("name")
+            .select("name, avatar_url")
             .eq("id", otherUserId)
             .single();
 
@@ -227,6 +229,7 @@ export default function MessagesScreen() {
             id: `dm-${otherUserId}`,
             other_user_id: otherUserId,
             other_user_name: otherUserProfile?.name || "Unknown",
+            avatar_url: otherUserProfile?.avatar_url || null,
             lastMessage: lastMessage.text,
             timestamp: formatTimestamp(lastMessage.created_at),
             unread: unreadCount,
@@ -352,6 +355,8 @@ export default function MessagesScreen() {
               <View style={styles.chatIcon}>
                 {chat.type === 'event' ? (
                   <Text style={styles.chatIconText}>{chat.icon}</Text>
+                ) : chat.avatar_url ? (
+                  <Image source={{ uri: chat.avatar_url }} style={styles.avatarImage} />
                 ) : (
                   <IconSymbol name="person.fill" size={28} color={colors.text} />
                 )}
@@ -482,9 +487,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    overflow: "hidden",
   },
   chatIconText: {
     fontSize: 28,
+  },
+  avatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   chatContent: {
     flex: 1,

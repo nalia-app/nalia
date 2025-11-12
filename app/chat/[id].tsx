@@ -39,6 +39,7 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [eventName, setEventName] = useState("Event Chat");
+  const [eventIcon, setEventIcon] = useState("");
   const [participantCount, setParticipantCount] = useState(0);
   const scrollViewRef = useRef<any>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -64,13 +65,14 @@ export default function ChatScreen() {
     try {
       const { data: eventData, error: eventError } = await supabase
         .from("events")
-        .select("description")
+        .select("description, icon")
         .eq("id", id)
         .single();
 
       if (eventError) throw eventError;
 
       setEventName(eventData.description);
+      setEventIcon(eventData.icon);
 
       // Count participants
       const { count } = await supabase
@@ -231,6 +233,13 @@ export default function ChatScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </Pressable>
+          <View style={styles.headerIconContainer}>
+            {eventIcon ? (
+              <Text style={styles.headerIcon}>{eventIcon}</Text>
+            ) : (
+              <IconSymbol name="calendar" size={24} color={colors.text} />
+            )}
+          </View>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {eventName}
@@ -347,9 +356,21 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  headerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.highlight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+    marginRight: 12,
+  },
+  headerIcon: {
+    fontSize: 24,
+  },
   headerContent: {
     flex: 1,
-    marginLeft: 8,
   },
   headerTitle: {
     fontSize: 18,

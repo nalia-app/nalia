@@ -9,6 +9,13 @@ import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/app/integrations/supabase/client';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 // Dynamically import Google Sign-In to handle cases where it's not available
 let GoogleSignin: any = null;
@@ -31,6 +38,41 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
   const [googleSignInAvailable, setGoogleSignInAvailable] = useState(false);
+
+  // Animated values for background elements
+  const rotation = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    // Subtle rotation animation for background orbs
+    rotation.value = withRepeat(
+      withTiming(360, { duration: 20000, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    // Subtle scale animation
+    scale.value = withRepeat(
+      withTiming(1.2, { duration: 8000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animatedOrb1Style = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { scale: scale.value },
+    ],
+  }));
+
+  const animatedOrb2Style = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${-rotation.value}deg` },
+      { scale: scale.value * 0.8 },
+    ],
+  }));
 
   useEffect(() => {
     // Configure Google Sign In if available
@@ -299,7 +341,45 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={[colors.background, '#1a1a2e']} style={styles.container}>
+    <View style={styles.container}>
+      {/* Multi-layer gradient background */}
+      <LinearGradient 
+        colors={['#0a0a1a', '#1a0f2e', '#2d1b4e', '#1a0f2e', '#0a0a1a']} 
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      
+      {/* Animated orb 1 - Top right */}
+      <Animated.View style={[styles.orb1, animatedOrb1Style]}>
+        <LinearGradient
+          colors={['rgba(187, 134, 252, 0.15)', 'rgba(187, 134, 252, 0.05)', 'transparent']}
+          style={styles.orbGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Animated.View>
+
+      {/* Animated orb 2 - Bottom left */}
+      <Animated.View style={[styles.orb2, animatedOrb2Style]}>
+        <LinearGradient
+          colors={['rgba(3, 218, 198, 0.12)', 'rgba(3, 218, 198, 0.04)', 'transparent']}
+          style={styles.orbGradient}
+          start={{ x: 1, y: 1 }}
+          end={{ x: 0, y: 0 }}
+        />
+      </Animated.View>
+
+      {/* Accent orb 3 - Center */}
+      <View style={styles.orb3}>
+        <LinearGradient
+          colors={['rgba(255, 64, 129, 0.08)', 'transparent']}
+          style={styles.orbGradient}
+          start={{ x: 0.5, y: 0.5 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </View>
+
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           <Pressable
@@ -307,43 +387,56 @@ export default function LoginScreen() {
             onPress={() => router.back()}
             disabled={loading}
           >
-            <IconSymbol name="chevron.left" size={24} color={colors.text} />
+            <View style={styles.backButtonInner}>
+              <IconSymbol name="chevron.left" size={24} color={colors.text} />
+            </View>
           </Pressable>
 
           <Text style={styles.logo}>nalia</Text>
           <Text style={styles.subtitle}>Welcome back</Text>
 
           <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!loading}
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
+              />
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              editable={!loading}
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
 
             <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleEmailLogin}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>
-                {loading ? 'Logging In...' : 'Log In with Email'}
-              </Text>
+              <LinearGradient
+                colors={['#BB86FC', '#9D6FDB']}
+                style={styles.buttonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? 'Logging In...' : 'Log In with Email'}
+                </Text>
+              </LinearGradient>
             </Pressable>
           </View>
 
@@ -408,13 +501,14 @@ export default function LoginScreen() {
           </Pressable>
         </View>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0a0a1a',
   },
   safeArea: {
     flex: 1,
@@ -424,15 +518,47 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
   },
+  orb1: {
+    position: 'absolute',
+    top: -150,
+    right: -150,
+    width: 400,
+    height: 400,
+  },
+  orb2: {
+    position: 'absolute',
+    bottom: -100,
+    left: -100,
+    width: 350,
+    height: 350,
+  },
+  orb3: {
+    position: 'absolute',
+    top: '40%',
+    left: '30%',
+    width: 300,
+    height: 300,
+  },
+  orbGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 200,
+  },
   backButton: {
     position: 'absolute',
     top: 16,
     left: 24,
     zIndex: 10,
+  },
+  backButtonInner: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   logo: {
     fontFamily: 'PlayfairDisplay-Italic',
@@ -440,32 +566,46 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
+    textShadowColor: 'rgba(187, 134, 252, 0.3)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 12,
   },
   subtitle: {
     fontSize: 18,
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'center',
     marginBottom: 48,
+    fontWeight: '300',
   },
   form: {
     marginBottom: 24,
   },
-  input: {
+  inputContainer: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(187, 134, 252, 0.2)',
+  },
+  input: {
+    padding: 18,
     fontSize: 16,
     color: colors.text,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
     marginTop: 8,
+    shadowColor: '#BB86FC',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  buttonGradient: {
+    padding: 18,
+    alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -473,7 +613,8 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   divider: {
     flexDirection: 'row',
@@ -483,23 +624,27 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   dividerText: {
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.5)',
     marginHorizontal: 16,
     fontSize: 14,
+    fontWeight: '300',
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   googleIcon: {
     width: 20,
@@ -509,23 +654,28 @@ const styles = StyleSheet.create({
   googleButtonText: {
     color: '#3C4043',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   appleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#000000',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   appleButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 12,
   },
   infoBox: {
@@ -537,20 +687,21 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   infoText: {
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
   },
   signupLink: {
     marginTop: 24,
     alignItems: 'center',
   },
   signupLinkText: {
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 14,
   },
   signupLinkBold: {
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

@@ -1,0 +1,10 @@
+
+{
+  "platforms": ["ios", "android", "web"],
+  "ios": {
+    "modules": []
+  },
+  "android": {
+    "modules": []
+  }
+}

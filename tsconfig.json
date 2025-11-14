@@ -1,3 +1,4 @@
+
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
@@ -5,19 +6,26 @@
     "baseUrl": ".",
     "jsx": "react-jsx",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]
+    },
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
-    "workbox-config.js",
+    "app.config.js"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js"
   ]
 }

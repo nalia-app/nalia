@@ -1,4 +1,9 @@
+
 {
+  "cli": {
+    "version": ">= 13.2.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
@@ -6,7 +11,9 @@
       "autoIncrement": true,
       "ios": {
         "simulator": false,
-        "buildConfiguration": "Debug"
+        "buildConfiguration": "Debug",
+        "image": "latest",
+        "resourceClass": "m-medium"
       }
     },
     "preview": {
@@ -14,14 +21,18 @@
       "autoIncrement": true,
       "ios": {
         "simulator": false,
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "image": "latest",
+        "resourceClass": "m-medium"
       }
     },
     "production": {
       "autoIncrement": true,
       "ios": {
         "simulator": false,
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "image": "latest",
+        "resourceClass": "m-medium"
       }
     }
   },

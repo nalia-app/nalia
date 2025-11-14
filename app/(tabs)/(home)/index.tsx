@@ -28,6 +28,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { supabase } from "@/app/integrations/supabase/client";
 import { calculateDistance } from "@/utils/locationUtils";
+import { useFocusEffect } from "@react-navigation/native";
 
 const { width, height } = Dimensions.get("window");
 
@@ -61,6 +62,7 @@ export default function HomeScreen() {
   const [showEventPreview, setShowEventPreview] = useState(false);
   const webViewRef = useRef<WebView>(null);
   const [mapKey, setMapKey] = useState(0);
+  const lastReloadTimeRef = useRef<number>(0);
 
   useEffect(() => {
     console.log('[HomeScreen] Initializing...');
@@ -108,6 +110,22 @@ export default function HomeScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Use useFocusEffect to reload events when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[HomeScreen] Screen focused, checking if reload needed');
+      const now = Date.now();
+      const timeSinceLastReload = now - lastReloadTimeRef.current;
+      
+      // Only reload if it's been more than 1 second since last reload
+      // This prevents double-reloading on initial mount
+      if (timeSinceLastReload > 1000) {
+        console.log('[HomeScreen] Reloading events due to screen focus');
+        reloadEvents();
+      }
+    }, [])
+  );
 
   useEffect(() => {
     if (location) {
@@ -274,10 +292,17 @@ export default function HomeScreen() {
       console.log('[HomeScreen] Events with attendees:', eventsWithAttendees.length);
       setEvents(eventsWithAttendees);
       setLoading(false);
+      lastReloadTimeRef.current = Date.now();
     } catch (error) {
       console.error('[HomeScreen] Error in loadEvents:', error);
       setLoading(false);
     }
+  };
+
+  // New function to reload events (called when screen is focused)
+  const reloadEvents = async () => {
+    console.log('[HomeScreen] Reloading events...');
+    await loadEvents();
   };
 
   // Filter events based on user interests

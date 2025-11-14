@@ -175,7 +175,7 @@ export default function FloatingTabBar({
     }
   };
 
-  const handleTabPress = (route: string) => {
+  const handleTabPress = (route: string, tabName: string) => {
     console.log('Tab pressed:', route, 'Current pathname:', pathname);
     
     // Normalize routes for comparison
@@ -183,9 +183,18 @@ export default function FloatingTabBar({
     const normalizedPathname = pathname.replace('/(tabs)', '');
     
     // Check if we're already on this exact route
-    if (normalizedPathname === normalizedRoute || 
-        (normalizedRoute === '/(home)' && normalizedPathname === '/')) {
-      console.log('Already on this route, skipping navigation');
+    const isAlreadyOnRoute = normalizedPathname === normalizedRoute || 
+        (normalizedRoute === '/(home)' && normalizedPathname === '/');
+    
+    if (isAlreadyOnRoute) {
+      console.log('Already on this route');
+      
+      // For Home tab, trigger a reload by navigating to the same route
+      // This will trigger useFocusEffect in the Home screen
+      if (tabName === '(home)') {
+        console.log('Reloading Home screen by re-navigating');
+        router.replace(route as any);
+      }
       return;
     }
     
@@ -232,7 +241,7 @@ export default function FloatingTabBar({
               <TouchableOpacity
                 key={tab.name}
                 style={styles.tab}
-                onPress={() => handleTabPress(tab.route)}
+                onPress={() => handleTabPress(tab.route, tab.name)}
                 activeOpacity={0.7}
               >
                 <View style={styles.tabContent}>

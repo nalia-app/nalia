@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/styles/commonStyles';
 import { useUser } from '@/contexts/UserContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -368,12 +368,15 @@ export default function SignupScreen() {
 
           {googleSignInAvailable ? (
             <Pressable
-              style={[styles.socialButton, loading && styles.buttonDisabled]}
+              style={[styles.googleButton, loading && styles.buttonDisabled]}
               onPress={handleGoogleSignup}
               disabled={loading}
             >
-              <IconSymbol name="logo.google" size={24} color={colors.text} />
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
+              <Image
+                source={{ uri: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' }}
+                style={styles.googleIcon}
+              />
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
             </Pressable>
           ) : (
             <View style={styles.infoBox}>
@@ -385,12 +388,17 @@ export default function SignupScreen() {
 
           {Platform.OS === 'ios' && appleAuthAvailable && (
             <Pressable
-              style={[styles.socialButton, loading && styles.buttonDisabled]}
+              style={[styles.appleButton, loading && styles.buttonDisabled]}
               onPress={handleAppleSignup}
               disabled={loading}
             >
-              <IconSymbol name="logo.apple" size={24} color={colors.text} />
-              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+              <IconSymbol 
+                ios_icon_name="apple.logo" 
+                android_material_icon_name="apple" 
+                size={20} 
+                color="#FFFFFF" 
+              />
+              <Text style={styles.appleButtonText}>Continue with Apple</Text>
             </Pressable>
           )}
 
@@ -495,21 +503,42 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     fontSize: 14,
   },
-  socialButton: {
+  googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#E0E0E0',
   },
-  socialButtonText: {
-    color: colors.text,
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
+  },
+  googleButtonText: {
+    color: '#3C4043',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
     marginLeft: 12,
   },
   infoBox: {

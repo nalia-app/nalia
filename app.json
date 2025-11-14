@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Nalia",
@@ -14,9 +15,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Natively",
+      "bundleIdentifier": "app.nalia",
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleTypeRole": "Editor",
+            "CFBundleURLSchemes": [
+              "natively"
+            ]
+          }
+        ]
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
@@ -26,7 +36,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively",
+      "package": "app.nalia",
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan"
     },
@@ -43,9 +53,7 @@
           "iosUrlScheme": "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
         }
       ],
-      [
-        "expo-apple-authentication"
-      ]
+      "expo-apple-authentication"
     ],
     "scheme": "natively",
     "experiments": {
@@ -54,6 +62,5 @@
     "extra": {
       "router": {}
     }
-  },
-  "scheme": "Nalia"
+  }
 }

@@ -27,8 +27,7 @@
             ]
           }
         ]
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +36,6 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "app.nalia",
-      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
@@ -47,12 +45,6 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
-        }
-      ],
       "expo-apple-authentication"
     ],
     "scheme": "natively",

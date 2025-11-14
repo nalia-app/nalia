@@ -1,8 +1,7 @@
-
 {
   "expo": {
-    "name": "Nalia",
-    "slug": "Nalia",
+    "name": "nalia",
+    "slug": "nalia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -84,10 +83,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "your-project-id-here"
-      }
+      "router": {}
     }
   }
 }

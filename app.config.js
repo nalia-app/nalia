@@ -82,10 +82,7 @@ module.exports = {
       typedRoutes: true
     },
     extra: {
-      router: {},
-      eas: {
-        projectId: "your-project-id-here"
-      }
+      router: {}
     }
   }
 };

@@ -1,8 +1,9 @@
 
 module.exports = {
   expo: {
-    name: "Nalia",
-    slug: "Nalia",
+    name: "nalia",
+    slug: "nalia",
+    owner: "max1818",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/natively-dark.png",
@@ -82,7 +83,10 @@ module.exports = {
       typedRoutes: true
     },
     extra: {
-      router: {}
+      router: {},
+      eas: {
+        projectId: "218d47df-2557-47f5-b967-9384e85174fa"
+      }
     }
   }
 };

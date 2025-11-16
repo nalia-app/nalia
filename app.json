@@ -6,11 +6,11 @@
     "owner": "max1818",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
+    "icon": "./assets/images/3193f7c3-b1d4-4eb2-8986-9bf2bdf79ecc.png",
     "userInterfaceStyle": "automatic",
     "scheme": "natively",
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/3193f7c3-b1d4-4eb2-8986-9bf2bdf79ecc.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -42,7 +42,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
+        "foregroundImage": "./assets/images/3193f7c3-b1d4-4eb2-8986-9bf2bdf79ecc.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
@@ -57,7 +57,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/3193f7c3-b1d4-4eb2-8986-9bf2bdf79ecc.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -89,5 +89,6 @@
         "projectId": "3efa968a-7b2e-4365-ba9b-75bd5ed3b974"
       }
     }
-  }
+  },
+  "scheme": "nalia"
 }

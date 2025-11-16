@@ -8,7 +8,6 @@
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "scheme": "natively",
     "splash": {
       "image": "./assets/images/natively-dark.png",
@@ -31,7 +30,9 @@
         "CFBundleURLTypes": [
           {
             "CFBundleTypeRole": "Editor",
-            "CFBundleURLSchemes": ["natively"]
+            "CFBundleURLSchemes": [
+              "natively"
+            ]
           }
         ]
       },

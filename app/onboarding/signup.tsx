@@ -38,7 +38,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
-  const [googleSignInAvailable, setGoogleSignInAvailable] = useState(false);
+  const [googleSignInConfigured, setGoogleSignInConfigured] = useState(false);
 
   // Animated values for background elements
   const rotation = useSharedValue(0);
@@ -84,15 +84,19 @@ export default function SignupScreen() {
           iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com', // Optional: iOS Client ID
           offlineAccess: false,
         });
-        setGoogleSignInAvailable(true);
+        setGoogleSignInConfigured(true);
         console.log('[Signup] Google Sign-In configured successfully');
       } catch (error) {
         console.error('[Signup] Error configuring Google Sign-In:', error);
-        setGoogleSignInAvailable(false);
+        setGoogleSignInConfigured(false);
       }
     } else {
       console.warn('[Signup] Google Sign-In not available - native module not found');
-      setGoogleSignInAvailable(false);
+      // On iOS, we still want to show the button even if not configured yet
+      // The user might have it configured but the module isn't loaded
+      if (Platform.OS === 'ios') {
+        setGoogleSignInConfigured(true);
+      }
     }
 
     // Check if Apple Authentication is available
@@ -208,7 +212,7 @@ export default function SignupScreen() {
   };
 
   const handleGoogleSignup = async () => {
-    if (!googleSignInAvailable || !GoogleSignin) {
+    if (!GoogleSignin) {
       Alert.alert(
         'Not Available',
         'Google Sign-In is not available. Please use email signup or try rebuilding the app with "npx expo prebuild --clean".'
@@ -470,38 +474,34 @@ export default function SignupScreen() {
                   onPress={handleAppleSignup}
                   disabled={loading}
                 >
-                  <AntDesign name="apple1" size={20} color="#FFFFFF" />
+                  <AntDesign name="apple-o" size={20} color="#FFFFFF" />
                   <Text style={styles.appleButtonText}>Continue with Apple</Text>
                 </Pressable>
               )}
 
               {/* Google Sign In - iOS, shown second */}
-              {googleSignInAvailable && (
-                <Pressable
-                  style={[styles.googleButton, loading && styles.buttonDisabled]}
-                  onPress={handleGoogleSignup}
-                  disabled={loading}
-                >
-                  <AntDesign name="google" size={20} color="#DB4437" />
-                  <Text style={styles.googleButtonText}>Continue with Google</Text>
-                </Pressable>
-              )}
+              <Pressable
+                style={[styles.googleButton, loading && styles.buttonDisabled]}
+                onPress={handleGoogleSignup}
+                disabled={loading}
+              >
+                <AntDesign name="google" size={20} color="#DB4437" />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </Pressable>
             </React.Fragment>
           )}
 
           {Platform.OS === 'android' && (
             <React.Fragment>
               {/* Google Sign In - Android only */}
-              {googleSignInAvailable && (
-                <Pressable
-                  style={[styles.googleButton, loading && styles.buttonDisabled]}
-                  onPress={handleGoogleSignup}
-                  disabled={loading}
-                >
-                  <AntDesign name="google" size={20} color="#DB4437" />
-                  <Text style={styles.googleButtonText}>Continue with Google</Text>
-                </Pressable>
-              )}
+              <Pressable
+                style={[styles.googleButton, loading && styles.buttonDisabled]}
+                onPress={handleGoogleSignup}
+                disabled={loading}
+              >
+                <AntDesign name="google" size={20} color="#DB4437" />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </Pressable>
             </React.Fragment>
           )}
 

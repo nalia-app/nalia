@@ -112,6 +112,7 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           headerShown: false,
+          gestureEnabled: false,
         }}
       />
       <Stack.Screen
@@ -147,6 +148,7 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           headerShown: false,
+          gestureEnabled: false,
         }}
       />
     </Stack>

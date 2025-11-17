@@ -72,6 +72,7 @@ export default function HomeScreen() {
   const [mapKey, setMapKey] = useState(0);
   const lastReloadTimeRef = useRef<number>(0);
   const [eventPositions, setEventPositions] = useState<EventPosition[]>([]);
+  const [visibleEvents, setVisibleEvents] = useState<EventBubble[]>([]);
 
   const loadLocation = async () => {
     try {
@@ -173,9 +174,6 @@ export default function HomeScreen() {
       }
 
       console.log('[HomeScreen] Raw events from database:', eventsData?.length || 0);
-      if (eventsData && eventsData.length > 0) {
-        console.log('[HomeScreen] Sample event dates:', eventsData.slice(0, 3).map(e => ({ date: e.event_date, time: e.event_time, desc: e.description })));
-      }
 
       // Filter out expired non-recurring events
       const activeEvents = (eventsData || []).filter(event => {
@@ -198,8 +196,7 @@ export default function HomeScreen() {
             .eq('event_id', event.id)
             .eq('status', 'approved');
 
-          const attendeeCount = count || 0; // No need to add 1 since host is already in the table
-          console.log(`[HomeScreen] Event "${event.description}" has ${attendeeCount} attendees (including host)`);
+          const attendeeCount = count || 0;
 
           return {
             id: event.id,
@@ -280,7 +277,6 @@ export default function HomeScreen() {
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(attendeesChannel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Use useFocusEffect to reload events when screen comes into focus
@@ -291,7 +287,6 @@ export default function HomeScreen() {
       const timeSinceLastReload = now - lastReloadTimeRef.current;
       
       // Only reload if it's been more than 1 second since last reload
-      // This prevents double-reloading on initial mount
       if (timeSinceLastReload > 1000) {
         console.log('[HomeScreen] Reloading events due to screen focus');
         reloadEvents();
@@ -303,7 +298,6 @@ export default function HomeScreen() {
     if (location) {
       loadNearbyCount();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
   // Force map reload when events change
@@ -311,10 +305,31 @@ export default function HomeScreen() {
     if (events.length > 0) {
       console.log('[HomeScreen] Events updated, reloading map. Event count:', events.length);
       setMapKey(prev => prev + 1);
-      // Request position updates from the map
-      requestPositionUpdates();
+      // Request position updates from the map after a short delay
+      setTimeout(() => {
+        requestPositionUpdates();
+      }, 500);
     }
   }, [events]);
+
+  // Update visible events when positions change
+  useEffect(() => {
+    if (eventPositions.length > 0) {
+      const visible = filteredEvents.filter(event => {
+        const position = eventPositions.find(p => p.id === event.id);
+        if (!position) return false;
+        
+        const bubbleSize = calculateBubbleSize(event.attendees);
+        // Only show events that are within screen bounds
+        return position.x >= -bubbleSize && position.x <= width + bubbleSize &&
+               position.y >= -bubbleSize && position.y <= height + bubbleSize;
+      });
+      
+      // Limit to maximum 20 visible bubbles for performance
+      setVisibleEvents(visible.slice(0, 20));
+      console.log('[HomeScreen] Visible events:', visible.length, 'of', filteredEvents.length);
+    }
+  }, [eventPositions, filteredEvents]);
 
   // Request position updates from the map
   const requestPositionUpdates = () => {
@@ -389,7 +404,7 @@ export default function HomeScreen() {
         .eq('event_id', event.id)
         .eq('status', 'approved');
 
-      const freshAttendeeCount = count || 0; // No need to add 1 since host is already in the table
+      const freshAttendeeCount = count || 0;
       console.log(`[HomeScreen] Fresh attendee count for "${event.description}": ${freshAttendeeCount}`);
 
       // Update the event with fresh data
@@ -433,11 +448,11 @@ export default function HomeScreen() {
     }
   };
 
-  // Calculate bubble size based on attendees - enhanced formula
+  // Calculate bubble size based on attendees
   const calculateBubbleSize = (attendees: number) => {
-    const baseSize = 55; // Slightly larger base
-    const scale = 12; // More pronounced scaling
-    const maxSize = 140; // Larger max size
+    const baseSize = 50;
+    const scale = 10;
+    const maxSize = 120;
     const calculatedSize = baseSize + ((attendees - 1) * scale);
     return Math.min(calculatedSize, maxSize);
   };
@@ -496,21 +511,7 @@ export default function HomeScreen() {
             border: none;
             text-align: center;
             cursor: pointer;
-          }
-          
-          .event-marker-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-          }
-          
-          .event-marker-icon {
-            font-size: 24px;
-            text-align: center;
-            filter: drop-shadow(0 0 8px rgba(187, 134, 252, 0.8));
+            opacity: 0;
           }
           
           .user-marker {
@@ -574,9 +575,9 @@ export default function HomeScreen() {
           }
           
           function calculateBubbleSize(attendees) {
-            const baseSize = 55;
-            const scale = 12;
-            const maxSize = 140;
+            const baseSize = 50;
+            const scale = 10;
+            const maxSize = 120;
             const calculatedSize = baseSize + ((attendees - 1) * scale);
             return Math.min(calculatedSize, maxSize);
           }
@@ -610,12 +611,10 @@ export default function HomeScreen() {
           events.forEach((event, index) => {
             const size = calculateBubbleSize(event.attendees);
             
-            console.log('[Map] Adding marker', index, 'for event:', event.description, 'at', event.latitude, event.longitude);
-            
-            // Create marker with icon visible
+            // Create invisible marker for click detection
             const eventIcon = L.divIcon({
               className: 'custom-marker',
-              html: '<div class="event-marker-container"><div class="event-marker-icon">' + event.icon + '</div></div>',
+              html: '',
               iconSize: [size, size],
               iconAnchor: [size/2, size/2]
             });
@@ -639,9 +638,16 @@ export default function HomeScreen() {
             updateBubblePositions();
           }, 100);
           
-          // Update positions on map move/zoom
+          // Update positions on map move/zoom with throttling
+          let updateTimeout;
+          function throttledUpdate() {
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(updateBubblePositions, 100);
+          }
+          
           map.on('moveend', updateBubblePositions);
           map.on('zoomend', updateBubblePositions);
+          map.on('move', throttledUpdate);
           
           map.on('click', (e) => {
             window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -696,25 +702,13 @@ export default function HomeScreen() {
           }}
         />
 
-        {/* Overlay Skia bubbles on top of map */}
+        {/* Overlay bubbles on top of map - only render visible ones */}
         <View style={styles.bubblesOverlay} pointerEvents="box-none">
-          {filteredEvents.map((event, index) => {
+          {visibleEvents.map((event) => {
             const bubbleSize = calculateBubbleSize(event.attendees);
             const position = eventPositions.find(p => p.id === event.id);
             
-            // Only render if we have position data
-            if (!position) {
-              console.log('[HomeScreen] No position data for event:', event.id);
-              return null;
-            }
-            
-            // Only render if within screen bounds (with some margin)
-            if (position.x < -bubbleSize || position.x > width + bubbleSize ||
-                position.y < -bubbleSize || position.y > height + bubbleSize) {
-              return null;
-            }
-            
-            console.log('[HomeScreen] Rendering bubble for event:', event.id, 'at', position.x, position.y);
+            if (!position) return null;
             
             return (
               <Pressable

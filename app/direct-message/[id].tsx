@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,7 +17,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time, Composer } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer } from "react-native-gifted-chat";
 import "react-native-get-random-values";
 
 export default function DirectMessageScreen() {
@@ -65,7 +66,6 @@ export default function DirectMessageScreen() {
     if (!user || !otherUserId) return;
 
     try {
-      // Mark all messages from the other user as read
       await supabase
         .from("direct_messages")
         .update({ read: true })
@@ -100,7 +100,6 @@ export default function DirectMessageScreen() {
 
       if (error) throw error;
 
-      // Transform messages to GiftedChat format
       const formattedMessages: IMessage[] = (data || []).map((msg) => ({
         _id: msg.id,
         text: msg.text,
@@ -147,7 +146,8 @@ export default function DirectMessageScreen() {
   const onSend = useCallback(async (newMessages: IMessage[] = []) => {
     if (!user || !otherUserId || newMessages.length === 0) return;
 
-    const messageText = newMessages[0].text;
+    const messageText = newMessages[0].text.trim();
+    if (!messageText) return;
 
     try {
       console.log("Sending direct message");
@@ -160,7 +160,6 @@ export default function DirectMessageScreen() {
 
       if (error) throw error;
 
-      // Create notification for receiver
       await supabase.from("notifications").insert({
         user_id: otherUserId as string,
         type: "message",
@@ -186,13 +185,15 @@ export default function DirectMessageScreen() {
             backgroundColor: colors.card,
             borderWidth: 1,
             borderColor: colors.highlight,
-            paddingVertical: 2,
-            paddingHorizontal: 4,
+            paddingVertical: 4,
+            paddingHorizontal: 6,
+            marginBottom: 4,
           },
           right: {
             backgroundColor: colors.primary,
-            paddingVertical: 2,
-            paddingHorizontal: 4,
+            paddingVertical: 4,
+            paddingHorizontal: 6,
+            marginBottom: 4,
           },
         }}
         textStyle={{
@@ -210,11 +211,19 @@ export default function DirectMessageScreen() {
         timeTextStyle={{
           left: {
             color: colors.textSecondary,
-            fontSize: 12,
+            fontSize: 11,
           },
           right: {
             color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: 12,
+            fontSize: 11,
+          },
+        }}
+        containerStyle={{
+          left: {
+            marginLeft: 8,
+          },
+          right: {
+            marginRight: 8,
           },
         }}
       />
@@ -249,8 +258,8 @@ export default function DirectMessageScreen() {
           backgroundColor: colors.highlight,
           borderRadius: 20,
           paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 10,
+          paddingTop: Platform.OS === 'ios' ? 10 : 8,
+          paddingBottom: Platform.OS === 'ios' ? 10 : 8,
           marginLeft: 8,
           marginRight: 8,
           color: colors.text,
@@ -265,6 +274,8 @@ export default function DirectMessageScreen() {
   };
 
   const renderSend = (props: any) => {
+    const hasText = props.text?.trim().length > 0;
+    
     return (
       <Send 
         {...props} 
@@ -275,31 +286,19 @@ export default function DirectMessageScreen() {
           paddingRight: 12,
           height: 44,
         }}
+        disabled={!hasText}
       >
-        <IconSymbol
-          name="arrow.up.circle.fill"
-          size={40}
-          color={props.text?.trim() ? colors.primary : colors.textSecondary}
-        />
+        <View style={[
+          styles.sendButton,
+          { backgroundColor: hasText ? colors.primary : colors.textSecondary }
+        ]}>
+          <IconSymbol
+            name="arrow.up"
+            size={20}
+            color={colors.text}
+          />
+        </View>
       </Send>
-    );
-  };
-
-  const renderTime = (props: any) => {
-    return (
-      <Time
-        {...props}
-        timeTextStyle={{
-          left: {
-            color: colors.textSecondary,
-            fontSize: 12,
-          },
-          right: {
-            color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: 12,
-          },
-        }}
-      />
     );
   };
 
@@ -327,16 +326,28 @@ export default function DirectMessageScreen() {
           </Pressable>
           <View style={styles.headerAvatarContainer}>
             {otherUserAvatar ? (
-              <View style={styles.avatarImage}>
-                <IconSymbol name="person.fill" size={24} color={colors.text} />
-              </View>
+              <Image
+                source={{ uri: otherUserAvatar }}
+                style={styles.avatarImage}
+                onError={() => {
+                  console.log("Avatar image failed to load");
+                }}
+              />
             ) : (
-              <IconSymbol name="person.fill" size={24} color={colors.text} />
+              <View style={styles.defaultAvatar}>
+                <IconSymbol name="person.fill" size={24} color={colors.textSecondary} />
+              </View>
             )}
           </View>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>{otherUserName}</Text>
           </View>
+          <Pressable
+            style={styles.profileButton}
+            onPress={() => router.push(`/user-profile/${otherUserId}` as any)}
+          >
+            <IconSymbol name="info.circle" size={28} color={colors.text} />
+          </Pressable>
         </View>
 
         <GiftedChat
@@ -350,11 +361,13 @@ export default function DirectMessageScreen() {
           renderInputToolbar={renderInputToolbar}
           renderComposer={renderComposer}
           renderSend={renderSend}
-          renderTime={renderTime}
+          renderAvatar={null}
           alwaysShowSend
           scrollToBottom
           scrollToBottomComponent={() => (
-            <IconSymbol name="chevron.down.circle.fill" size={36} color={colors.primary} />
+            <View style={styles.scrollToBottomButton}>
+              <IconSymbol name="chevron.down" size={20} color={colors.text} />
+            </View>
           )}
           maxInputLength={1000}
           messagesContainerStyle={{
@@ -363,7 +376,6 @@ export default function DirectMessageScreen() {
           }}
           bottomOffset={0}
           minInputToolbarHeight={60}
-          renderAvatar={null}
           listViewProps={{
             style: {
               backgroundColor: "transparent",
@@ -418,9 +430,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.highlight,
-    justifyContent: "center",
-    alignItems: "center",
     marginRight: 12,
     overflow: "hidden",
   },
@@ -428,6 +437,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  defaultAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -438,5 +453,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: colors.text,
+  },
+  profileButton: {
+    padding: 8,
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  scrollToBottomButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.highlight,
   },
 });

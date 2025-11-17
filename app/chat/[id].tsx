@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Pressable,
   Platform,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,7 +17,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time, Composer } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer, Avatar } from "react-native-gifted-chat";
 import "react-native-get-random-values";
 
 export default function ChatScreen() {
@@ -77,7 +78,6 @@ export default function ChatScreen() {
     if (!user || !id) return;
 
     try {
-      // Get all messages in this event
       const { data: eventMessages } = await supabase
         .from("messages")
         .select("id")
@@ -86,7 +86,6 @@ export default function ChatScreen() {
 
       if (!eventMessages || eventMessages.length === 0) return;
 
-      // Mark all as read by inserting into message_reads (on conflict do nothing)
       const readRecords = eventMessages.map((msg) => ({
         message_id: msg.id,
         user_id: user.id,
@@ -118,7 +117,6 @@ export default function ChatScreen() {
 
       if (error) throw error;
 
-      // Transform messages to GiftedChat format
       const formattedMessages: IMessage[] = (data || []).map((msg) => ({
         _id: msg.id,
         text: msg.text,
@@ -147,7 +145,6 @@ export default function ChatScreen() {
 
     channelRef.current = channel;
 
-    // Set auth before subscribing
     await supabase.realtime.setAuth();
 
     channel
@@ -155,7 +152,6 @@ export default function ChatScreen() {
         console.log("New message received:", payload);
         const newMessage = payload.payload.record;
         
-        // Transform to GiftedChat format
         const giftedMessage: IMessage = {
           _id: newMessage.id,
           text: newMessage.text,
@@ -171,7 +167,6 @@ export default function ChatScreen() {
           GiftedChat.append(previousMessages, [giftedMessage])
         );
         
-        // Mark new messages as read
         markMessagesAsRead();
       })
       .subscribe((status) => {
@@ -182,7 +177,8 @@ export default function ChatScreen() {
   const onSend = useCallback(async (newMessages: IMessage[] = []) => {
     if (!user || newMessages.length === 0) return;
 
-    const messageText = newMessages[0].text;
+    const messageText = newMessages[0].text.trim();
+    if (!messageText) return;
 
     try {
       const { error } = await supabase.from("messages").insert({
@@ -201,6 +197,8 @@ export default function ChatScreen() {
   }, [user, id]);
 
   const renderBubble = (props: any) => {
+    const isCurrentUser = props.currentMessage?.user._id === user?.id;
+    
     return (
       <Bubble
         {...props}
@@ -209,13 +207,15 @@ export default function ChatScreen() {
             backgroundColor: colors.card,
             borderWidth: 1,
             borderColor: colors.highlight,
-            paddingVertical: 2,
-            paddingHorizontal: 4,
+            paddingVertical: 4,
+            paddingHorizontal: 6,
+            marginBottom: 4,
           },
           right: {
             backgroundColor: colors.primary,
-            paddingVertical: 2,
-            paddingHorizontal: 4,
+            paddingVertical: 4,
+            paddingHorizontal: 6,
+            marginBottom: 4,
           },
         }}
         textStyle={{
@@ -233,11 +233,25 @@ export default function ChatScreen() {
         timeTextStyle={{
           left: {
             color: colors.textSecondary,
-            fontSize: 12,
+            fontSize: 11,
           },
           right: {
             color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: 12,
+            fontSize: 11,
+          },
+        }}
+        usernameStyle={{
+          color: colors.primary,
+          fontSize: 13,
+          fontWeight: '600',
+          marginBottom: 2,
+        }}
+        containerStyle={{
+          left: {
+            marginLeft: 8,
+          },
+          right: {
+            marginRight: 8,
           },
         }}
       />
@@ -272,8 +286,8 @@ export default function ChatScreen() {
           backgroundColor: colors.highlight,
           borderRadius: 20,
           paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 10,
+          paddingTop: Platform.OS === 'ios' ? 10 : 8,
+          paddingBottom: Platform.OS === 'ios' ? 10 : 8,
           marginLeft: 8,
           marginRight: 8,
           color: colors.text,
@@ -288,6 +302,8 @@ export default function ChatScreen() {
   };
 
   const renderSend = (props: any) => {
+    const hasText = props.text?.trim().length > 0;
+    
     return (
       <Send 
         {...props} 
@@ -298,31 +314,45 @@ export default function ChatScreen() {
           paddingRight: 12,
           height: 44,
         }}
+        disabled={!hasText}
       >
-        <IconSymbol
-          name="arrow.up.circle.fill"
-          size={40}
-          color={props.text?.trim() ? colors.primary : colors.textSecondary}
-        />
+        <View style={[
+          styles.sendButton,
+          { backgroundColor: hasText ? colors.primary : colors.textSecondary }
+        ]}>
+          <IconSymbol
+            name="arrow.up"
+            size={20}
+            color={colors.text}
+          />
+        </View>
       </Send>
     );
   };
 
-  const renderTime = (props: any) => {
+  const renderAvatar = (props: any) => {
+    if (props.currentMessage?.user._id === user?.id) {
+      return null;
+    }
+
+    const avatarUrl = props.currentMessage?.user.avatar;
+
     return (
-      <Time
-        {...props}
-        timeTextStyle={{
-          left: {
-            color: colors.textSecondary,
-            fontSize: 12,
-          },
-          right: {
-            color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: 12,
-          },
-        }}
-      />
+      <View style={styles.avatarContainer}>
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={styles.avatarImage}
+            onError={() => {
+              console.log("Avatar image failed to load");
+            }}
+          />
+        ) : (
+          <View style={styles.defaultAvatar}>
+            <IconSymbol name="person.fill" size={20} color={colors.textSecondary} />
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -359,7 +389,7 @@ export default function ChatScreen() {
               {eventName}
             </Text>
             <Text style={styles.headerSubtitle}>
-              {participantCount} participants
+              {participantCount} {participantCount === 1 ? 'participant' : 'participants'}
             </Text>
           </View>
           <Pressable
@@ -381,11 +411,13 @@ export default function ChatScreen() {
           renderInputToolbar={renderInputToolbar}
           renderComposer={renderComposer}
           renderSend={renderSend}
-          renderTime={renderTime}
+          renderAvatar={renderAvatar}
           alwaysShowSend
           scrollToBottom
           scrollToBottomComponent={() => (
-            <IconSymbol name="chevron.down.circle.fill" size={36} color={colors.primary} />
+            <View style={styles.scrollToBottomButton}>
+              <IconSymbol name="chevron.down" size={20} color={colors.text} />
+            </View>
           )}
           maxInputLength={1000}
           messagesContainerStyle={{
@@ -394,24 +426,6 @@ export default function ChatScreen() {
           }}
           bottomOffset={0}
           minInputToolbarHeight={60}
-          renderAvatar={(props) => {
-            if (props.currentMessage?.user._id === user?.id) {
-              return null;
-            }
-            return (
-              <View style={styles.avatar}>
-                {props.currentMessage?.user.avatar ? (
-                  <View style={styles.avatarImage}>
-                    <IconSymbol name="person.fill" size={22} color={colors.text} />
-                  </View>
-                ) : (
-                  <View style={styles.avatarImage}>
-                    <IconSymbol name="person.fill" size={22} color={colors.text} />
-                  </View>
-                )}
-              </View>
-            );
-          }}
           renderUsernameOnMessage
           renderAvatarOnTop
           listViewProps={{
@@ -488,13 +502,10 @@ const styles = StyleSheet.create({
   infoButton: {
     padding: 8,
   },
-  avatar: {
+  avatarContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.highlight,
-    justifyContent: "center",
-    alignItems: "center",
     marginRight: 8,
     marginBottom: 4,
   },
@@ -502,7 +513,30 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+  },
+  defaultAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  scrollToBottomButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.highlight,
   },
 });

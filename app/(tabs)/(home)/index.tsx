@@ -64,84 +64,6 @@ export default function HomeScreen() {
   const [mapKey, setMapKey] = useState(0);
   const lastReloadTimeRef = useRef<number>(0);
 
-  useEffect(() => {
-    console.log('[HomeScreen] Initializing...');
-    loadLocation();
-    loadEvents();
-    
-    // Subscribe to real-time event changes
-    const eventsChannel = supabase
-      .channel('events-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'events'
-        },
-        (payload) => {
-          console.log('[HomeScreen] Event change detected:', payload);
-          loadEvents();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to real-time event_attendees changes
-    const attendeesChannel = supabase
-      .channel('attendees-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'event_attendees'
-        },
-        (payload) => {
-          console.log('[HomeScreen] Attendee change detected:', payload);
-          loadEvents();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('[HomeScreen] Cleaning up subscriptions');
-      supabase.removeChannel(eventsChannel);
-      supabase.removeChannel(attendeesChannel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Use useFocusEffect to reload events when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log('[HomeScreen] Screen focused, checking if reload needed');
-      const now = Date.now();
-      const timeSinceLastReload = now - lastReloadTimeRef.current;
-      
-      // Only reload if it's been more than 1 second since last reload
-      // This prevents double-reloading on initial mount
-      if (timeSinceLastReload > 1000) {
-        console.log('[HomeScreen] Reloading events due to screen focus');
-        reloadEvents();
-      }
-    }, [reloadEvents])
-  );
-
-  useEffect(() => {
-    if (location) {
-      loadNearbyCount();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
-
-  // Force map reload when events change
-  useEffect(() => {
-    if (events.length > 0) {
-      console.log('[HomeScreen] Events updated, reloading map. Event count:', events.length);
-      setMapKey(prev => prev + 1);
-    }
-  }, [events]);
-
   const loadLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -305,6 +227,84 @@ export default function HomeScreen() {
     await loadEvents();
   }, []);
 
+  useEffect(() => {
+    console.log('[HomeScreen] Initializing...');
+    loadLocation();
+    loadEvents();
+    
+    // Subscribe to real-time event changes
+    const eventsChannel = supabase
+      .channel('events-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events'
+        },
+        (payload) => {
+          console.log('[HomeScreen] Event change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to real-time event_attendees changes
+    const attendeesChannel = supabase
+      .channel('attendees-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_attendees'
+        },
+        (payload) => {
+          console.log('[HomeScreen] Attendee change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[HomeScreen] Cleaning up subscriptions');
+      supabase.removeChannel(eventsChannel);
+      supabase.removeChannel(attendeesChannel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Use useFocusEffect to reload events when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[HomeScreen] Screen focused, checking if reload needed');
+      const now = Date.now();
+      const timeSinceLastReload = now - lastReloadTimeRef.current;
+      
+      // Only reload if it's been more than 1 second since last reload
+      // This prevents double-reloading on initial mount
+      if (timeSinceLastReload > 1000) {
+        console.log('[HomeScreen] Reloading events due to screen focus');
+        reloadEvents();
+      }
+    }, [reloadEvents])
+  );
+
+  useEffect(() => {
+    if (location) {
+      loadNearbyCount();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
+
+  // Force map reload when events change
+  useEffect(() => {
+    if (events.length > 0) {
+      console.log('[HomeScreen] Events updated, reloading map. Event count:', events.length);
+      setMapKey(prev => prev + 1);
+    }
+  }, [events]);
+
   // Filter events based on user interests
   const filteredEvents = filter === "interests" && user?.interests
     ? events.filter(event =>
@@ -318,12 +318,12 @@ export default function HomeScreen() {
     : events;
 
   const centerMap = () => {
-    if (location) {
+    if (location && webViewRef.current) {
       const newCenter = { lat: location.coords.latitude, lng: location.coords.longitude };
       setMapCenter(newCenter);
       
       // Send message to WebView to center map
-      webViewRef.current?.injectJavaScript(`
+      webViewRef.current.injectJavaScript(`
         if (window.map) {
           window.map.setView([${newCenter.lat}, ${newCenter.lng}], 15);
         }

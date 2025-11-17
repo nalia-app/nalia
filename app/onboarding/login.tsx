@@ -82,10 +82,11 @@ export default function LoginScreen() {
       try {
         GoogleSignin.configure({
           iosClientId: '896933931479-ulaqjcnethcsu71epd45edl51n5tkr2t.apps.googleusercontent.com',
+          webClientId: '896933931479-vvuajg99r44f1siqq09hc25e89ocbvq1.apps.googleusercontent.com',
           offlineAccess: false,
         });
         setGoogleSignInConfigured(true);
-        console.log('[Login] Google Sign-In configured successfully for iOS');
+        console.log('[Login] Google Sign-In configured successfully with iOS and Web client IDs');
       } catch (error) {
         console.error('[Login] Error configuring Google Sign-In:', error);
         setGoogleSignInConfigured(false);

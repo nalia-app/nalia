@@ -37,64 +37,7 @@ export default function MyEventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load events when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      console.log("[MyEventsScreen] Screen focused, reloading events");
-      if (user) {
-        loadEvents();
-      }
-    }, [user])
-  );
-
-  // Subscribe to realtime updates
-  useEffect(() => {
-    if (!user) return;
-
-    console.log("[MyEventsScreen] Setting up realtime subscriptions");
-
-    // Subscribe to event_attendees changes
-    const attendeesChannel = supabase
-      .channel('my-events-attendees')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'event_attendees'
-        },
-        (payload) => {
-          console.log('[MyEventsScreen] Attendee change detected:', payload);
-          loadEvents();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to events changes
-    const eventsChannel = supabase
-      .channel('my-events-events')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'events'
-        },
-        (payload) => {
-          console.log('[MyEventsScreen] Event change detected:', payload);
-          loadEvents();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      console.log('[MyEventsScreen] Cleaning up subscriptions');
-      supabase.removeChannel(attendeesChannel);
-      supabase.removeChannel(eventsChannel);
-    };
-  }, [user]);
-
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -195,7 +138,64 @@ export default function MyEventsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  // Load events when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log("[MyEventsScreen] Screen focused, reloading events");
+      if (user) {
+        loadEvents();
+      }
+    }, [user, loadEvents])
+  );
+
+  // Subscribe to realtime updates
+  useEffect(() => {
+    if (!user) return;
+
+    console.log("[MyEventsScreen] Setting up realtime subscriptions");
+
+    // Subscribe to event_attendees changes
+    const attendeesChannel = supabase
+      .channel('my-events-attendees')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_attendees'
+        },
+        (payload) => {
+          console.log('[MyEventsScreen] Attendee change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to events changes
+    const eventsChannel = supabase
+      .channel('my-events-events')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events'
+        },
+        (payload) => {
+          console.log('[MyEventsScreen] Event change detected:', payload);
+          loadEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[MyEventsScreen] Cleaning up subscriptions');
+      supabase.removeChannel(attendeesChannel);
+      supabase.removeChannel(eventsChannel);
+    };
+  }, [user, loadEvents]);
 
   const filteredEvents = events.filter((event) => {
     if (filter === "hosting") return event.isHosting;

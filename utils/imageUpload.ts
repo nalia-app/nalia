@@ -1,6 +1,6 @@
 
 import { supabase } from '@/app/integrations/supabase/client';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 /**

@@ -124,7 +124,7 @@ export default function HomeScreen() {
         console.log('[HomeScreen] Reloading events due to screen focus');
         reloadEvents();
       }
-    }, [])
+    }, [reloadEvents])
   );
 
   useEffect(() => {
@@ -300,10 +300,10 @@ export default function HomeScreen() {
   };
 
   // New function to reload events (called when screen is focused)
-  const reloadEvents = async () => {
+  const reloadEvents = React.useCallback(async () => {
     console.log('[HomeScreen] Reloading events...');
     await loadEvents();
-  };
+  }, []);
 
   // Filter events based on user interests
   const filteredEvents = filter === "interests" && user?.interests

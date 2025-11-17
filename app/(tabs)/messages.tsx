@@ -27,6 +27,7 @@ interface Chat {
   host_name?: string;
   lastMessage: string;
   timestamp: string;
+  timestampValue: number; // Add numeric timestamp for sorting
   unread: number;
   icon?: string;
   avatar_url?: string | null;
@@ -166,6 +167,10 @@ export default function MessagesScreen() {
           unreadCount = messageIds.filter((id) => !readMessageIds.has(id)).length;
         }
 
+        const timestampValue = lastMessage 
+          ? new Date(lastMessage.created_at).getTime() 
+          : 0;
+
         return {
           id: event.id,
           event_id: event.id,
@@ -175,6 +180,7 @@ export default function MessagesScreen() {
           timestamp: lastMessage
             ? formatTimestamp(lastMessage.created_at)
             : "New",
+          timestampValue,
           unread: unreadCount,
           icon: event.icon,
           type: 'event' as const,
@@ -225,6 +231,8 @@ export default function MessagesScreen() {
             (m) => m.receiver_id === user.id && !m.read
           ).length;
 
+          const timestampValue = new Date(lastMessage.created_at).getTime();
+
           return {
             id: `dm-${otherUserId}`,
             other_user_id: otherUserId,
@@ -232,6 +240,7 @@ export default function MessagesScreen() {
             avatar_url: otherUserProfile?.avatar_url || null,
             lastMessage: lastMessage.text,
             timestamp: formatTimestamp(lastMessage.created_at),
+            timestampValue,
             unread: unreadCount,
             type: 'direct' as const,
           };
@@ -241,14 +250,11 @@ export default function MessagesScreen() {
       const directChatsData = await Promise.all(directChatsPromises);
       directChats.push(...directChatsData);
 
-      // Combine and sort all chats
+      // Combine and sort all chats by timestamp (most recent first)
       const allChats = [...eventChats, ...directChats];
       allChats.sort((a, b) => {
-        if (a.timestamp === "New") return -1;
-        if (b.timestamp === "New") return 1;
-        if (a.timestamp === "Just now") return -1;
-        if (b.timestamp === "Just now") return 1;
-        return 0;
+        // Sort by timestamp value in descending order (most recent first)
+        return b.timestampValue - a.timestampValue;
       });
 
       setChats(allChats);

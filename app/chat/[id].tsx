@@ -467,9 +467,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
   timestampMe: {
-    color: 'rgba(255, 255, 255, 0.7)', // White with 70% opacity for better readability on purple
+    color: '#FFFFFF', // Pure white for maximum readability on purple background
   },
   timestampOther: {
-    color: colors.textSecondary, // Keep the original color for other messages
+    color: colors.textSecondary,
   },
 });

@@ -7,7 +7,8 @@ import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform } from 'r
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
-import { AntDesign } from '@expo/vector-icons';
+import AppleLogo from '@/components/AppleLogo';
+import GoogleLogo from '@/components/GoogleLogo';
 import { supabase } from '@/app/integrations/supabase/client';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Animated, {
@@ -461,7 +462,7 @@ export default function LoginScreen() {
                   onPress={handleAppleLogin}
                   disabled={loading}
                 >
-                  <AntDesign name="apple-o" size={20} color="#FFFFFF" />
+                  <AppleLogo size={20} color="#FFFFFF" />
                   <Text style={styles.appleButtonText}>Continue with Apple</Text>
                 </Pressable>
               )}
@@ -472,7 +473,7 @@ export default function LoginScreen() {
                 onPress={handleGoogleLogin}
                 disabled={loading}
               >
-                <AntDesign name="google" size={20} color="#DB4437" />
+                <GoogleLogo size={20} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </Pressable>
             </React.Fragment>
@@ -486,7 +487,7 @@ export default function LoginScreen() {
                 onPress={handleGoogleLogin}
                 disabled={loading}
               >
-                <AntDesign name="google" size={20} color="#DB4437" />
+                <GoogleLogo size={20} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
               </Pressable>
             </React.Fragment>

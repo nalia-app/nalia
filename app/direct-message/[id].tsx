@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,7 +16,8 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time, Composer } from "react-native-gifted-chat";
+import "react-native-get-random-values";
 
 export default function DirectMessageScreen() {
   const { user } = useUser();
@@ -184,25 +186,35 @@ export default function DirectMessageScreen() {
             backgroundColor: colors.card,
             borderWidth: 1,
             borderColor: colors.highlight,
+            paddingVertical: 2,
+            paddingHorizontal: 4,
           },
           right: {
             backgroundColor: colors.primary,
+            paddingVertical: 2,
+            paddingHorizontal: 4,
           },
         }}
         textStyle={{
           left: {
             color: colors.text,
+            fontSize: 16,
+            lineHeight: 22,
           },
           right: {
             color: colors.text,
+            fontSize: 16,
+            lineHeight: 22,
           },
         }}
         timeTextStyle={{
           left: {
             color: colors.textSecondary,
+            fontSize: 12,
           },
           right: {
-            color: '#FFFFFF',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: 12,
           },
         }}
       />
@@ -218,20 +230,55 @@ export default function DirectMessageScreen() {
           borderTopWidth: 1,
           borderTopColor: colors.highlight,
           paddingVertical: 8,
+          paddingHorizontal: 8,
+          minHeight: 60,
         }}
         primaryStyle={{
           alignItems: "center",
+          minHeight: 44,
         }}
+      />
+    );
+  };
+
+  const renderComposer = (props: any) => {
+    return (
+      <Composer
+        {...props}
+        textInputStyle={{
+          backgroundColor: colors.highlight,
+          borderRadius: 20,
+          paddingHorizontal: 16,
+          paddingTop: 10,
+          paddingBottom: 10,
+          marginLeft: 8,
+          marginRight: 8,
+          color: colors.text,
+          fontSize: 16,
+          lineHeight: 20,
+          minHeight: 44,
+        }}
+        placeholder="Type a message..."
+        placeholderTextColor={colors.textSecondary}
       />
     );
   };
 
   const renderSend = (props: any) => {
     return (
-      <Send {...props} containerStyle={{ justifyContent: "center", paddingHorizontal: 8 }}>
+      <Send 
+        {...props} 
+        containerStyle={{ 
+          justifyContent: "center", 
+          alignItems: "center",
+          paddingHorizontal: 8,
+          paddingRight: 12,
+          height: 44,
+        }}
+      >
         <IconSymbol
           name="arrow.up.circle.fill"
-          size={36}
+          size={40}
           color={props.text?.trim() ? colors.primary : colors.textSecondary}
         />
       </Send>
@@ -245,9 +292,11 @@ export default function DirectMessageScreen() {
         timeTextStyle={{
           left: {
             color: colors.textSecondary,
+            fontSize: 12,
           },
           right: {
-            color: '#FFFFFF',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: 12,
           },
         }}
       />
@@ -274,7 +323,7 @@ export default function DirectMessageScreen() {
       >
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={handleBack}>
-            <IconSymbol name="chevron.left" size={24} color={colors.text} />
+            <IconSymbol name="chevron.left" size={28} color={colors.text} />
           </Pressable>
           <View style={styles.headerAvatarContainer}>
             {otherUserAvatar ? (
@@ -299,31 +348,36 @@ export default function DirectMessageScreen() {
           }}
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
+          renderComposer={renderComposer}
           renderSend={renderSend}
           renderTime={renderTime}
           alwaysShowSend
           scrollToBottom
           scrollToBottomComponent={() => (
-            <IconSymbol name="chevron.down.circle.fill" size={32} color={colors.primary} />
+            <IconSymbol name="chevron.down.circle.fill" size={36} color={colors.primary} />
           )}
-          placeholder="Type a message..."
-          textInputStyle={{
-            backgroundColor: colors.highlight,
-            borderRadius: 20,
-            paddingHorizontal: 12,
-            paddingTop: 8,
-            paddingBottom: 8,
-            color: colors.text,
-          }}
           maxInputLength={1000}
           messagesContainerStyle={{
             backgroundColor: "transparent",
+            paddingBottom: 8,
           }}
+          bottomOffset={Platform.OS === 'ios' ? 0 : 0}
+          minInputToolbarHeight={60}
           renderAvatar={null}
           listViewProps={{
             style: {
               backgroundColor: "transparent",
             },
+            contentContainerStyle: {
+              paddingTop: 8,
+            },
+          }}
+          textInputProps={{
+            returnKeyType: "send",
+            blurOnSubmit: false,
+            multiline: true,
+            numberOfLines: 4,
+            maxLength: 1000,
           }}
         />
       </LinearGradient>
@@ -361,9 +415,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   headerAvatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
@@ -371,9 +425,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
   },

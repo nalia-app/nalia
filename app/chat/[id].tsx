@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Pressable,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,7 +16,8 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time, Composer } from "react-native-gifted-chat";
+import "react-native-get-random-values";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
@@ -207,25 +209,35 @@ export default function ChatScreen() {
             backgroundColor: colors.card,
             borderWidth: 1,
             borderColor: colors.highlight,
+            paddingVertical: 2,
+            paddingHorizontal: 4,
           },
           right: {
             backgroundColor: colors.primary,
+            paddingVertical: 2,
+            paddingHorizontal: 4,
           },
         }}
         textStyle={{
           left: {
             color: colors.text,
+            fontSize: 16,
+            lineHeight: 22,
           },
           right: {
             color: colors.text,
+            fontSize: 16,
+            lineHeight: 22,
           },
         }}
         timeTextStyle={{
           left: {
             color: colors.textSecondary,
+            fontSize: 12,
           },
           right: {
-            color: '#FFFFFF',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: 12,
           },
         }}
       />
@@ -241,20 +253,55 @@ export default function ChatScreen() {
           borderTopWidth: 1,
           borderTopColor: colors.highlight,
           paddingVertical: 8,
+          paddingHorizontal: 8,
+          minHeight: 60,
         }}
         primaryStyle={{
           alignItems: "center",
+          minHeight: 44,
         }}
+      />
+    );
+  };
+
+  const renderComposer = (props: any) => {
+    return (
+      <Composer
+        {...props}
+        textInputStyle={{
+          backgroundColor: colors.highlight,
+          borderRadius: 20,
+          paddingHorizontal: 16,
+          paddingTop: 10,
+          paddingBottom: 10,
+          marginLeft: 8,
+          marginRight: 8,
+          color: colors.text,
+          fontSize: 16,
+          lineHeight: 20,
+          minHeight: 44,
+        }}
+        placeholder="Type a message..."
+        placeholderTextColor={colors.textSecondary}
       />
     );
   };
 
   const renderSend = (props: any) => {
     return (
-      <Send {...props} containerStyle={{ justifyContent: "center", paddingHorizontal: 8 }}>
+      <Send 
+        {...props} 
+        containerStyle={{ 
+          justifyContent: "center", 
+          alignItems: "center",
+          paddingHorizontal: 8,
+          paddingRight: 12,
+          height: 44,
+        }}
+      >
         <IconSymbol
           name="arrow.up.circle.fill"
-          size={36}
+          size={40}
           color={props.text?.trim() ? colors.primary : colors.textSecondary}
         />
       </Send>
@@ -268,9 +315,11 @@ export default function ChatScreen() {
         timeTextStyle={{
           left: {
             color: colors.textSecondary,
+            fontSize: 12,
           },
           right: {
-            color: '#FFFFFF',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: 12,
           },
         }}
       />
@@ -293,7 +342,7 @@ export default function ChatScreen() {
       >
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <IconSymbol name="chevron.left" size={24} color={colors.text} />
+            <IconSymbol name="chevron.left" size={28} color={colors.text} />
           </Pressable>
           <LinearGradient
             colors={[colors.primary, colors.secondary]}
@@ -317,7 +366,7 @@ export default function ChatScreen() {
             style={styles.infoButton}
             onPress={() => router.push(`/event/${id}` as any)}
           >
-            <IconSymbol name="info.circle" size={24} color={colors.text} />
+            <IconSymbol name="info.circle" size={28} color={colors.text} />
           </Pressable>
         </View>
 
@@ -330,26 +379,21 @@ export default function ChatScreen() {
           }}
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
+          renderComposer={renderComposer}
           renderSend={renderSend}
           renderTime={renderTime}
           alwaysShowSend
           scrollToBottom
           scrollToBottomComponent={() => (
-            <IconSymbol name="chevron.down.circle.fill" size={32} color={colors.primary} />
+            <IconSymbol name="chevron.down.circle.fill" size={36} color={colors.primary} />
           )}
-          placeholder="Type a message..."
-          textInputStyle={{
-            backgroundColor: colors.highlight,
-            borderRadius: 20,
-            paddingHorizontal: 12,
-            paddingTop: 8,
-            paddingBottom: 8,
-            color: colors.text,
-          }}
           maxInputLength={1000}
           messagesContainerStyle={{
             backgroundColor: "transparent",
+            paddingBottom: 8,
           }}
+          bottomOffset={Platform.OS === 'ios' ? 0 : 0}
+          minInputToolbarHeight={60}
           renderAvatar={(props) => {
             if (props.currentMessage?.user._id === user?.id) {
               return null;
@@ -358,11 +402,11 @@ export default function ChatScreen() {
               <View style={styles.avatar}>
                 {props.currentMessage?.user.avatar ? (
                   <View style={styles.avatarImage}>
-                    <IconSymbol name="person.fill" size={20} color={colors.text} />
+                    <IconSymbol name="person.fill" size={22} color={colors.text} />
                   </View>
                 ) : (
                   <View style={styles.avatarImage}>
-                    <IconSymbol name="person.fill" size={20} color={colors.text} />
+                    <IconSymbol name="person.fill" size={22} color={colors.text} />
                   </View>
                 )}
               </View>
@@ -370,6 +414,21 @@ export default function ChatScreen() {
           }}
           renderUsernameOnMessage
           renderAvatarOnTop
+          listViewProps={{
+            style: {
+              backgroundColor: "transparent",
+            },
+            contentContainerStyle: {
+              paddingTop: 8,
+            },
+          }}
+          textInputProps={{
+            returnKeyType: "send",
+            blurOnSubmit: false,
+            multiline: true,
+            numberOfLines: 4,
+            maxLength: 1000,
+          }}
         />
       </LinearGradient>
     </SafeAreaView>
@@ -402,16 +461,16 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerIconGradient: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,
     marginRight: 12,
   },
   headerIcon: {
-    fontSize: 24,
+    fontSize: 26,
   },
   headerContent: {
     flex: 1,
@@ -424,6 +483,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: colors.textSecondary,
+    marginTop: 2,
   },
   infoButton: {
     padding: 8,
@@ -436,6 +496,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+    marginBottom: 4,
   },
   avatarImage: {
     width: 36,

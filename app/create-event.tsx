@@ -17,6 +17,7 @@ import {
   Alert,
   Dimensions,
   Platform,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -587,16 +588,13 @@ export default function CreateEventScreen() {
   const onDateChange = (event: any, selectedDate?: Date) => {
     console.log('[CreateEvent] Date picker event:', event.type, selectedDate);
     
-    // On Android, the picker closes automatically after selection
-    // On iOS, we need to handle the dismiss action
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    
     if (event.type === 'set' && selectedDate) {
       setDate(selectedDate);
       console.log('[CreateEvent] Date updated to:', selectedDate);
-    } else if (event.type === 'dismissed') {
+    }
+    
+    // On Android, close immediately. On iOS, we'll handle it with the modal's Done button
+    if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
   };
@@ -604,18 +602,25 @@ export default function CreateEventScreen() {
   const onTimeChange = (event: any, selectedTime?: Date) => {
     console.log('[CreateEvent] Time picker event:', event.type, selectedTime);
     
-    // On Android, the picker closes automatically after selection
-    // On iOS, we need to handle the dismiss action
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false);
-    }
-    
     if (event.type === 'set' && selectedTime) {
       setTime(selectedTime);
       console.log('[CreateEvent] Time updated to:', selectedTime);
-    } else if (event.type === 'dismissed') {
+    }
+    
+    // On Android, close immediately. On iOS, we'll handle it with the modal's Done button
+    if (Platform.OS === 'android') {
       setShowTimePicker(false);
     }
+  };
+
+  const handleDatePickerDone = () => {
+    console.log('[CreateEvent] Date picker done button pressed');
+    setShowDatePicker(false);
+  };
+
+  const handleTimePickerDone = () => {
+    console.log('[CreateEvent] Time picker done button pressed');
+    setShowTimePicker(false);
   };
 
   return (
@@ -898,24 +903,6 @@ export default function CreateEventScreen() {
                 </Pressable>
               </>
             )}
-            
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onDateChange}
-                minimumDate={new Date()}
-              />
-            )}
-            {showTimePicker && (
-              <DateTimePicker
-                value={time}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onTimeChange}
-              />
-            )}
           </View>
 
           {/* Tags */}
@@ -969,6 +956,98 @@ export default function CreateEventScreen() {
           <View style={{ height: 40 }} />
         </KeyboardAwareScrollView>
       </LinearGradient>
+
+      {/* iOS Date Picker Modal */}
+      {Platform.OS === 'ios' && showDatePicker && (
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <Pressable 
+            style={styles.modalOverlay} 
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Pressable onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.modalCancelButton}>Cancel</Text>
+                </Pressable>
+                <Text style={styles.modalTitle}>Select Date</Text>
+                <Pressable onPress={handleDatePickerDone}>
+                  <Text style={styles.modalDoneButton}>Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display="spinner"
+                onChange={onDateChange}
+                minimumDate={new Date()}
+                textColor={colors.text}
+                style={styles.picker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+
+      {/* iOS Time Picker Modal */}
+      {Platform.OS === 'ios' && showTimePicker && (
+        <Modal
+          visible={showTimePicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <Pressable 
+            style={styles.modalOverlay} 
+            onPress={() => setShowTimePicker(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Pressable onPress={() => setShowTimePicker(false)}>
+                  <Text style={styles.modalCancelButton}>Cancel</Text>
+                </Pressable>
+                <Text style={styles.modalTitle}>Select Time</Text>
+                <Pressable onPress={handleTimePickerDone}>
+                  <Text style={styles.modalDoneButton}>Done</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={time}
+                mode="time"
+                display="spinner"
+                onChange={onTimeChange}
+                textColor={colors.text}
+                style={styles.picker}
+              />
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+
+      {/* Android Date Picker (no modal needed) */}
+      {Platform.OS === 'android' && showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+          minimumDate={new Date()}
+        />
+      )}
+
+      {/* Android Time Picker (no modal needed) */}
+      {Platform.OS === 'android' && showTimePicker && (
+        <DateTimePicker
+          value={time}
+          mode="time"
+          display="default"
+          onChange={onTimeChange}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1255,5 +1334,44 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: colors.text,
+  },
+  // Modal styles for iOS pickers
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34, // Safe area for iOS home indicator
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.highlight,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalCancelButton: {
+    fontSize: 17,
+    color: colors.textSecondary,
+  },
+  modalDoneButton: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  picker: {
+    height: 216,
+    width: '100%',
   },
 });

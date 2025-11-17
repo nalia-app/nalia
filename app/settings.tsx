@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/app/integrations/supabase/client";
+import * as WebBrowser from "expo-web-browser";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -74,6 +75,24 @@ export default function SettingsScreen() {
       console.error("[Settings] Error in handleToggleNearby:", error);
       Alert.alert("Error", "Failed to update setting");
       setShowInNearby(!value); // Revert on error
+    }
+  };
+
+  const handleOpenPrivacyPolicy = async () => {
+    try {
+      await WebBrowser.openBrowserAsync("https://nalia.app/privacy-policy.html");
+    } catch (error) {
+      console.error("[Settings] Error opening privacy policy:", error);
+      Alert.alert("Error", "Failed to open privacy policy");
+    }
+  };
+
+  const handleOpenTermsOfService = async () => {
+    try {
+      await WebBrowser.openBrowserAsync("https://nalia.app/terms.html");
+    } catch (error) {
+      console.error("[Settings] Error opening terms of service:", error);
+      Alert.alert("Error", "Failed to open terms of service");
     }
   };
 
@@ -138,7 +157,7 @@ export default function SettingsScreen() {
           
           <Pressable
             style={styles.settingCard}
-            onPress={() => Alert.alert("Privacy Policy", "Privacy policy content")}
+            onPress={handleOpenPrivacyPolicy}
           >
             <LinearGradient
               colors={["rgba(187, 134, 252, 0.1)", "rgba(3, 218, 198, 0.1)"]}
@@ -164,7 +183,7 @@ export default function SettingsScreen() {
 
           <Pressable
             style={styles.settingCard}
-            onPress={() => Alert.alert("Terms of Service", "Terms of service content")}
+            onPress={handleOpenTermsOfService}
           >
             <LinearGradient
               colors={["rgba(187, 134, 252, 0.1)", "rgba(3, 218, 198, 0.1)"]}

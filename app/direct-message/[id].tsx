@@ -1,44 +1,30 @@
 
-import { IconSymbol } from "@/components/IconSymbol";
-import React, { useState, useEffect, useRef } from "react";
-import { useUser } from "@/contexts/UserContext";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "@/styles/commonStyles";
-import { supabase } from "@/app/integrations/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Image,
-  TextInput,
 } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-
-interface Message {
-  id: string;
-  sender_id: string;
-  sender_name: string;
-  text: string;
-  created_at: string;
-  isMe: boolean;
-}
+import { LinearGradient } from "expo-linear-gradient";
+import { colors } from "@/styles/commonStyles";
+import { IconSymbol } from "@/components/IconSymbol";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
 
 export default function DirectMessageScreen() {
   const { user } = useUser();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [messages, setMessages] = useState<IMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
   const [otherUserName, setOtherUserName] = useState("");
   const [otherUserAvatar, setOtherUserAvatar] = useState<string | null>(null);
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
-  const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -103,30 +89,28 @@ export default function DirectMessageScreen() {
           sender_id,
           text,
           created_at,
-          profiles!direct_messages_sender_id_fkey(name)
+          profiles!direct_messages_sender_id_fkey(name, avatar_url)
         `)
         .or(
           `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
         )
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const formattedMessages = (data || []).map((msg) => ({
-        id: msg.id,
-        sender_id: msg.sender_id,
-        sender_name: (msg.profiles as any)?.name || "Unknown",
+      // Transform messages to GiftedChat format
+      const formattedMessages: IMessage[] = (data || []).map((msg) => ({
+        _id: msg.id,
         text: msg.text,
-        created_at: msg.created_at,
-        isMe: msg.sender_id === user.id,
+        createdAt: new Date(msg.created_at),
+        user: {
+          _id: msg.sender_id,
+          name: (msg.profiles as any)?.name || "Unknown",
+          avatar: (msg.profiles as any)?.avatar_url || undefined,
+        },
       }));
 
       setMessages(formattedMessages);
-      
-      // Scroll to bottom after loading messages
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: false });
-      }, 100);
     } catch (error: any) {
       console.error("Error loading messages:", error);
     } finally {
@@ -158,11 +142,10 @@ export default function DirectMessageScreen() {
     channelRef.current = channel;
   };
 
-  const handleSend = async () => {
-    if (!newMessage.trim() || !user || !otherUserId || sending) return;
+  const onSend = useCallback(async (newMessages: IMessage[] = []) => {
+    if (!user || !otherUserId || newMessages.length === 0) return;
 
-    const messageText = newMessage.trim();
-    setSending(true);
+    const messageText = newMessages[0].text;
 
     try {
       console.log("Sending direct message");
@@ -187,36 +170,88 @@ export default function DirectMessageScreen() {
       });
 
       loadMessages();
-      
-      // Clear the message input after successful send
-      setNewMessage("");
-      
-      // Scroll to bottom after sending
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     } catch (error: any) {
       console.error("Error sending message:", error);
-      // Don't clear message on error so user can retry
-    } finally {
-      setSending(false);
     }
+  }, [user, otherUserId]);
+
+  const renderBubble = (props: any) => {
+    return (
+      <Bubble
+        {...props}
+        wrapperStyle={{
+          left: {
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.highlight,
+          },
+          right: {
+            backgroundColor: colors.primary,
+          },
+        }}
+        textStyle={{
+          left: {
+            color: colors.text,
+          },
+          right: {
+            color: colors.text,
+          },
+        }}
+        timeTextStyle={{
+          left: {
+            color: colors.textSecondary,
+          },
+          right: {
+            color: '#FFFFFF',
+          },
+        }}
+      />
+    );
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
+  const renderInputToolbar = (props: any) => {
+    return (
+      <InputToolbar
+        {...props}
+        containerStyle={{
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.highlight,
+          paddingVertical: 8,
+        }}
+        primaryStyle={{
+          alignItems: "center",
+        }}
+      />
+    );
+  };
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
+  const renderSend = (props: any) => {
+    return (
+      <Send {...props} containerStyle={{ justifyContent: "center", paddingHorizontal: 8 }}>
+        <IconSymbol
+          name="arrow.up.circle.fill"
+          size={36}
+          color={props.text?.trim() ? colors.primary : colors.textSecondary}
+        />
+      </Send>
+    );
+  };
 
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}`;
+  const renderTime = (props: any) => {
+    return (
+      <Time
+        {...props}
+        timeTextStyle={{
+          left: {
+            color: colors.textSecondary,
+          },
+          right: {
+            color: '#FFFFFF',
+          },
+        }}
+      />
+    );
   };
 
   const handleBack = () => {
@@ -243,7 +278,9 @@ export default function DirectMessageScreen() {
           </Pressable>
           <View style={styles.headerAvatarContainer}>
             {otherUserAvatar ? (
-              <Image source={{ uri: otherUserAvatar }} style={styles.headerAvatar} />
+              <View style={styles.avatarImage}>
+                <IconSymbol name="person.fill" size={24} color={colors.text} />
+              </View>
             ) : (
               <IconSymbol name="person.fill" size={24} color={colors.text} />
             )}
@@ -253,95 +290,42 @@ export default function DirectMessageScreen() {
           </View>
         </View>
 
-        <View style={styles.contentContainer}>
-          <KeyboardAwareScrollView
-            ref={scrollViewRef}
-            style={styles.messagesContainer}
-            contentContainerStyle={styles.messagesContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            enableOnAndroid={true}
-            enableAutomaticScroll={true}
-            extraScrollHeight={20}
-            onContentSizeChange={() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }}
-          >
-            {messages.map((message) => (
-              <View
-                key={message.id}
-                style={[
-                  styles.messageWrapper,
-                  message.isMe
-                    ? styles.myMessageWrapper
-                    : styles.theirMessageWrapper,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.messageBubble,
-                    message.isMe ? styles.myMessage : styles.theirMessage,
-                  ]}
-                >
-                  <Text style={styles.messageText}>{message.text}</Text>
-                  <Text style={[
-                    styles.messageTime,
-                    message.isMe ? styles.messageTimeMe : styles.messageTimeOther
-                  ]}>
-                    {formatTimestamp(message.created_at)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-
-            {messages.length === 0 && (
-              <View style={styles.emptyState}>
-                <IconSymbol
-                  name="message"
-                  size={64}
-                  color={colors.textSecondary}
-                />
-                <Text style={styles.emptyText}>No messages yet</Text>
-                <Text style={styles.emptySubtext}>
-                  Start the conversation!
-                </Text>
-              </View>
-            )}
-          </KeyboardAwareScrollView>
-
-          <View style={styles.composerContainer}>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Type a message..."
-                placeholderTextColor={colors.textSecondary}
-                value={newMessage}
-                onChangeText={setNewMessage}
-                multiline
-                editable={!sending}
-                maxLength={1000}
-              />
-              <Pressable
-                style={[
-                  styles.sendButton,
-                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
-                ]}
-                onPress={handleSend}
-                disabled={!newMessage.trim() || sending}
-              >
-                <IconSymbol
-                  name="arrow.up.circle.fill"
-                  size={36}
-                  color={
-                    newMessage.trim() && !sending
-                      ? colors.primary
-                      : colors.textSecondary
-                  }
-                />
-              </Pressable>
-            </View>
-          </View>
-        </View>
+        <GiftedChat
+          messages={messages}
+          onSend={(messages) => onSend(messages)}
+          user={{
+            _id: user?.id || "",
+            name: user?.name || "",
+          }}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderSend={renderSend}
+          renderTime={renderTime}
+          alwaysShowSend
+          scrollToBottom
+          scrollToBottomComponent={() => (
+            <IconSymbol name="chevron.down.circle.fill" size={32} color={colors.primary} />
+          )}
+          placeholder="Type a message..."
+          textInputStyle={{
+            backgroundColor: colors.highlight,
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingTop: 8,
+            paddingBottom: 8,
+            color: colors.text,
+          }}
+          maxInputLength={1000}
+          messagesContainerStyle={{
+            backgroundColor: "transparent",
+          }}
+          renderAvatar={null}
+          listViewProps={{
+            style: {
+              backgroundColor: "transparent",
+            },
+          }}
+        />
       </LinearGradient>
     </SafeAreaView>
   );
@@ -386,10 +370,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
     overflow: "hidden",
   },
-  headerAvatar: {
+  avatarImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerContent: {
     flex: 1,
@@ -398,100 +384,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     color: colors.text,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  messagesContainer: {
-    flex: 1,
-  },
-  messagesContent: {
-    padding: 16,
-    paddingBottom: 8,
-  },
-  messageWrapper: {
-    marginBottom: 12,
-    maxWidth: "80%",
-  },
-  myMessageWrapper: {
-    alignSelf: "flex-end",
-  },
-  theirMessageWrapper: {
-    alignSelf: "flex-start",
-  },
-  messageBubble: {
-    padding: 12,
-    borderRadius: 16,
-  },
-  myMessage: {
-    backgroundColor: colors.primary,
-    borderBottomRightRadius: 4,
-  },
-  theirMessage: {
-    backgroundColor: colors.card,
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  messageTime: {
-    fontSize: 11,
-    alignSelf: "flex-end",
-  },
-  messageTimeMe: {
-    color: '#FFFFFF',
-  },
-  messageTimeOther: {
-    color: colors.textSecondary,
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  composerContainer: {
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.highlight,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-  },
-  input: {
-    flex: 1,
-    backgroundColor: colors.highlight,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: colors.text,
-    marginRight: 8,
-    minHeight: 40,
-    maxHeight: 100,
-  },
-  sendButton: {
-    padding: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
   },
 });

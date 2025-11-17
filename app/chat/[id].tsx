@@ -8,8 +8,6 @@ import {
   Image,
   Pressable,
   Platform,
-  KeyboardAvoidingView,
-  ScrollView,
   TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -20,6 +18,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 interface Message {
   id: string;
@@ -42,7 +41,7 @@ export default function ChatScreen() {
   const [eventName, setEventName] = useState("Event Chat");
   const [eventIcon, setEventIcon] = useState("");
   const [participantCount, setParticipantCount] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -275,17 +274,16 @@ export default function ChatScreen() {
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
-        >
-          <ScrollView
+        <View style={styles.contentContainer}>
+          <KeyboardAwareScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            enableOnAndroid={true}
+            enableAutomaticScroll={true}
+            extraScrollHeight={20}
             onContentSizeChange={() => {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }}
@@ -340,7 +338,7 @@ export default function ChatScreen() {
                 </Text>
               </View>
             ))}
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View style={styles.composerContainer}>
             <View style={styles.inputRow}>
@@ -374,7 +372,7 @@ export default function ChatScreen() {
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -432,7 +430,7 @@ const styles = StyleSheet.create({
   infoButton: {
     padding: 8,
   },
-  keyboardAvoidingView: {
+  contentContainer: {
     flex: 1,
   },
   messagesContainer: {

@@ -14,12 +14,10 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 interface Message {
   id: string;
@@ -40,7 +38,7 @@ export default function DirectMessageScreen() {
   const [otherUserAvatar, setOtherUserAvatar] = useState<string | null>(null);
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<KeyboardAwareScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -255,17 +253,16 @@ export default function DirectMessageScreen() {
           </View>
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
-        >
-          <ScrollView
+        <View style={styles.contentContainer}>
+          <KeyboardAwareScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            enableOnAndroid={true}
+            enableAutomaticScroll={true}
+            extraScrollHeight={20}
             onContentSizeChange={() => {
               scrollViewRef.current?.scrollToEnd({ animated: true });
             }}
@@ -310,7 +307,7 @@ export default function DirectMessageScreen() {
                 </Text>
               </View>
             )}
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View style={styles.composerContainer}>
             <View style={styles.inputRow}>
@@ -344,7 +341,7 @@ export default function DirectMessageScreen() {
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -402,7 +399,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: colors.text,
   },
-  keyboardAvoidingView: {
+  contentContainer: {
     flex: 1,
   },
   messagesContainer: {

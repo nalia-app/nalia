@@ -14,15 +14,14 @@ import {
   StyleSheet,
   TextInput,
   Pressable,
-  ScrollView,
   Alert,
   Dimensions,
   Platform,
-  KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { stripEmojis } from "@/utils/emojiUtils";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const EMOJI_CATEGORIES = {
   Social: ["☕", "🍺", "🍕", "🍔", "🎉", "🎊", "🎈"],
@@ -631,346 +630,344 @@ export default function CreateEventScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
+        <KeyboardAwareScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid={true}
+          enableAutomaticScroll={true}
+          extraScrollHeight={20}
         >
-          <ScrollView 
-            style={styles.scrollView} 
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Description */}
-            <View style={styles.section}>
-              <Text style={styles.label}>I wanna...</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="grab a coffee, go running, etc."
-                placeholderTextColor={colors.textSecondary}
-                value={description}
-                onChangeText={setDescription}
-                maxLength={100}
-              />
-            </View>
+          {/* Description */}
+          <View style={styles.section}>
+            <Text style={styles.label}>I wanna...</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="grab a coffee, go running, etc."
+              placeholderTextColor={colors.textSecondary}
+              value={description}
+              onChangeText={setDescription}
+              maxLength={100}
+            />
+          </View>
 
-            {/* Icon Selection */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Choose an Icon</Text>
-              <View style={styles.categoryTabs}>
-                {Object.keys(EMOJI_CATEGORIES).map((category) => (
-                  <Pressable
-                    key={category}
-                    style={[
-                      styles.categoryTab,
-                      selectedCategory === category && styles.categoryTabActive,
-                    ]}
-                    onPress={() => setSelectedCategory(category as keyof typeof EMOJI_CATEGORIES)}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryTabText,
-                        selectedCategory === category && styles.categoryTabTextActive,
-                      ]}
-                    >
-                      {category}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={styles.iconGrid}>
-                {EMOJI_CATEGORIES[selectedCategory].map((icon) => (
-                  <Pressable
-                    key={icon}
-                    style={[styles.iconButton, selectedIcon === icon && styles.iconButtonActive]}
-                    onPress={() => setSelectedIcon(icon)}
-                  >
-                    <Text style={styles.iconText}>{icon}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Map */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Location (tap map or drag marker to set)</Text>
-              <View style={styles.mapContainer}>
-                {location ? (
-                  <WebView
-                    key={mapKey}
-                    ref={webViewRef}
-                    source={{ html: generateMapHTML() }}
-                    style={styles.map}
-                    onMessage={handleWebViewMessage}
-                    javaScriptEnabled={true}
-                    domStorageEnabled={true}
-                    startInLoadingState={true}
-                    scrollEnabled={false}
-                    bounces={false}
-                    allowsInlineMediaPlayback={true}
-                    scalesPageToFit={true}
-                    showsHorizontalScrollIndicator={false}
-                    showsVerticalScrollIndicator={false}
-                    onError={(syntheticEvent) => {
-                      const { nativeEvent } = syntheticEvent;
-                      console.error('[CreateEvent] WebView error:', nativeEvent);
-                    }}
-                    onHttpError={(syntheticEvent) => {
-                      const { nativeEvent } = syntheticEvent;
-                      console.error('[CreateEvent] WebView HTTP error:', nativeEvent);
-                    }}
-                    onLoad={() => {
-                      console.log('[CreateEvent] WebView loaded successfully');
-                    }}
-                    onLoadStart={() => {
-                      console.log('[CreateEvent] WebView load started');
-                    }}
-                    onLoadEnd={() => {
-                      console.log('[CreateEvent] WebView load ended');
-                    }}
-                    onLoadProgress={({ nativeEvent }) => {
-                      console.log('[CreateEvent] WebView load progress:', nativeEvent.progress);
-                    }}
-                  />
-                ) : (
-                  <View style={styles.mapLoadingContainer}>
-                    <Text style={styles.mapLoadingText}>Loading map...</Text>
-                  </View>
-                )}
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="Location name (optional)"
-                placeholderTextColor={colors.textSecondary}
-                value={locationName}
-                onChangeText={setLocationName}
-              />
-            </View>
-
-            {/* Recurring Event Checkbox */}
-            <View style={styles.section}>
-              <View style={styles.checkboxRow}>
+          {/* Icon Selection */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Choose an Icon</Text>
+            <View style={styles.categoryTabs}>
+              {Object.keys(EMOJI_CATEGORIES).map((category) => (
                 <Pressable
-                  style={styles.checkbox}
-                  onPress={() => setIsRecurring(!isRecurring)}
+                  key={category}
+                  style={[
+                    styles.categoryTab,
+                    selectedCategory === category && styles.categoryTabActive,
+                  ]}
+                  onPress={() => setSelectedCategory(category as keyof typeof EMOJI_CATEGORIES)}
                 >
-                  {isRecurring && <IconSymbol name="checkmark" size={20} color={colors.text} />}
+                  <Text
+                    style={[
+                      styles.categoryTabText,
+                      selectedCategory === category && styles.categoryTabTextActive,
+                    ]}
+                  >
+                    {category}
+                  </Text>
                 </Pressable>
-                <Text style={styles.checkboxLabel}>Recurring Event</Text>
-              </View>
-              {isRecurring && (
-                <View style={styles.toggleRow}>
-                  <Pressable
-                    style={[
-                      styles.toggleButton,
-                      recurrenceType === "weekly" && styles.toggleButtonActive,
-                    ]}
-                    onPress={() => setRecurrenceType("weekly")}
-                  >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        recurrenceType === "weekly" && styles.toggleTextActive,
-                      ]}
-                    >
-                      Weekly
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.toggleButton,
-                      recurrenceType === "monthly" && styles.toggleButtonActive,
-                    ]}
-                    onPress={() => setRecurrenceType("monthly")}
-                  >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        recurrenceType === "monthly" && styles.toggleTextActive,
-                      ]}
-                    >
-                      Monthly
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
+              ))}
             </View>
+            <View style={styles.iconGrid}>
+              {EMOJI_CATEGORIES[selectedCategory].map((icon) => (
+                <Pressable
+                  key={icon}
+                  style={[styles.iconButton, selectedIcon === icon && styles.iconButtonActive]}
+                  onPress={() => setSelectedIcon(icon)}
+                >
+                  <Text style={styles.iconText}>{icon}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
 
-            {/* Date & Time - Different UI for recurring events */}
-            <View style={styles.section}>
-              <Text style={styles.label}>
-                {isRecurring ? "Time" : "Date & Time"}
-              </Text>
-              
-              {!isRecurring ? (
-                <View style={styles.dateTimeRow}>
-                  <Pressable style={styles.dateTimeButton} onPress={handleDatePress}>
-                    <IconSymbol name="calendar" size={20} color={colors.text} />
-                    <Text style={styles.dateTimeText}>{date.toLocaleDateString()}</Text>
-                  </Pressable>
-                  <Pressable style={styles.dateTimeButton} onPress={handleTimePress}>
-                    <IconSymbol name="clock" size={20} color={colors.text} />
-                    <Text style={styles.dateTimeText}>
-                      {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </Text>
-                  </Pressable>
-                </View>
+          {/* Map */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Location (tap map or drag marker to set)</Text>
+            <View style={styles.mapContainer}>
+              {location ? (
+                <WebView
+                  key={mapKey}
+                  ref={webViewRef}
+                  source={{ html: generateMapHTML() }}
+                  style={styles.map}
+                  onMessage={handleWebViewMessage}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  startInLoadingState={true}
+                  scrollEnabled={false}
+                  bounces={false}
+                  allowsInlineMediaPlayback={true}
+                  scalesPageToFit={true}
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
+                  onError={(syntheticEvent) => {
+                    const { nativeEvent } = syntheticEvent;
+                    console.error('[CreateEvent] WebView error:', nativeEvent);
+                  }}
+                  onHttpError={(syntheticEvent) => {
+                    const { nativeEvent } = syntheticEvent;
+                    console.error('[CreateEvent] WebView HTTP error:', nativeEvent);
+                  }}
+                  onLoad={() => {
+                    console.log('[CreateEvent] WebView loaded successfully');
+                  }}
+                  onLoadStart={() => {
+                    console.log('[CreateEvent] WebView load started');
+                  }}
+                  onLoadEnd={() => {
+                    console.log('[CreateEvent] WebView load ended');
+                  }}
+                  onLoadProgress={({ nativeEvent }) => {
+                    console.log('[CreateEvent] WebView load progress:', nativeEvent.progress);
+                  }}
+                />
               ) : (
-                <>
-                  {recurrenceType === "weekly" ? (
-                    <View style={styles.weekdaySelector}>
-                      {WEEKDAYS.map((day, index) => (
-                        <Pressable
-                          key={day}
-                          style={[
-                            styles.weekdayButton,
-                            selectedWeekday === index && styles.weekdayButtonActive,
-                          ]}
-                          onPress={() => setSelectedWeekday(index)}
-                        >
-                          <Text
-                            style={[
-                              styles.weekdayText,
-                              selectedWeekday === index && styles.weekdayTextActive,
-                            ]}
-                          >
-                            {day.substring(0, 3)}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : (
-                    <View style={styles.monthlySelector}>
-                      <View style={styles.pickerRow}>
-                        <Text style={styles.pickerLabel}>Every</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
-                          {WEEK_OF_MONTH.map((week, index) => (
-                            <Pressable
-                              key={week}
-                              style={[
-                                styles.pickerButton,
-                                selectedWeekOfMonth === index && styles.pickerButtonActive,
-                              ]}
-                              onPress={() => setSelectedWeekOfMonth(index)}
-                            >
-                              <Text
-                                style={[
-                                  styles.pickerButtonText,
-                                  selectedWeekOfMonth === index && styles.pickerButtonTextActive,
-                                ]}
-                              >
-                                {week}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </ScrollView>
-                      </View>
-                      <View style={styles.pickerRow}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
-                          {WEEKDAYS.map((day, index) => (
-                            <Pressable
-                              key={day}
-                              style={[
-                                styles.pickerButton,
-                                selectedMonthlyWeekday === index && styles.pickerButtonActive,
-                              ]}
-                              onPress={() => setSelectedMonthlyWeekday(index)}
-                            >
-                              <Text
-                                style={[
-                                  styles.pickerButtonText,
-                                  selectedMonthlyWeekday === index && styles.pickerButtonTextActive,
-                                ]}
-                              >
-                                {day}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </ScrollView>
-                        <Text style={styles.pickerLabel}>of every month</Text>
-                      </View>
-                    </View>
-                  )}
-                  
-                  <Pressable style={styles.timeButton} onPress={handleTimePress}>
-                    <IconSymbol name="clock" size={20} color={colors.text} />
-                    <Text style={styles.dateTimeText}>
-                      {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </Text>
-                  </Pressable>
-                </>
-              )}
-              
-              {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display="default"
-                  onChange={onDateChange}
-                  minimumDate={new Date()}
-                />
-              )}
-              {showTimePicker && (
-                <DateTimePicker
-                  value={time}
-                  mode="time"
-                  display="default"
-                  onChange={onTimeChange}
-                />
+                <View style={styles.mapLoadingContainer}>
+                  <Text style={styles.mapLoadingText}>Loading map...</Text>
+                </View>
               )}
             </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Location name (optional)"
+              placeholderTextColor={colors.textSecondary}
+              value={locationName}
+              onChangeText={setLocationName}
+            />
+          </View>
 
-            {/* Tags */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Tags (comma-separated)</Text>
-              <Text style={styles.hint}>
-                Emojis will be removed to ensure #coffee and #☕ coffee match
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="coffee, networking, casual"
-                placeholderTextColor={colors.textSecondary}
-                value={tags}
-                onChangeText={setTags}
-              />
+          {/* Recurring Event Checkbox */}
+          <View style={styles.section}>
+            <View style={styles.checkboxRow}>
+              <Pressable
+                style={styles.checkbox}
+                onPress={() => setIsRecurring(!isRecurring)}
+              >
+                {isRecurring && <IconSymbol name="checkmark" size={20} color={colors.text} />}
+              </Pressable>
+              <Text style={styles.checkboxLabel}>Recurring Event</Text>
             </View>
-
-            {/* Privacy */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Privacy</Text>
+            {isRecurring && (
               <View style={styles.toggleRow}>
                 <Pressable
-                  style={[styles.toggleButton, isPublic && styles.toggleButtonActive]}
-                  onPress={() => setIsPublic(true)}
+                  style={[
+                    styles.toggleButton,
+                    recurrenceType === "weekly" && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setRecurrenceType("weekly")}
                 >
-                  <Text style={[styles.toggleText, isPublic && styles.toggleTextActive]}>
-                    Open to everyone
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      recurrenceType === "weekly" && styles.toggleTextActive,
+                    ]}
+                  >
+                    Weekly
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.toggleButton, !isPublic && styles.toggleButtonActive]}
-                  onPress={() => setIsPublic(false)}
+                  style={[
+                    styles.toggleButton,
+                    recurrenceType === "monthly" && styles.toggleButtonActive,
+                  ]}
+                  onPress={() => setRecurrenceType("monthly")}
                 >
-                  <Text style={[styles.toggleText, !isPublic && styles.toggleTextActive]}>
-                    I approve who joins
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      recurrenceType === "monthly" && styles.toggleTextActive,
+                    ]}
+                  >
+                    Monthly
                   </Text>
                 </Pressable>
               </View>
-            </View>
+            )}
+          </View>
 
-            {/* Create Button */}
-            <Pressable style={styles.createButton} onPress={handleCreate}>
-              <LinearGradient
-                colors={[colors.accent, colors.primary]}
-                style={styles.createButtonGradient}
+          {/* Date & Time - Different UI for recurring events */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              {isRecurring ? "Time" : "Date & Time"}
+            </Text>
+            
+            {!isRecurring ? (
+              <View style={styles.dateTimeRow}>
+                <Pressable style={styles.dateTimeButton} onPress={handleDatePress}>
+                  <IconSymbol name="calendar" size={20} color={colors.text} />
+                  <Text style={styles.dateTimeText}>{date.toLocaleDateString()}</Text>
+                </Pressable>
+                <Pressable style={styles.dateTimeButton} onPress={handleTimePress}>
+                  <IconSymbol name="clock" size={20} color={colors.text} />
+                  <Text style={styles.dateTimeText}>
+                    {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {recurrenceType === "weekly" ? (
+                  <View style={styles.weekdaySelector}>
+                    {WEEKDAYS.map((day, index) => (
+                      <Pressable
+                        key={day}
+                        style={[
+                          styles.weekdayButton,
+                          selectedWeekday === index && styles.weekdayButtonActive,
+                        ]}
+                        onPress={() => setSelectedWeekday(index)}
+                      >
+                        <Text
+                          style={[
+                            styles.weekdayText,
+                            selectedWeekday === index && styles.weekdayTextActive,
+                          ]}
+                        >
+                          {day.substring(0, 3)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.monthlySelector}>
+                    <View style={styles.pickerRow}>
+                      <Text style={styles.pickerLabel}>Every</Text>
+                      <KeyboardAwareScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+                        {WEEK_OF_MONTH.map((week, index) => (
+                          <Pressable
+                            key={week}
+                            style={[
+                              styles.pickerButton,
+                              selectedWeekOfMonth === index && styles.pickerButtonActive,
+                            ]}
+                            onPress={() => setSelectedWeekOfMonth(index)}
+                          >
+                            <Text
+                              style={[
+                                styles.pickerButtonText,
+                                selectedWeekOfMonth === index && styles.pickerButtonTextActive,
+                              ]}
+                            >
+                              {week}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </KeyboardAwareScrollView>
+                    </View>
+                    <View style={styles.pickerRow}>
+                      <KeyboardAwareScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+                        {WEEKDAYS.map((day, index) => (
+                          <Pressable
+                            key={day}
+                            style={[
+                              styles.pickerButton,
+                              selectedMonthlyWeekday === index && styles.pickerButtonActive,
+                            ]}
+                            onPress={() => setSelectedMonthlyWeekday(index)}
+                          >
+                            <Text
+                              style={[
+                                styles.pickerButtonText,
+                                selectedMonthlyWeekday === index && styles.pickerButtonTextActive,
+                              ]}
+                            >
+                              {day}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </KeyboardAwareScrollView>
+                      <Text style={styles.pickerLabel}>of every month</Text>
+                    </View>
+                  </View>
+                )}
+                
+                <Pressable style={styles.timeButton} onPress={handleTimePress}>
+                  <IconSymbol name="clock" size={20} color={colors.text} />
+                  <Text style={styles.dateTimeText}>
+                    {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+            
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+                minimumDate={new Date()}
+              />
+            )}
+            {showTimePicker && (
+              <DateTimePicker
+                value={time}
+                mode="time"
+                display="default"
+                onChange={onTimeChange}
+              />
+            )}
+          </View>
+
+          {/* Tags */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Tags (comma-separated)</Text>
+            <Text style={styles.hint}>
+              Emojis will be removed to ensure #coffee and #☕ coffee match
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="coffee, networking, casual"
+              placeholderTextColor={colors.textSecondary}
+              value={tags}
+              onChangeText={setTags}
+            />
+          </View>
+
+          {/* Privacy */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Privacy</Text>
+            <View style={styles.toggleRow}>
+              <Pressable
+                style={[styles.toggleButton, isPublic && styles.toggleButtonActive]}
+                onPress={() => setIsPublic(true)}
               >
-                <Text style={styles.createButtonText}>Create Event</Text>
-              </LinearGradient>
-            </Pressable>
+                <Text style={[styles.toggleText, isPublic && styles.toggleTextActive]}>
+                  Open to everyone
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.toggleButton, !isPublic && styles.toggleButtonActive]}
+                onPress={() => setIsPublic(false)}
+              >
+                <Text style={[styles.toggleText, !isPublic && styles.toggleTextActive]}>
+                  I approve who joins
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </KeyboardAvoidingView>
+          {/* Create Button */}
+          <Pressable style={styles.createButton} onPress={handleCreate}>
+            <LinearGradient
+              colors={[colors.accent, colors.primary]}
+              style={styles.createButtonGradient}
+            >
+              <Text style={styles.createButtonText}>Create Event</Text>
+            </LinearGradient>
+          </Pressable>
+
+          <View style={{ height: 40 }} />
+        </KeyboardAwareScrollView>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -1001,11 +998,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
   },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
   },
   section: {

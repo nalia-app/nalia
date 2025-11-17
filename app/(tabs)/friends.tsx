@@ -4,14 +4,11 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   TextInput,
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
@@ -21,6 +18,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 interface Friend {
   id: string;
@@ -361,148 +359,145 @@ export default function FriendsScreen() {
           </Pressable>
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
+        {activeTab === 'friends' && (
+          <View style={styles.searchContainer}>
+            <IconSymbol
+              name="magnifyingglass"
+              size={20}
+              color={colors.textSecondary}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search friends..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        )}
+
+        <KeyboardAwareScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid={true}
+          enableAutomaticScroll={true}
+          extraScrollHeight={20}
         >
-          {activeTab === 'friends' && (
-            <View style={styles.searchContainer}>
-              <IconSymbol
-                name="magnifyingglass"
-                size={20}
-                color={colors.textSecondary}
-              />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search friends..."
-                placeholderTextColor={colors.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
-          )}
-
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {activeTab === 'friends' ? (
-              <>
-                {filteredFriends.map((friend) => (
+          {activeTab === 'friends' ? (
+            <>
+              {filteredFriends.map((friend) => (
+                <Pressable
+                  key={friend.id}
+                  style={styles.friendCard}
+                  onPress={() => handleProfilePress(friend.id)}
+                >
+                  <View style={styles.friendAvatar}>
+                    {friend.avatar_url ? (
+                      <Image source={{ uri: friend.avatar_url }} style={styles.avatarImage} />
+                    ) : (
+                      <IconSymbol name="person.fill" size={28} color={colors.text} />
+                    )}
+                  </View>
+                  <View style={styles.friendContent}>
+                    <Text style={styles.friendName}>{friend.name}</Text>
+                    <Text style={styles.friendBio}>{friend.bio}</Text>
+                    <View style={styles.friendStats}>
+                      <IconSymbol name="calendar" size={14} color={colors.primary} />
+                      <Text style={styles.friendStatsText}>
+                        {friend.mutualEvents} mutual events
+                      </Text>
+                    </View>
+                    {friend.interests.length > 0 && (
+                      <View style={styles.interestsContainer}>
+                        {friend.interests.slice(0, 3).map((interest, index) => (
+                          <View key={index} style={styles.interestTag}>
+                            <Text style={styles.interestText}>#{interest}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                   <Pressable
-                    key={friend.id}
-                    style={styles.friendCard}
-                    onPress={() => handleProfilePress(friend.id)}
+                    style={styles.chatButton}
+                    onPress={() => handleChatPress(friend)}
                   >
-                    <View style={styles.friendAvatar}>
-                      {friend.avatar_url ? (
-                        <Image source={{ uri: friend.avatar_url }} style={styles.avatarImage} />
-                      ) : (
-                        <IconSymbol name="person.fill" size={28} color={colors.text} />
-                      )}
-                    </View>
-                    <View style={styles.friendContent}>
-                      <Text style={styles.friendName}>{friend.name}</Text>
-                      <Text style={styles.friendBio}>{friend.bio}</Text>
-                      <View style={styles.friendStats}>
-                        <IconSymbol name="calendar" size={14} color={colors.primary} />
-                        <Text style={styles.friendStatsText}>
-                          {friend.mutualEvents} mutual events
-                        </Text>
-                      </View>
-                      {friend.interests.length > 0 && (
-                        <View style={styles.interestsContainer}>
-                          {friend.interests.slice(0, 3).map((interest, index) => (
-                            <View key={index} style={styles.interestTag}>
-                              <Text style={styles.interestText}>#{interest}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                    <Pressable
-                      style={styles.chatButton}
-                      onPress={() => handleChatPress(friend)}
-                    >
-                      <IconSymbol
-                        name="message.fill"
-                        size={20}
-                        color={colors.primary}
-                      />
-                    </Pressable>
+                    <IconSymbol
+                      name="message.fill"
+                      size={20}
+                      color={colors.primary}
+                    />
                   </Pressable>
-                ))}
+                </Pressable>
+              ))}
 
-                {filteredFriends.length === 0 && (
-                  <View style={styles.emptyState}>
-                    <IconSymbol
-                      name="person.2"
-                      size={64}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.emptyText}>No friends found</Text>
-                    <Text style={styles.emptySubtext}>
-                      {searchQuery
-                        ? "Try a different search"
-                        : "Connect with people at events"}
-                    </Text>
+              {filteredFriends.length === 0 && (
+                <View style={styles.emptyState}>
+                  <IconSymbol
+                    name="person.2"
+                    size={64}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.emptyText}>No friends found</Text>
+                  <Text style={styles.emptySubtext}>
+                    {searchQuery
+                      ? "Try a different search"
+                      : "Connect with people at events"}
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {requests.map((request) => (
+                <View key={request.id} style={styles.requestCard}>
+                  <View style={styles.friendAvatar}>
+                    {request.avatar_url ? (
+                      <Image source={{ uri: request.avatar_url }} style={styles.avatarImage} />
+                    ) : (
+                      <IconSymbol name="person.fill" size={28} color={colors.text} />
+                    )}
                   </View>
-                )}
-              </>
-            ) : (
-              <>
-                {requests.map((request) => (
-                  <View key={request.id} style={styles.requestCard}>
-                    <View style={styles.friendAvatar}>
-                      {request.avatar_url ? (
-                        <Image source={{ uri: request.avatar_url }} style={styles.avatarImage} />
-                      ) : (
-                        <IconSymbol name="person.fill" size={28} color={colors.text} />
-                      )}
-                    </View>
-                    <View style={styles.requestContent}>
-                      <Text style={styles.friendName}>{request.name}</Text>
-                      <Text style={styles.friendBio}>{request.bio}</Text>
-                      <View style={styles.requestActions}>
-                        <Pressable
-                          style={styles.acceptButton}
-                          onPress={() => handleAcceptRequest(request.id, request.user_id)}
-                        >
-                          <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
-                          <Text style={styles.acceptButtonText}>Accept</Text>
-                        </Pressable>
-                        <Pressable
-                          style={styles.declineButton}
-                          onPress={() => handleDeclineRequest(request.id)}
-                        >
-                          <IconSymbol name="xmark" size={18} color={colors.text} />
-                          <Text style={styles.declineButtonText}>Decline</Text>
-                        </Pressable>
-                      </View>
+                  <View style={styles.requestContent}>
+                    <Text style={styles.friendName}>{request.name}</Text>
+                    <Text style={styles.friendBio}>{request.bio}</Text>
+                    <View style={styles.requestActions}>
+                      <Pressable
+                        style={styles.acceptButton}
+                        onPress={() => handleAcceptRequest(request.id, request.user_id)}
+                      >
+                        <IconSymbol name="checkmark" size={18} color="#FFFFFF" />
+                        <Text style={styles.acceptButtonText}>Accept</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.declineButton}
+                        onPress={() => handleDeclineRequest(request.id)}
+                      >
+                        <IconSymbol name="xmark" size={18} color={colors.text} />
+                        <Text style={styles.declineButtonText}>Decline</Text>
+                      </Pressable>
                     </View>
                   </View>
-                ))}
+                </View>
+              ))}
 
-                {requests.length === 0 && (
-                  <View style={styles.emptyState}>
-                    <IconSymbol
-                      name="person.badge.plus"
-                      size={64}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.emptyText}>No pending requests</Text>
-                    <Text style={styles.emptySubtext}>
-                      Friend requests will appear here
-                    </Text>
-                  </View>
-                )}
-              </>
-            )}
-          </ScrollView>
-        </KeyboardAvoidingView>
+              {requests.length === 0 && (
+                <View style={styles.emptyState}>
+                  <IconSymbol
+                    name="person.badge.plus"
+                    size={64}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.emptyText}>No pending requests</Text>
+                  <Text style={styles.emptySubtext}>
+                    Friend requests will appear here
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </KeyboardAwareScrollView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -580,9 +575,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: '#FFFFFF',
-  },
-  keyboardAvoidingView: {
-    flex: 1,
   },
   searchContainer: {
     flexDirection: "row",

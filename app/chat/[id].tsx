@@ -20,6 +20,27 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer, Avatar } from "react-native-gifted-chat";
 import "react-native-get-random-values";
 
+// Avatar component with fallback
+function AvatarImage({ uri, size = 44 }: { uri: string | null; size?: number }) {
+  const [imageError, setImageError] = useState(false);
+
+  if (!uri || imageError) {
+    return (
+      <View style={[styles.defaultHeaderAvatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.55} color={colors.textSecondary} />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => setImageError(true)}
+    />
+  );
+}
+
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -28,6 +49,7 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [eventName, setEventName] = useState("Event Chat");
   const [eventIcon, setEventIcon] = useState("");
+  const [hostAvatarUrl, setHostAvatarUrl] = useState<string | null>(null);
   const [participantCount, setParticipantCount] = useState(0);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -52,7 +74,12 @@ export default function ChatScreen() {
     try {
       const { data: eventData, error: eventError } = await supabase
         .from("events")
-        .select("description, icon")
+        .select(`
+          description, 
+          icon,
+          host_id,
+          profiles:host_id(avatar_url)
+        `)
         .eq("id", id)
         .single();
 
@@ -60,6 +87,7 @@ export default function ChatScreen() {
 
       setEventName(eventData.description);
       setEventIcon(eventData.icon);
+      setHostAvatarUrl((eventData.profiles as any)?.avatar_url || null);
 
       // Count participants
       const { count } = await supabase
@@ -339,13 +367,13 @@ export default function ChatScreen() {
         {avatarUrl ? (
           <Image
             source={{ uri: avatarUrl }}
-            style={styles.avatarImage}
+            style={styles.messageAvatarImage}
             onError={() => {
               console.log("Avatar image failed to load");
             }}
           />
         ) : (
-          <View style={styles.defaultAvatar}>
+          <View style={styles.defaultMessageAvatar}>
             <IconSymbol name="person.fill" size={20} color={colors.textSecondary} />
           </View>
         )}
@@ -371,16 +399,9 @@ export default function ChatScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={28} color={colors.text} />
           </Pressable>
-          <LinearGradient
-            colors={[colors.primary, colors.secondary]}
-            style={styles.headerIconGradient}
-          >
-            {eventIcon ? (
-              <Text style={styles.headerIcon}>{eventIcon}</Text>
-            ) : (
-              <IconSymbol name="calendar" size={24} color={colors.text} />
-            )}
-          </LinearGradient>
+          <View style={styles.headerAvatarContainer}>
+            <AvatarImage uri={hostAvatarUrl} size={44} />
+          </View>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {eventName}
@@ -471,17 +492,26 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  headerIconGradient: {
+  headerAvatarContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
     marginLeft: 8,
     marginRight: 12,
+    overflow: "hidden",
   },
-  headerIcon: {
-    fontSize: 26,
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  defaultHeaderAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.highlight,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerContent: {
     flex: 1,
@@ -506,12 +536,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 4,
   },
-  avatarImage: {
+  messageAvatarImage: {
     width: 36,
     height: 36,
     borderRadius: 18,
   },
-  defaultAvatar: {
+  defaultMessageAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,

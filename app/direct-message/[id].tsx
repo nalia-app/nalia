@@ -20,6 +20,27 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer } from "react-native-gifted-chat";
 import "react-native-get-random-values";
 
+// Avatar component with fallback
+function AvatarImage({ uri, size = 44 }: { uri: string | null; size?: number }) {
+  const [imageError, setImageError] = useState(false);
+
+  if (!uri || imageError) {
+    return (
+      <View style={[styles.defaultAvatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.55} color={colors.textSecondary} />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => setImageError(true)}
+    />
+  );
+}
+
 export default function DirectMessageScreen() {
   const { user } = useUser();
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -322,19 +343,7 @@ export default function DirectMessageScreen() {
             <IconSymbol name="chevron.left" size={28} color={colors.text} />
           </Pressable>
           <View style={styles.headerAvatarContainer}>
-            {otherUserAvatar ? (
-              <Image
-                source={{ uri: otherUserAvatar }}
-                style={styles.avatarImage}
-                onError={() => {
-                  console.log("Avatar image failed to load");
-                }}
-              />
-            ) : (
-              <View style={styles.defaultAvatar}>
-                <IconSymbol name="person.fill" size={24} color={colors.textSecondary} />
-              </View>
-            )}
+            <AvatarImage uri={otherUserAvatar} size={44} />
           </View>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>{otherUserName}</Text>

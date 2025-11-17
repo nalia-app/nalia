@@ -309,7 +309,10 @@ export default function ChatScreen() {
                     {msg.text}
                   </Text>
                 </View>
-                <Text style={styles.timestamp}>
+                <Text style={[
+                  styles.timestamp,
+                  msg.isMe ? styles.timestampMe : styles.timestampOther
+                ]}>
                   {formatTimestamp(msg.created_at)}
                 </Text>
               </View>
@@ -460,8 +463,13 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 11,
-    color: colors.textSecondary,
     marginTop: 4,
     marginHorizontal: 12,
+  },
+  timestampMe: {
+    color: 'rgba(255, 255, 255, 0.7)', // White with 70% opacity for better readability on purple
+  },
+  timestampOther: {
+    color: colors.textSecondary, // Keep the original color for other messages
   },
 });

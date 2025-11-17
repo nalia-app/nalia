@@ -3,10 +3,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/styles/commonStyles';
 import { useUser } from '@/contexts/UserContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
+import { AntDesign } from '@expo/vector-icons';
 import { supabase } from '@/app/integrations/supabase/client';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Animated, {
@@ -459,48 +460,49 @@ export default function SignupScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {googleSignInAvailable ? (
-            <Pressable
-              style={[styles.googleButton, loading && styles.buttonDisabled]}
-              onPress={handleGoogleSignup}
-              disabled={loading}
-            >
-              <Image
-                source={{ uri: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' }}
-                style={styles.googleIcon}
-              />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                Google Sign-In requires native setup. Please run: npx expo prebuild --clean
-              </Text>
-            </View>
-          )}
+          {/* Platform-specific OAuth buttons */}
+          {Platform.OS === 'ios' && (
+            <React.Fragment>
+              {/* Apple Sign In - iOS only, shown first */}
+              {appleAuthAvailable && (
+                <Pressable
+                  style={[styles.appleButton, loading && styles.buttonDisabled]}
+                  onPress={handleAppleSignup}
+                  disabled={loading}
+                >
+                  <AntDesign name="apple1" size={20} color="#FFFFFF" />
+                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                </Pressable>
+              )}
 
-          {Platform.OS === 'ios' && appleAuthAvailable && (
-            <Pressable
-              style={[styles.appleButton, loading && styles.buttonDisabled]}
-              onPress={handleAppleSignup}
-              disabled={loading}
-            >
-              <IconSymbol 
-                ios_icon_name="apple.logo" 
-                android_material_icon_name="apple" 
-                size={20} 
-                color="#FFFFFF" 
-              />
-              <Text style={styles.appleButtonText}>Continue with Apple</Text>
-            </Pressable>
+              {/* Google Sign In - iOS, shown second */}
+              {googleSignInAvailable && (
+                <Pressable
+                  style={[styles.googleButton, loading && styles.buttonDisabled]}
+                  onPress={handleGoogleSignup}
+                  disabled={loading}
+                >
+                  <AntDesign name="google" size={20} color="#DB4437" />
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </Pressable>
+              )}
+            </React.Fragment>
           )}
 
           {Platform.OS === 'android' && (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                Apple Sign In is only available on iOS devices
-              </Text>
-            </View>
+            <React.Fragment>
+              {/* Google Sign In - Android only */}
+              {googleSignInAvailable && (
+                <Pressable
+                  style={[styles.googleButton, loading && styles.buttonDisabled]}
+                  onPress={handleGoogleSignup}
+                  disabled={loading}
+                >
+                  <AntDesign name="google" size={20} color="#DB4437" />
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </Pressable>
+              )}
+            </React.Fragment>
           )}
 
           <Pressable
@@ -659,15 +661,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  googleIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
-  },
   googleButtonText: {
     color: '#3C4043',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 12,
   },
   appleButton: {
     flexDirection: 'row',
@@ -690,20 +688,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
-  },
-  infoBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  infoText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
   },
   loginLink: {
     marginTop: 24,

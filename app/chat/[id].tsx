@@ -268,11 +268,10 @@ export default function ChatScreen() {
           borderTopColor: colors.highlight,
           paddingVertical: 8,
           paddingHorizontal: 8,
-          minHeight: 60,
+          marginBottom: 0,
         }}
         primaryStyle={{
           alignItems: "center",
-          minHeight: 44,
         }}
       />
     );
@@ -293,7 +292,6 @@ export default function ChatScreen() {
           color: colors.text,
           fontSize: 16,
           lineHeight: 20,
-          minHeight: 44,
         }}
         placeholder="Type a message..."
         placeholderTextColor={colors.textSecondary}
@@ -312,7 +310,6 @@ export default function ChatScreen() {
           alignItems: "center",
           paddingHorizontal: 8,
           paddingRight: 12,
-          height: 44,
         }}
         disabled={!hasText}
       >
@@ -365,7 +362,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <LinearGradient
         colors={[colors.background, "#0a0a0a"]}
         style={styles.gradient}
@@ -424,8 +421,8 @@ export default function ChatScreen() {
             backgroundColor: "transparent",
             paddingBottom: 8,
           }}
-          bottomOffset={0}
-          minInputToolbarHeight={60}
+          bottomOffset={Platform.OS === 'ios' ? 0 : 0}
+          minInputToolbarHeight={Platform.OS === 'ios' ? 44 : 44}
           renderUsernameOnMessage
           renderAvatarOnTop
           listViewProps={{

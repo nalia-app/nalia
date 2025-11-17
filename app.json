@@ -91,7 +91,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "YOUR_PROJECT_ID_HERE"
+      }
     }
   },
   "scheme": "nalia"

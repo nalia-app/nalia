@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { Canvas, Circle, Group, LinearGradient, vec, Blur, Paint, RoundedRect, Path, Skia } from '@shopify/react-native-skia';
+import { Canvas, Circle, Group, LinearGradient, vec, Blur } from '@shopify/react-native-skia';
 import { useSharedValue, withRepeat, withTiming, Easing, useDerivedValue, withSequence } from 'react-native-reanimated';
 import { View, StyleSheet, Text } from 'react-native';
 
@@ -16,7 +16,6 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
   const shimmer = useSharedValue(0);
   const wave1 = useSharedValue(0);
   const wave2 = useSharedValue(0);
-  const rotation = useSharedValue(0);
   const glow = useSharedValue(0);
 
   useEffect(() => {
@@ -57,16 +56,6 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
       }),
       -1,
       true
-    );
-
-    // Rotation for organic movement
-    rotation.value = withRepeat(
-      withTiming(360, {
-        duration: 20000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
     );
 
     // Glow pulsing
@@ -151,50 +140,11 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
   // Calculate icon size based on bubble size and attendees
   const iconSize = Math.min(18 + (attendees * 1.8), 42);
 
-  // Create liquid blob path for organic shape
-  const createLiquidPath = (centerX: number, centerY: number, r: number, offset1: number, offset2: number) => {
-    const path = Skia.Path.Make();
-    const points = 8; // Number of control points for the blob
-    
-    for (let i = 0; i <= points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const nextAngle = ((i + 1) / points) * Math.PI * 2;
-      
-      // Add some organic variation to the radius
-      const variation1 = Math.sin(angle * 3 + offset1) * (r * 0.08);
-      const variation2 = Math.cos(angle * 5 + offset2) * (r * 0.06);
-      const currentR = r + variation1 + variation2;
-      
-      const x = centerX + Math.cos(angle) * currentR;
-      const y = centerY + Math.sin(angle) * currentR;
-      
-      if (i === 0) {
-        path.moveTo(x, y);
-      } else {
-        // Create smooth curves between points
-        const prevAngle = ((i - 1) / points) * Math.PI * 2;
-        const prevVariation1 = Math.sin(prevAngle * 3 + offset1) * (r * 0.08);
-        const prevVariation2 = Math.cos(prevAngle * 5 + offset2) * (r * 0.06);
-        const prevR = r + prevVariation1 + prevVariation2;
-        
-        const cpX1 = centerX + Math.cos(prevAngle + 0.2) * prevR;
-        const cpY1 = centerY + Math.sin(prevAngle + 0.2) * prevR;
-        const cpX2 = centerX + Math.cos(angle - 0.2) * currentR;
-        const cpY2 = centerY + Math.sin(angle - 0.2) * currentR;
-        
-        path.cubicTo(cpX1, cpY1, cpX2, cpY2, x, y);
-      }
-    }
-    
-    path.close();
-    return path;
-  };
-
   return (
     <View style={[styles.container, { width: size, height: size }]}>
       <Canvas style={{ width: size, height: size }}>
         {/* Outer glow layer - pulsing */}
-        <Group opacity={glowIntensity.value}>
+        <Group opacity={glowIntensity}>
           <Circle cx={center} cy={center} r={radius * 1.4}>
             <LinearGradient
               start={vec(0, 0)}
@@ -222,7 +172,7 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
         </Group>
 
         {/* Main bubble body with liquid gradient - pulsing */}
-        <Group transform={[{ scale: pulseScale.value }]} origin={vec(center, center)}>
+        <Group transform={[{ scale: pulseScale }]} origin={vec(center, center)}>
           <Circle cx={center} cy={center} r={radius}>
             <LinearGradient
               start={vec(size * 0.15, size * 0.15)}
@@ -235,8 +185,8 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
         {/* Liquid distortion layer 1 - creates organic movement */}
         <Group opacity={0.5}>
           <Circle 
-            cx={center + wave1Offset.value} 
-            cy={center - wave2Offset.value * 0.7} 
+            cx={center + wave1Offset} 
+            cy={center - wave2Offset * 0.7} 
             r={radius * 0.85}
           >
             <LinearGradient
@@ -251,8 +201,8 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
         {/* Liquid distortion layer 2 - cyan accent */}
         <Group opacity={0.45}>
           <Circle 
-            cx={center - wave2Offset.value * 0.6} 
-            cy={center + wave1Offset.value * 0.8} 
+            cx={center - wave2Offset * 0.6} 
+            cy={center + wave1Offset * 0.8} 
             r={radius * 0.75}
           >
             <LinearGradient
@@ -265,10 +215,10 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
         </Group>
 
         {/* Top-left shimmer highlight */}
-        <Group opacity={shimmerOpacity.value}>
+        <Group opacity={shimmerOpacity}>
           <Circle 
-            cx={center - radius * 0.35 + wave1Offset.value * 0.5} 
-            cy={center - radius * 0.35 - wave2Offset.value * 0.3} 
+            cx={center - radius * 0.35 + wave1Offset * 0.5} 
+            cy={center - radius * 0.35 - wave2Offset * 0.3} 
             r={radius * 0.45}
           >
             <LinearGradient
@@ -281,10 +231,10 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
         </Group>
 
         {/* Bottom-right shimmer - complementary */}
-        <Group opacity={shimmerOpacity.value * 0.6}>
+        <Group opacity={shimmerOpacity * 0.6}>
           <Circle 
-            cx={center + radius * 0.3 - wave1Offset.value * 0.4} 
-            cy={center + radius * 0.3 + wave2Offset.value * 0.4} 
+            cx={center + radius * 0.3 - wave1Offset * 0.4} 
+            cy={center + radius * 0.3 + wave2Offset * 0.4} 
             r={radius * 0.35}
           >
             <LinearGradient
@@ -342,7 +292,7 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
         </Circle>
 
         {/* Subtle sparkle effect - top right */}
-        <Group opacity={shimmerOpacity.value * 0.8}>
+        <Group opacity={shimmerOpacity * 0.8}>
           <Circle 
             cx={center + radius * 0.5} 
             cy={center - radius * 0.5} 

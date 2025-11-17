@@ -1346,6 +1346,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 34, // Safe area for iOS home indicator
+    alignItems: 'center', // Center the picker horizontally
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1355,6 +1356,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.highlight,
+    width: '100%', // Ensure header spans full width
   },
   modalTitle: {
     fontSize: 17,

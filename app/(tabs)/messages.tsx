@@ -36,6 +36,33 @@ interface Chat {
 
 type FilterType = 'all' | 'events' | 'chats';
 
+// Helper component to handle avatar image loading with fallback
+const AvatarImage = ({ uri, size = 56 }: { uri: string | null; size?: number }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URI is valid (Supabase URL)
+  const isValidUri = uri && (uri.includes('supabase.co') || uri.includes('supabase.in'));
+  
+  if (!isValidUri || imageError) {
+    return (
+      <View style={[styles.chatIcon, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.5} color={colors.text} />
+      </View>
+    );
+  }
+  
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => {
+        console.log('[MessagesScreen] Failed to load avatar:', uri);
+        setImageError(true);
+      }}
+    />
+  );
+};
+
 export default function MessagesScreen() {
   const router = useRouter();
   const { user } = useUser();
@@ -366,13 +393,7 @@ export default function MessagesScreen() {
                   <Text style={styles.chatIconText}>{chat.icon}</Text>
                 </LinearGradient>
               ) : (
-                <View style={styles.chatIcon}>
-                  {chat.avatar_url ? (
-                    <Image source={{ uri: chat.avatar_url }} style={styles.avatarImage} />
-                  ) : (
-                    <IconSymbol name="person.fill" size={28} color={colors.text} />
-                  )}
-                </View>
+                <AvatarImage uri={chat.avatar_url} size={56} />
               )}
               <View style={styles.chatContent}>
                 <View style={styles.chatHeader}>
@@ -517,6 +538,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    marginRight: 12,
   },
   chatContent: {
     flex: 1,

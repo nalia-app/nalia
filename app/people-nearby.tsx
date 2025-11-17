@@ -30,6 +30,33 @@ interface NearbyUser {
   mutualInterests: number;
 }
 
+// Helper component to handle avatar image loading with fallback
+const AvatarImage = ({ uri, size = 64 }: { uri: string | null; size?: number }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URI is valid (Supabase URL)
+  const isValidUri = uri && (uri.includes('supabase.co') || uri.includes('supabase.in'));
+  
+  if (!isValidUri || imageError) {
+    return (
+      <View style={[styles.avatarPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.5} color={colors.text} />
+      </View>
+    );
+  }
+  
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => {
+        console.log('[PeopleNearby] Failed to load avatar:', uri);
+        setImageError(true);
+      }}
+    />
+  );
+};
+
 export default function PeopleNearbyScreen() {
   const router = useRouter();
   const { user } = useUser();
@@ -215,20 +242,7 @@ export default function PeopleNearbyScreen() {
                     style={styles.userCardGradient}
                   >
                     <View style={styles.avatarContainer}>
-                      {nearbyUser.avatar_url ? (
-                        <Image
-                          source={{ uri: nearbyUser.avatar_url }}
-                          style={styles.avatar}
-                        />
-                      ) : (
-                        <View style={styles.avatarPlaceholder}>
-                          <IconSymbol
-                            name="person.fill"
-                            size={32}
-                            color={colors.text}
-                          />
-                        </View>
-                      )}
+                      <AvatarImage uri={nearbyUser.avatar_url} size={64} />
                     </View>
                     <View style={styles.userInfo}>
                       <View style={styles.userHeader}>

@@ -40,6 +40,33 @@ interface FriendRequest {
 
 type TabType = 'friends' | 'requests';
 
+// Helper component to handle avatar image loading with fallback
+const AvatarImage = ({ uri, size = 56 }: { uri: string | null; size?: number }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URI is valid (Supabase URL)
+  const isValidUri = uri && (uri.includes('supabase.co') || uri.includes('supabase.in'));
+  
+  if (!isValidUri || imageError) {
+    return (
+      <View style={[styles.friendAvatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.5} color={colors.text} />
+      </View>
+    );
+  }
+  
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => {
+        console.log('[FriendsScreen] Failed to load avatar:', uri);
+        setImageError(true);
+      }}
+    />
+  );
+};
+
 export default function FriendsScreen() {
   const router = useRouter();
   const { user } = useUser();
@@ -393,13 +420,7 @@ export default function FriendsScreen() {
                   style={styles.friendCard}
                   onPress={() => handleProfilePress(friend.id)}
                 >
-                  <View style={styles.friendAvatar}>
-                    {friend.avatar_url ? (
-                      <Image source={{ uri: friend.avatar_url }} style={styles.avatarImage} />
-                    ) : (
-                      <IconSymbol name="person.fill" size={28} color={colors.text} />
-                    )}
-                  </View>
+                  <AvatarImage uri={friend.avatar_url} size={56} />
                   <View style={styles.friendContent}>
                     <Text style={styles.friendName}>{friend.name}</Text>
                     <Text style={styles.friendBio}>{friend.bio}</Text>
@@ -452,13 +473,7 @@ export default function FriendsScreen() {
             <>
               {requests.map((request) => (
                 <View key={request.id} style={styles.requestCard}>
-                  <View style={styles.friendAvatar}>
-                    {request.avatar_url ? (
-                      <Image source={{ uri: request.avatar_url }} style={styles.avatarImage} />
-                    ) : (
-                      <IconSymbol name="person.fill" size={28} color={colors.text} />
-                    )}
-                  </View>
+                  <AvatarImage uri={request.avatar_url} size={56} />
                   <View style={styles.requestContent}>
                     <Text style={styles.friendName}>{request.name}</Text>
                     <Text style={styles.friendBio}>{request.bio}</Text>
@@ -634,8 +649,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginRight: 12,
   },
   friendContent: {
     flex: 1,

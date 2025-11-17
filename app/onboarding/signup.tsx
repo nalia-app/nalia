@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/styles/commonStyles';
 import { useUser } from '@/contexts/UserContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -400,122 +400,131 @@ export default function SignupScreen() {
       </View>
 
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => router.back()}
-            disabled={loading}
-          >
-            <View style={styles.backButtonInner}>
-              <IconSymbol name="chevron.left" size={24} color={colors.text} />
-            </View>
-          </Pressable>
-
-          <Text style={styles.logo}>nalia</Text>
-          <Text style={styles.subtitle}>Create your account</Text>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                editable={!loading}
-              />
-            </View>
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleEmailSignup}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={['#BB86FC', '#9D6FDB']}
-                style={styles.buttonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.content}>
+              <Pressable
+                style={styles.backButton}
+                onPress={() => router.back()}
+                disabled={loading}
               >
-                <Text style={styles.buttonText}>
-                  {loading ? 'Creating Account...' : 'Sign Up with Email'}
-                </Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
+                <View style={styles.backButtonInner}>
+                  <IconSymbol name="chevron.left" size={24} color={colors.text} />
+                </View>
+              </Pressable>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
+              <Text style={styles.logo}>nalia</Text>
+              <Text style={styles.subtitle}>Create your account</Text>
 
-          {/* Platform-specific OAuth buttons */}
-          {Platform.OS === 'ios' && (
-            <React.Fragment>
-              {/* Apple Sign In - iOS only, shown first */}
-              {appleAuthAvailable && (
+              <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={!loading}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    editable={!loading}
+                  />
+                </View>
+
                 <Pressable
-                  style={[styles.appleButton, loading && styles.buttonDisabled]}
-                  onPress={handleAppleSignup}
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={handleEmailSignup}
                   disabled={loading}
                 >
-                  <AppleLogo size={20} color="#FFFFFF" />
-                  <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                  <LinearGradient
+                    colors={['#BB86FC', '#9D6FDB']}
+                    style={styles.buttonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.buttonText}>
+                      {loading ? 'Creating Account...' : 'Sign Up with Email'}
+                    </Text>
+                  </LinearGradient>
                 </Pressable>
+              </View>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Platform-specific OAuth buttons */}
+              {Platform.OS === 'ios' && (
+                <React.Fragment>
+                  {/* Apple Sign In - iOS only, shown first */}
+                  {appleAuthAvailable && (
+                    <Pressable
+                      style={[styles.appleButton, loading && styles.buttonDisabled]}
+                      onPress={handleAppleSignup}
+                      disabled={loading}
+                    >
+                      <AppleLogo size={20} color="#FFFFFF" />
+                      <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                    </Pressable>
+                  )}
+
+                  {/* Google Sign In - iOS, shown second */}
+                  <Pressable
+                    style={[styles.googleButton, loading && styles.buttonDisabled]}
+                    onPress={handleGoogleSignup}
+                    disabled={loading}
+                  >
+                    <GoogleLogo size={20} />
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </Pressable>
+                </React.Fragment>
               )}
 
-              {/* Google Sign In - iOS, shown second */}
+              {Platform.OS === 'android' && (
+                <React.Fragment>
+                  {/* Google Sign In - Android only */}
+                  <Pressable
+                    style={[styles.googleButton, loading && styles.buttonDisabled]}
+                    onPress={handleGoogleSignup}
+                    disabled={loading}
+                  >
+                    <GoogleLogo size={20} />
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </Pressable>
+                </React.Fragment>
+              )}
+
               <Pressable
-                style={[styles.googleButton, loading && styles.buttonDisabled]}
-                onPress={handleGoogleSignup}
+                style={styles.loginLink}
+                onPress={() => router.push('/onboarding/login' as any)}
                 disabled={loading}
               >
-                <GoogleLogo size={20} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
+                <Text style={styles.loginLinkText}>
+                  Already have an account? <Text style={styles.loginLinkBold}>Log In</Text>
+                </Text>
               </Pressable>
-            </React.Fragment>
-          )}
-
-          {Platform.OS === 'android' && (
-            <React.Fragment>
-              {/* Google Sign In - Android only */}
-              <Pressable
-                style={[styles.googleButton, loading && styles.buttonDisabled]}
-                onPress={handleGoogleSignup}
-                disabled={loading}
-              >
-                <GoogleLogo size={20} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
-              </Pressable>
-            </React.Fragment>
-          )}
-
-          <Pressable
-            style={styles.loginLink}
-            onPress={() => router.push('/onboarding/login' as any)}
-            disabled={loading}
-          >
-            <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkBold}>Log In</Text>
-            </Text>
-          </Pressable>
-        </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -529,10 +538,17 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
+    minHeight: '100%',
   },
   orb1: {
     position: 'absolute',

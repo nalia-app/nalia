@@ -49,7 +49,6 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [eventName, setEventName] = useState("Event Chat");
   const [eventIcon, setEventIcon] = useState("");
-  const [hostAvatarUrl, setHostAvatarUrl] = useState<string | null>(null);
   const [participantCount, setParticipantCount] = useState(0);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -76,9 +75,7 @@ export default function ChatScreen() {
         .from("events")
         .select(`
           description, 
-          icon,
-          host_id,
-          profiles:host_id(avatar_url)
+          icon
         `)
         .eq("id", id)
         .single();
@@ -87,7 +84,6 @@ export default function ChatScreen() {
 
       setEventName(eventData.description);
       setEventIcon(eventData.icon);
-      setHostAvatarUrl((eventData.profiles as any)?.avatar_url || null);
 
       // Count participants
       const { count } = await supabase
@@ -399,9 +395,12 @@ export default function ChatScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol name="chevron.left" size={28} color={colors.text} />
           </Pressable>
-          <View style={styles.headerAvatarContainer}>
-            <AvatarImage uri={hostAvatarUrl} size={44} />
-          </View>
+          <LinearGradient
+            colors={[colors.primary, colors.secondary]}
+            style={styles.headerAvatarGradient}
+          >
+            <Text style={styles.headerEmojiText}>{eventIcon}</Text>
+          </LinearGradient>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {eventName}
@@ -492,13 +491,17 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  headerAvatarContainer: {
+  headerAvatarGradient: {
     width: 44,
     height: 44,
     borderRadius: 22,
     marginLeft: 8,
     marginRight: 12,
-    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerEmojiText: {
+    fontSize: 24,
   },
   avatarImage: {
     width: 44,

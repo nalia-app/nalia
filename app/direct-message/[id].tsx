@@ -316,7 +316,7 @@ export default function DirectMessageScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <LinearGradient
         colors={[colors.background, "#0a0a0a"]}
         style={styles.gradient}
@@ -361,7 +361,7 @@ export default function DirectMessageScreen() {
             backgroundColor: "transparent",
             paddingBottom: 8,
           }}
-          bottomOffset={Platform.OS === 'ios' ? 0 : 0}
+          bottomOffset={0}
           minInputToolbarHeight={60}
           renderAvatar={null}
           listViewProps={{

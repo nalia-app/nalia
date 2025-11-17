@@ -48,6 +48,30 @@ interface EventDetails {
   };
 }
 
+// Helper component to handle avatar image loading with fallback
+const AvatarImage = ({ uri, size = 40 }: { uri: string | null; size?: number }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URI is valid (Supabase URL)
+  const isValidUri = uri && (uri.includes('supabase.co') || uri.includes('supabase.in'));
+  
+  if (!isValidUri || imageError) {
+    return (
+      <View style={[styles.attendeeAvatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.5} color={colors.text} />
+      </View>
+    );
+  }
+  
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => setImageError(true)}
+    />
+  );
+};
+
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -227,6 +251,11 @@ export default function EventDetailScreen() {
     router.push(`/chat/${id}` as any);
   };
 
+  const handleAttendeePress = (userId: string) => {
+    console.log('[EventDetail] Opening profile for user:', userId);
+    router.push(`/user-profile/${userId}` as any);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -376,24 +405,20 @@ export default function EventDetailScreen() {
               Attendees ({totalAttendees})
             </Text>
             {allAttendees.map((attendee, index) => (
-              <View key={attendee.id} style={styles.attendeeCard}>
-                <View style={styles.attendeeAvatar}>
-                  {attendee.profiles.avatar_url ? (
-                    <Image
-                      source={{ uri: attendee.profiles.avatar_url }}
-                      style={styles.avatarImage}
-                    />
-                  ) : (
-                    <IconSymbol name="person.fill" size={20} color={colors.text} />
-                  )}
-                </View>
+              <Pressable 
+                key={attendee.id} 
+                style={styles.attendeeCard}
+                onPress={() => handleAttendeePress(attendee.user_id)}
+              >
+                <AvatarImage uri={attendee.profiles.avatar_url} size={40} />
                 <Text style={styles.attendeeName}>{attendee.profiles.name}</Text>
                 {attendee.user_id === event.host_id && (
                   <View style={styles.hostTag}>
                     <Text style={styles.hostTagText}>Host</Text>
                   </View>
                 )}
-              </View>
+                <IconSymbol name="chevron.right" size={16} color={colors.textSecondary} />
+              </Pressable>
             ))}
           </View>
 
@@ -635,6 +660,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    marginRight: 8,
   },
   hostTagText: {
     fontSize: 12,

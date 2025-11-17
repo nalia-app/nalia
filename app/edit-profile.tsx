@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useUser } from '@/contexts/UserContext';
 import * as ImagePicker from 'expo-image-picker';
+import { uploadImageToStorage, deleteOldAvatars } from '@/utils/imageUpload';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function EditProfileScreen() {
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [photoUri, setPhotoUri] = useState(user?.photoUri || '');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -29,34 +32,74 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Name Required', 'Please enter your name');
       return;
     }
 
-    updateProfile({ name, bio, photoUri });
-    Alert.alert('Success', 'Profile updated successfully', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let finalPhotoUri = photoUri;
+
+      // Upload image to Supabase Storage if a new local image was selected
+      if (photoUri && !photoUri.includes('supabase.co') && !photoUri.includes('supabase.in')) {
+        setUploadingImage(true);
+        console.log('[EditProfile] Uploading new avatar to storage...');
+        const uploadedUrl = await uploadImageToStorage(photoUri, user.id);
+        
+        if (uploadedUrl) {
+          finalPhotoUri = uploadedUrl;
+          console.log('[EditProfile] Avatar uploaded successfully:', uploadedUrl);
+          
+          // Clean up old avatars
+          await deleteOldAvatars(user.id, uploadedUrl);
+        } else {
+          console.warn('[EditProfile] Failed to upload avatar');
+          Alert.alert('Warning', 'Failed to upload image. Your profile will be saved without the new photo.');
+          finalPhotoUri = user.photoUri || ''; // Keep old photo
+        }
+        setUploadingImage(false);
+      }
+
+      await updateProfile({ name, bio, photoUri: finalPhotoUri });
+      Alert.alert('Success', 'Profile updated successfully', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (error) {
+      console.error('[EditProfile] Error saving profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+      setUploadingImage(false);
+    }
   };
 
   return (
     <LinearGradient colors={[colors.background, '#0a0a0a']} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable style={styles.backButton} onPress={() => router.back()} disabled={saving || uploadingImage}>
             <IconSymbol name="xmark" size={24} color={colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Edit Profile</Text>
-          <Pressable style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Save</Text>
+          <Pressable style={styles.saveButton} onPress={handleSave} disabled={saving || uploadingImage}>
+            {saving || uploadingImage ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
           </Pressable>
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <View style={styles.photoSection}>
-            <Pressable style={styles.photoButton} onPress={pickImage}>
+            <Pressable style={styles.photoButton} onPress={pickImage} disabled={saving || uploadingImage}>
               {photoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.photo} />
               ) : (
@@ -65,11 +108,17 @@ export default function EditProfileScreen() {
                 </View>
               )}
               <View style={styles.photoEditBadge}>
-                <IconSymbol name="camera.fill" size={16} color={colors.text} />
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color={colors.text} />
+                ) : (
+                  <IconSymbol name="camera.fill" size={16} color={colors.text} />
+                )}
               </View>
             </Pressable>
-            <Pressable onPress={pickImage}>
-              <Text style={styles.photoLabel}>Change Photo</Text>
+            <Pressable onPress={pickImage} disabled={saving || uploadingImage}>
+              <Text style={styles.photoLabel}>
+                {uploadingImage ? 'Uploading...' : 'Change Photo'}
+              </Text>
             </Pressable>
           </View>
 
@@ -82,6 +131,7 @@ export default function EditProfileScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={name}
                 onChangeText={setName}
+                editable={!saving && !uploadingImage}
               />
             </View>
 
@@ -96,6 +146,7 @@ export default function EditProfileScreen() {
                 multiline
                 numberOfLines={4}
                 maxLength={150}
+                editable={!saving && !uploadingImage}
               />
               <Text style={styles.charCount}>{bio.length}/150</Text>
             </View>
@@ -132,6 +183,8 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     padding: 8,
+    minWidth: 60,
+    alignItems: 'flex-end',
   },
   saveButtonText: {
     fontSize: 16,

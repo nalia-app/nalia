@@ -38,6 +38,33 @@ interface RecentEvent {
   icon: string;
 }
 
+// Helper component to handle avatar image loading with fallback
+const ProfileAvatar = ({ uri, size = 120 }: { uri: string | null; size?: number }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URI is valid (Supabase URL)
+  const isValidUri = uri && (uri.includes('supabase.co') || uri.includes('supabase.in'));
+  
+  if (!isValidUri || imageError) {
+    return (
+      <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.4} color={colors.text} />
+      </View>
+    );
+  }
+  
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => {
+        console.log('[ProfileAvatar] Failed to load image:', uri);
+        setImageError(true);
+      }}
+    />
+  );
+};
+
 export default function UserProfileScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -71,6 +98,8 @@ export default function UserProfileScreen() {
         router.back();
         return;
       }
+
+      console.log("[UserProfile] Profile data:", profileData);
 
       // Get user interests
       const { data: interestsData } = await supabase
@@ -120,6 +149,8 @@ export default function UserProfileScreen() {
         friendshipStatus: friendshipData?.status || null,
         avatar_url: profileData.avatar_url,
       };
+
+      console.log("[UserProfile] Avatar URL:", userProfile.avatar_url);
 
       setProfile(userProfile);
       setRecentEvents(eventsData || []);
@@ -233,16 +264,7 @@ export default function UserProfileScreen() {
               colors={[colors.primary, colors.secondary]}
               style={styles.avatarGradient}
             >
-              {profile.avatar_url ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <View style={styles.avatar}>
-                  <IconSymbol name="person.fill" size={48} color={colors.text} />
-                </View>
-              )}
+              <ProfileAvatar uri={profile.avatar_url} size={120} />
             </LinearGradient>
           </View>
           <Text style={styles.name}>{profile.name}</Text>

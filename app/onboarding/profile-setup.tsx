@@ -1,5 +1,5 @@
 
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/styles/commonStyles';
 import { useUser } from '@/contexts/UserContext';
@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/app/integrations/supabase/client';
+import { uploadImageToStorage } from '@/utils/imageUpload';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function ProfileSetupScreen() {
   const [bio, setBio] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -46,6 +48,23 @@ export default function ProfileSetupScreen() {
     try {
       console.log('[ProfileSetup] Updating profile for user:', session.user.id);
       
+      let avatarUrl = photoUri;
+
+      // Upload image to Supabase Storage if a local image was selected
+      if (photoUri && !photoUri.includes('supabase.co') && !photoUri.includes('supabase.in')) {
+        setUploadingImage(true);
+        console.log('[ProfileSetup] Uploading avatar to storage...');
+        const uploadedUrl = await uploadImageToStorage(photoUri, session.user.id);
+        
+        if (uploadedUrl) {
+          avatarUrl = uploadedUrl;
+          console.log('[ProfileSetup] Avatar uploaded successfully:', uploadedUrl);
+        } else {
+          console.warn('[ProfileSetup] Failed to upload avatar, will save local URI');
+        }
+        setUploadingImage(false);
+      }
+
       // Check if profile exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
@@ -67,7 +86,7 @@ export default function ProfileSetupScreen() {
           .update({
             name: name.trim(),
             bio: bio.trim() || null,
-            avatar_url: photoUri || null,
+            avatar_url: avatarUrl || null,
           })
           .eq('id', session.user.id);
 
@@ -87,7 +106,7 @@ export default function ProfileSetupScreen() {
             id: session.user.id,
             name: name.trim(),
             bio: bio.trim() || null,
-            avatar_url: photoUri || null,
+            avatar_url: avatarUrl || null,
           });
 
         if (insertError) {
@@ -106,6 +125,7 @@ export default function ProfileSetupScreen() {
       Alert.alert('Error', error.message || 'An error occurred');
     } finally {
       setLoading(false);
+      setUploadingImage(false);
     }
   };
 
@@ -116,13 +136,18 @@ export default function ProfileSetupScreen() {
           <Text style={styles.title}>Set up your profile</Text>
           <Text style={styles.subtitle}>Tell us a bit about yourself</Text>
 
-          <Pressable style={styles.photoContainer} onPress={pickImage}>
+          <Pressable style={styles.photoContainer} onPress={pickImage} disabled={uploadingImage || loading}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photo} />
             ) : (
               <View style={styles.photoPlaceholder}>
                 <IconSymbol name="camera" size={32} color={colors.textSecondary} />
                 <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+              </View>
+            )}
+            {uploadingImage && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="large" color={colors.primary} />
               </View>
             )}
           </Pressable>
@@ -135,7 +160,7 @@ export default function ProfileSetupScreen() {
               placeholderTextColor={colors.textSecondary}
               value={name}
               onChangeText={setName}
-              editable={!loading}
+              editable={!loading && !uploadingImage}
             />
 
             <Text style={styles.label}>Bio</Text>
@@ -148,20 +173,27 @@ export default function ProfileSetupScreen() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              editable={!loading}
+              editable={!loading && !uploadingImage}
             />
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
           <Pressable
-            style={[styles.continueButton, (!name.trim() || loading) && styles.continueButtonDisabled]}
+            style={[styles.continueButton, (!name.trim() || loading || uploadingImage) && styles.continueButtonDisabled]}
             onPress={handleContinue}
-            disabled={!name.trim() || loading}
+            disabled={!name.trim() || loading || uploadingImage}
           >
-            <Text style={styles.continueButtonText}>
-              {loading ? 'Saving Profile...' : 'Continue'}
-            </Text>
+            {loading || uploadingImage ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.text} />
+                <Text style={styles.continueButtonText}>
+                  {uploadingImage ? 'Uploading Image...' : 'Saving Profile...'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.continueButtonText}>Continue</Text>
+            )}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -196,6 +228,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     alignSelf: 'center',
     marginBottom: 32,
+    position: 'relative',
   },
   photo: {
     width: 120,
@@ -217,6 +250,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     marginTop: 8,
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   form: {
     gap: 20,
@@ -256,5 +302,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 });

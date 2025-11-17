@@ -29,6 +29,33 @@ interface RecentEvent {
   icon: string;
 }
 
+// Helper component to handle avatar image loading with fallback
+const ProfileAvatar = ({ uri, size = 120 }: { uri: string | null | undefined; size?: number }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if URI is valid (Supabase URL)
+  const isValidUri = uri && (uri.includes('supabase.co') || uri.includes('supabase.in'));
+  
+  if (!isValidUri || imageError) {
+    return (
+      <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+        <IconSymbol name="person.fill" size={size * 0.4} color={colors.text} />
+      </View>
+    );
+  }
+  
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+      onError={() => {
+        console.log('[ProfileAvatar] Failed to load image:', uri);
+        setImageError(true);
+      }}
+    />
+  );
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useUser();
@@ -287,20 +314,7 @@ export default function ProfileScreen() {
               colors={[colors.primary, colors.secondary]}
               style={styles.avatarGradient}
             >
-              {user?.photoUri ? (
-                <Image
-                  source={{ uri: user.photoUri }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <View style={styles.avatar}>
-                  <IconSymbol
-                    name="person.fill"
-                    size={48}
-                    color={colors.text}
-                  />
-                </View>
-              )}
+              <ProfileAvatar uri={user?.photoUri} size={120} />
             </LinearGradient>
           </View>
           <Text style={styles.name}>{user?.name || "User"}</Text>

@@ -364,7 +364,7 @@ export default function FriendsScreen() {
         <KeyboardAvoidingView
           style={styles.keyboardAvoidingView}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+          keyboardVerticalOffset={0}
         >
           {activeTab === 'friends' && (
             <View style={styles.searchContainer}>

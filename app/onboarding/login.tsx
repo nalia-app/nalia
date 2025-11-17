@@ -81,12 +81,11 @@ export default function LoginScreen() {
     if (GoogleSignin) {
       try {
         GoogleSignin.configure({
-          webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual Web Client ID from Google Cloud Console
-          iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com', // Optional: iOS Client ID
+          iosClientId: '896933931479-ulaqjcnethcsu71epd45edl51n5tkr2t.apps.googleusercontent.com',
           offlineAccess: false,
         });
         setGoogleSignInConfigured(true);
-        console.log('[Login] Google Sign-In configured successfully');
+        console.log('[Login] Google Sign-In configured successfully for iOS');
       } catch (error) {
         console.error('[Login] Error configuring Google Sign-In:', error);
         setGoogleSignInConfigured(false);
@@ -212,8 +211,10 @@ export default function LoginScreen() {
     try {
       console.log('[Login] Attempting Google login');
       
-      // Check if device supports Google Play services
-      await GoogleSignin.hasPlayServices();
+      // Check if device supports Google Play services (Android only)
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices();
+      }
       
       // Sign in with Google
       const userInfo = await GoogleSignin.signIn();

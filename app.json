@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "nalia",
@@ -30,7 +31,8 @@
           {
             "CFBundleTypeRole": "Editor",
             "CFBundleURLSchemes": [
-              "natively"
+              "natively",
+              "com.googleusercontent.apps.896933931479-ulaqjcnethcsu71epd45edl51n5tkr2t"
             ]
           }
         ]
@@ -63,6 +65,12 @@
       "expo-router",
       "expo-web-browser",
       "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.896933931479-ulaqjcnethcsu71epd45edl51n5tkr2t"
+        }
+      ],
       [
         "expo-location",
         {

@@ -268,7 +268,10 @@ export default function DirectMessageScreen() {
                   ]}
                 >
                   <Text style={styles.messageText}>{message.text}</Text>
-                  <Text style={styles.messageTime}>
+                  <Text style={[
+                    styles.messageTime,
+                    message.isMe ? styles.messageTimeMe : styles.messageTimeOther
+                  ]}>
                     {formatTimestamp(message.created_at)}
                   </Text>
                 </View>
@@ -400,8 +403,13 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    color: colors.textSecondary,
     alignSelf: "flex-end",
+  },
+  messageTimeMe: {
+    color: '#FFFFFF', // Pure white for maximum readability on purple background
+  },
+  messageTimeOther: {
+    color: colors.textSecondary,
   },
   emptyState: {
     alignItems: "center",

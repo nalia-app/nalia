@@ -329,8 +329,6 @@ export default function HomeScreen() {
         }
         true;
       `);
-      
-      Alert.alert("Map Centered", "View centered on your location");
     } else {
       Alert.alert("Location Unavailable", "Unable to get your location");
     }

@@ -409,7 +409,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Generate HTML for the map with smaller, more colorful, translucent bubbles
+  // Generate HTML for the map with the same bubble style as Create Event page
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
       ...event,
@@ -431,6 +431,14 @@ export default function HomeScreen() {
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <style>
+          * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
           body, html {
             margin: 0;
             padding: 0;
@@ -440,6 +448,11 @@ export default function HomeScreen() {
             background: #0a0a0a;
           }
           #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             height: 100%;
             width: 100%;
             background: #0a0a0a;
@@ -470,7 +483,7 @@ export default function HomeScreen() {
             cursor: pointer;
           }
           
-          /* Smaller, more colorful, translucent bubble container */
+          /* Bubble marker container - matching Create Event style */
           .bubble-marker {
             position: relative;
             display: flex;
@@ -481,179 +494,49 @@ export default function HomeScreen() {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
           
-          /* Main bubble body - more colorful with app colors (purple, cyan, pink) and more translucent */
+          /* Main bubble body - matching Create Event gradient and translucency */
           .bubble-body {
             position: absolute;
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            background: radial-gradient(
-              circle at 35% 35%,
-              rgba(187, 134, 252, 0.25) 0%,
-              rgba(255, 64, 129, 0.22) 25%,
-              rgba(3, 218, 198, 0.2) 50%,
-              rgba(139, 92, 246, 0.18) 75%,
-              rgba(187, 134, 252, 0.15) 100%
-            );
+            background: linear-gradient(135deg, rgba(255, 64, 129, 0.9), rgba(187, 134, 252, 0.9));
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
-            border: 2px solid rgba(187, 134, 252, 0.35);
-            box-shadow: 
-              inset 0 0 30px rgba(187, 134, 252, 0.18),
-              inset -12px -12px 40px rgba(255, 64, 129, 0.12),
-              0 8px 30px rgba(187, 134, 252, 0.25),
-              0 0 50px rgba(3, 218, 198, 0.15);
-            animation: bubblePulse 3s ease-in-out infinite;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
+            animation: bubblePulse 2s infinite ease-in-out;
           }
           
-          /* Shimmer highlight effect - purple/pink tint */
-          .bubble-shimmer {
-            position: absolute;
-            top: 15%;
-            left: 20%;
-            width: 40%;
-            height: 40%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at center,
-              rgba(187, 134, 252, 0.4) 0%,
-              rgba(255, 64, 129, 0.25) 30%,
-              transparent 70%
-            );
-            filter: blur(10px);
-            animation: shimmerPulse 3s ease-in-out infinite;
-          }
-          
-          /* Secondary shimmer - cyan tint */
-          .bubble-shimmer-secondary {
-            position: absolute;
-            bottom: 20%;
-            right: 25%;
-            width: 30%;
-            height: 30%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at center,
-              rgba(3, 218, 198, 0.35) 0%,
-              rgba(139, 92, 246, 0.2) 40%,
-              transparent 70%
-            );
-            filter: blur(8px);
-            animation: shimmerPulse 3s ease-in-out infinite 1.5s;
-          }
-          
-          /* Outer glow aura - colorful gradient with app colors */
-          .bubble-glow {
-            position: absolute;
-            width: 140%;
-            height: 140%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at center,
-              rgba(187, 134, 252, 0.25) 0%,
-              rgba(255, 64, 129, 0.18) 30%,
-              rgba(3, 218, 198, 0.12) 50%,
-              rgba(139, 92, 246, 0.08) 70%,
-              transparent 100%
-            );
-            filter: blur(20px);
-            animation: glowPulse 3s ease-in-out infinite;
-          }
-          
-          /* Icon container */
+          /* Icon container - matching Create Event style */
           .bubble-icon {
             position: relative;
             z-index: 10;
-            filter: drop-shadow(0 2px 8px rgba(187, 134, 252, 0.6))
-                    drop-shadow(0 0 15px rgba(255, 64, 129, 0.4));
-            animation: iconFloat 3s ease-in-out infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
           }
           
-          /* Hover effects */
+          /* Hover effects - matching Create Event */
           .bubble-marker:hover {
-            transform: scale(1.12);
+            transform: scale(1.1);
           }
           
           .bubble-marker:hover .bubble-body {
-            background: radial-gradient(
-              circle at 35% 35%,
-              rgba(187, 134, 252, 0.35) 0%,
-              rgba(255, 64, 129, 0.32) 25%,
-              rgba(3, 218, 198, 0.3) 50%,
-              rgba(139, 92, 246, 0.28) 75%,
-              rgba(187, 134, 252, 0.25) 100%
-            );
-            border-color: rgba(187, 134, 252, 0.5);
-            box-shadow: 
-              inset 0 0 40px rgba(187, 134, 252, 0.25),
-              inset -12px -12px 50px rgba(255, 64, 129, 0.2),
-              0 12px 40px rgba(187, 134, 252, 0.4),
-              0 0 70px rgba(3, 218, 198, 0.3);
-            animation-play-state: paused;
+            animation: none;
+            box-shadow: 0 12px 32px rgba(255, 64, 129, 0.7);
           }
           
-          .bubble-marker:hover .bubble-glow {
-            background: radial-gradient(
-              circle at center,
-              rgba(187, 134, 252, 0.35) 0%,
-              rgba(255, 64, 129, 0.28) 30%,
-              rgba(3, 218, 198, 0.22) 50%,
-              rgba(139, 92, 246, 0.15) 70%,
-              transparent 100%
-            );
-            animation-play-state: paused;
-          }
-          
-          /* Soft pulsing animation for live events */
+          /* Pulsing animation - matching Create Event */
           @keyframes bubblePulse {
-            0%, 100% {
-              transform: scale(1);
-              opacity: 1;
-              box-shadow: 
-                inset 0 0 30px rgba(187, 134, 252, 0.18),
-                inset -12px -12px 40px rgba(255, 64, 129, 0.12),
-                0 8px 30px rgba(187, 134, 252, 0.25),
-                0 0 50px rgba(3, 218, 198, 0.15);
+            0%, 100% { 
+              transform: scale(1); 
+              box-shadow: 0 8px 24px rgba(255, 64, 129, 0.5);
             }
-            50% {
-              transform: scale(1.05);
-              opacity: 0.95;
-              box-shadow: 
-                inset 0 0 40px rgba(187, 134, 252, 0.25),
-                inset -12px -12px 50px rgba(255, 64, 129, 0.2),
-                0 12px 40px rgba(187, 134, 252, 0.35),
-                0 0 70px rgba(3, 218, 198, 0.25);
-            }
-          }
-          
-          @keyframes shimmerPulse {
-            0%, 100% {
-              opacity: 0.5;
-              transform: scale(1);
-            }
-            50% {
-              opacity: 0.9;
-              transform: scale(1.15);
-            }
-          }
-          
-          @keyframes glowPulse {
-            0%, 100% {
-              opacity: 0.5;
-              transform: scale(1);
-            }
-            50% {
-              opacity: 0.8;
-              transform: scale(1.08);
-            }
-          }
-          
-          @keyframes iconFloat {
-            0%, 100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-3px);
+            50% { 
+              transform: scale(1.05); 
+              box-shadow: 0 12px 32px rgba(255, 64, 129, 0.7);
             }
           }
           
@@ -726,19 +609,19 @@ export default function HomeScreen() {
               .addTo(map);
           }
           
-          // Calculate bubble size based on attendees - SMALLER BASE SIZE
+          // Calculate bubble size based on attendees
           function calculateBubbleSize(attendees) {
-            // Base size: 45px for 1 person (reduced from 60px)
-            // Scale: +8px per additional attendee (reduced from 10px)
-            // Max: 120px (reduced from 140px)
-            const baseSize = 45;
+            // Base size: 40px for 1 person
+            // Scale: +8px per additional attendee
+            // Max: 120px
+            const baseSize = 40;
             const scale = 8;
             const maxSize = 120;
             const calculatedSize = baseSize + ((attendees - 1) * scale);
             return Math.min(calculatedSize, maxSize);
           }
           
-          // Add event markers with smaller, colorful, translucent bubbles
+          // Add event markers with Create Event bubble style
           console.log('[Map] Adding', events.length, 'event markers to map');
           events.forEach((event, index) => {
             const size = calculateBubbleSize(event.attendees);
@@ -750,10 +633,7 @@ export default function HomeScreen() {
               className: 'custom-marker',
               html: \`
                 <div class="bubble-marker" style="width:\${size}px; height:\${size}px;">
-                  <div class="bubble-glow"></div>
                   <div class="bubble-body"></div>
-                  <div class="bubble-shimmer"></div>
-                  <div class="bubble-shimmer-secondary"></div>
                   <div class="bubble-icon" style="font-size:\${iconSize}px;">\${event.icon}</div>
                 </div>
               \`,

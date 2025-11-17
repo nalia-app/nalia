@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   Modal,
+  ScrollView,
 } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
@@ -29,6 +30,7 @@ import { WebView } from "react-native-webview";
 import { supabase } from "@/app/integrations/supabase/client";
 import { calculateDistance } from "@/utils/locationUtils";
 import { useFocusEffect } from "@react-navigation/native";
+import { LiquidBubble } from "@/components/LiquidBubble";
 
 const { width, height } = Dimensions.get("window");
 
@@ -409,11 +411,36 @@ export default function HomeScreen() {
     }
   };
 
-  // Generate HTML for the map with smaller, more colorful, translucent bubbles
+  // Calculate bubble size based on attendees - enhanced formula
+  const calculateBubbleSize = (attendees: number) => {
+    const baseSize = 55; // Slightly larger base
+    const scale = 12; // More pronounced scaling
+    const maxSize = 140; // Larger max size
+    const calculatedSize = baseSize + ((attendees - 1) * scale);
+    return Math.min(calculatedSize, maxSize);
+  };
+
+  // Convert lat/lng to screen coordinates (simplified for demo)
+  const latLngToScreen = (lat: number, lng: number) => {
+    if (!location) return { x: 0, y: 0 };
+    
+    // Simple mercator projection approximation
+    const centerLat = mapCenter.lat;
+    const centerLng = mapCenter.lng;
+    
+    // Scale factor (adjust based on zoom level)
+    const scale = 100000;
+    
+    const x = (lng - centerLng) * scale + width / 2;
+    const y = (centerLat - lat) * scale + height / 2;
+    
+    return { x, y };
+  };
+
+  // Generate HTML for the map
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
       ...event,
-      // Format description to always start with lowercase
       description: event.description.charAt(0).toLowerCase() + event.description.slice(1)
     })));
     const userLocationJSON = location ? JSON.stringify({
@@ -445,19 +472,16 @@ export default function HomeScreen() {
             background: #0a0a0a;
           }
           
-          /* Custom styling for map elements */
           .leaflet-container {
             background: #0a0a0a;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 16px;
           }
           
-          /* Make map labels bigger and more readable */
           .leaflet-tile-pane {
             filter: contrast(1.1) brightness(1.05);
           }
           
-          /* Hide default popups completely */
           .leaflet-popup {
             display: none !important;
           }
@@ -466,198 +490,9 @@ export default function HomeScreen() {
             background: transparent;
             border: none;
             text-align: center;
-            line-height: 1;
             cursor: pointer;
           }
           
-          /* Smaller, more colorful, translucent bubble container */
-          .bubble-marker {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          }
-          
-          /* Main bubble body - more colorful with app colors (purple, cyan, pink) and more translucent */
-          .bubble-body {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at 35% 35%,
-              rgba(187, 134, 252, 0.25) 0%,
-              rgba(255, 64, 129, 0.22) 25%,
-              rgba(3, 218, 198, 0.2) 50%,
-              rgba(139, 92, 246, 0.18) 75%,
-              rgba(187, 134, 252, 0.15) 100%
-            );
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 2px solid rgba(187, 134, 252, 0.35);
-            box-shadow: 
-              inset 0 0 30px rgba(187, 134, 252, 0.18),
-              inset -12px -12px 40px rgba(255, 64, 129, 0.12),
-              0 8px 30px rgba(187, 134, 252, 0.25),
-              0 0 50px rgba(3, 218, 198, 0.15);
-            animation: bubblePulse 3s ease-in-out infinite;
-          }
-          
-          /* Shimmer highlight effect - purple/pink tint */
-          .bubble-shimmer {
-            position: absolute;
-            top: 15%;
-            left: 20%;
-            width: 40%;
-            height: 40%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at center,
-              rgba(187, 134, 252, 0.4) 0%,
-              rgba(255, 64, 129, 0.25) 30%,
-              transparent 70%
-            );
-            filter: blur(10px);
-            animation: shimmerPulse 3s ease-in-out infinite;
-          }
-          
-          /* Secondary shimmer - cyan tint */
-          .bubble-shimmer-secondary {
-            position: absolute;
-            bottom: 20%;
-            right: 25%;
-            width: 30%;
-            height: 30%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at center,
-              rgba(3, 218, 198, 0.35) 0%,
-              rgba(139, 92, 246, 0.2) 40%,
-              transparent 70%
-            );
-            filter: blur(8px);
-            animation: shimmerPulse 3s ease-in-out infinite 1.5s;
-          }
-          
-          /* Outer glow aura - colorful gradient with app colors */
-          .bubble-glow {
-            position: absolute;
-            width: 140%;
-            height: 140%;
-            border-radius: 50%;
-            background: radial-gradient(
-              circle at center,
-              rgba(187, 134, 252, 0.25) 0%,
-              rgba(255, 64, 129, 0.18) 30%,
-              rgba(3, 218, 198, 0.12) 50%,
-              rgba(139, 92, 246, 0.08) 70%,
-              transparent 100%
-            );
-            filter: blur(20px);
-            animation: glowPulse 3s ease-in-out infinite;
-          }
-          
-          /* Icon container */
-          .bubble-icon {
-            position: relative;
-            z-index: 10;
-            filter: drop-shadow(0 2px 8px rgba(187, 134, 252, 0.6))
-                    drop-shadow(0 0 15px rgba(255, 64, 129, 0.4));
-            animation: iconFloat 3s ease-in-out infinite;
-          }
-          
-          /* Hover effects */
-          .bubble-marker:hover {
-            transform: scale(1.12);
-          }
-          
-          .bubble-marker:hover .bubble-body {
-            background: radial-gradient(
-              circle at 35% 35%,
-              rgba(187, 134, 252, 0.35) 0%,
-              rgba(255, 64, 129, 0.32) 25%,
-              rgba(3, 218, 198, 0.3) 50%,
-              rgba(139, 92, 246, 0.28) 75%,
-              rgba(187, 134, 252, 0.25) 100%
-            );
-            border-color: rgba(187, 134, 252, 0.5);
-            box-shadow: 
-              inset 0 0 40px rgba(187, 134, 252, 0.25),
-              inset -12px -12px 50px rgba(255, 64, 129, 0.2),
-              0 12px 40px rgba(187, 134, 252, 0.4),
-              0 0 70px rgba(3, 218, 198, 0.3);
-            animation-play-state: paused;
-          }
-          
-          .bubble-marker:hover .bubble-glow {
-            background: radial-gradient(
-              circle at center,
-              rgba(187, 134, 252, 0.35) 0%,
-              rgba(255, 64, 129, 0.28) 30%,
-              rgba(3, 218, 198, 0.22) 50%,
-              rgba(139, 92, 246, 0.15) 70%,
-              transparent 100%
-            );
-            animation-play-state: paused;
-          }
-          
-          /* Soft pulsing animation for live events */
-          @keyframes bubblePulse {
-            0%, 100% {
-              transform: scale(1);
-              opacity: 1;
-              box-shadow: 
-                inset 0 0 30px rgba(187, 134, 252, 0.18),
-                inset -12px -12px 40px rgba(255, 64, 129, 0.12),
-                0 8px 30px rgba(187, 134, 252, 0.25),
-                0 0 50px rgba(3, 218, 198, 0.15);
-            }
-            50% {
-              transform: scale(1.05);
-              opacity: 0.95;
-              box-shadow: 
-                inset 0 0 40px rgba(187, 134, 252, 0.25),
-                inset -12px -12px 50px rgba(255, 64, 129, 0.2),
-                0 12px 40px rgba(187, 134, 252, 0.35),
-                0 0 70px rgba(3, 218, 198, 0.25);
-            }
-          }
-          
-          @keyframes shimmerPulse {
-            0%, 100% {
-              opacity: 0.5;
-              transform: scale(1);
-            }
-            50% {
-              opacity: 0.9;
-              transform: scale(1.15);
-            }
-          }
-          
-          @keyframes glowPulse {
-            0%, 100% {
-              opacity: 0.5;
-              transform: scale(1);
-            }
-            50% {
-              opacity: 0.8;
-              transform: scale(1.08);
-            }
-          }
-          
-          @keyframes iconFloat {
-            0%, 100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-3px);
-            }
-          }
-          
-          /* User location marker */
           .user-marker {
             background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.4));
             border: 3px solid rgba(255, 255, 255, 0.9);
@@ -688,12 +523,6 @@ export default function HomeScreen() {
           const events = ${eventsJSON};
           const userLocation = ${userLocationJSON};
           
-          console.log('[Map] Events to display:', events.length);
-          events.forEach((e, i) => {
-            console.log('[Map] Event', i, ':', e.description, 'with', e.attendees, 'attendees at', e.latitude, e.longitude);
-          });
-          
-          // Initialize map with extended zoom range
           const map = L.map('map', {
             zoomControl: false,
             attributionControl: false,
@@ -701,10 +530,8 @@ export default function HomeScreen() {
             maxZoom: 20
           }).setView([${mapCenter.lat}, ${mapCenter.lng}], 14);
           
-          // Store map globally for external access
           window.map = map;
           
-          // Add MapTiler Streets tile layer
           L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}@2x.png?key=DRK7TsTMDfLaHMdlzmoz', {
             attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 20,
@@ -713,7 +540,6 @@ export default function HomeScreen() {
             zoomOffset: -1
           }).addTo(map);
           
-          // Add user location marker if available
           if (userLocation) {
             const userIcon = L.divIcon({
               className: 'custom-marker',
@@ -726,37 +552,24 @@ export default function HomeScreen() {
               .addTo(map);
           }
           
-          // Calculate bubble size based on attendees - SMALLER BASE SIZE
           function calculateBubbleSize(attendees) {
-            // Base size: 45px for 1 person (reduced from 60px)
-            // Scale: +8px per additional attendee (reduced from 10px)
-            // Max: 120px (reduced from 140px)
-            const baseSize = 45;
-            const scale = 8;
-            const maxSize = 120;
+            const baseSize = 55;
+            const scale = 12;
+            const maxSize = 140;
             const calculatedSize = baseSize + ((attendees - 1) * scale);
             return Math.min(calculatedSize, maxSize);
           }
           
-          // Add event markers with smaller, colorful, translucent bubbles
           console.log('[Map] Adding', events.length, 'event markers to map');
           events.forEach((event, index) => {
             const size = calculateBubbleSize(event.attendees);
-            const iconSize = Math.min(20 + (event.attendees * 1.5), 38);
             
-            console.log('[Map] Adding marker', index, 'for event:', event.description, 'with', event.attendees, 'attendees, bubble size:', size, 'px');
+            console.log('[Map] Adding marker', index, 'for event:', event.description, 'with', event.attendees, 'attendees, size:', size);
             
+            // Create transparent marker - the Skia bubble will be rendered on top
             const eventIcon = L.divIcon({
               className: 'custom-marker',
-              html: \`
-                <div class="bubble-marker" style="width:\${size}px; height:\${size}px;">
-                  <div class="bubble-glow"></div>
-                  <div class="bubble-body"></div>
-                  <div class="bubble-shimmer"></div>
-                  <div class="bubble-shimmer-secondary"></div>
-                  <div class="bubble-icon" style="font-size:\${iconSize}px;">\${event.icon}</div>
-                </div>
-              \`,
+              html: '<div style="width: 100%; height: 100%; background: transparent;"></div>',
               iconSize: [size, size],
               iconAnchor: [size/2, size/2]
             });
@@ -764,9 +577,6 @@ export default function HomeScreen() {
             const marker = L.marker([event.latitude, event.longitude], { icon: eventIcon })
               .addTo(map);
             
-            console.log('[Map] Marker', index, 'added successfully');
-            
-            // Only send click event to React Native - no popup
             marker.on('click', () => {
               console.log('[Map] Marker clicked:', event.description);
               window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -776,9 +586,6 @@ export default function HomeScreen() {
             });
           });
           
-          console.log('[Map] All markers added. Total markers:', events.length);
-          
-          // Handle map clicks
           map.on('click', (e) => {
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'mapClick',
@@ -824,6 +631,40 @@ export default function HomeScreen() {
           scalesPageToFit={true}
           scrollEnabled={false}
         />
+
+        {/* Overlay Skia bubbles on top of map */}
+        <View style={styles.bubblesOverlay} pointerEvents="box-none">
+          {filteredEvents.map((event, index) => {
+            const bubbleSize = calculateBubbleSize(event.attendees);
+            const position = latLngToScreen(event.latitude, event.longitude);
+            
+            // Only render if within screen bounds (with some margin)
+            if (position.x < -bubbleSize || position.x > width + bubbleSize ||
+                position.y < -bubbleSize || position.y > height + bubbleSize) {
+              return null;
+            }
+            
+            return (
+              <Pressable
+                key={index}
+                style={[
+                  styles.bubbleContainer,
+                  {
+                    left: position.x - bubbleSize / 2,
+                    top: position.y - bubbleSize / 2,
+                  }
+                ]}
+                onPress={() => handleEventClick(event)}
+              >
+                <LiquidBubble
+                  size={bubbleSize}
+                  icon={event.icon}
+                  attendees={event.attendees}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
 
         {filteredEvents.length === 0 && filter === "interests" && !loading && (
           <View style={styles.noEventsOverlay}>
@@ -1051,6 +892,13 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: '#0a0a0a',
+  },
+  bubblesOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
+  },
+  bubbleContainer: {
+    position: 'absolute',
   },
   noEventsOverlay: {
     ...StyleSheet.absoluteFillObject,

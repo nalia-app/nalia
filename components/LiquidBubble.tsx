@@ -1,6 +1,6 @@
 
-import React, { useEffect } from 'react';
-import { Canvas, Circle, Group, LinearGradient, vec, Blur } from '@shopify/react-native-skia';
+import React, { useEffect, useState } from 'react';
+import { Canvas, Circle, Group, LinearGradient, vec, Blur, useCanvasRef } from '@shopify/react-native-skia';
 import { useSharedValue, withRepeat, withTiming, Easing, useDerivedValue, withSequence } from 'react-native-reanimated';
 import { View, StyleSheet, Text } from 'react-native';
 
@@ -11,6 +11,8 @@ interface LiquidBubbleProps {
 }
 
 export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendees }) => {
+  const [isReady, setIsReady] = useState(false);
+  
   // Animation values for liquid effect
   const pulse = useSharedValue(0);
   const shimmer = useSharedValue(0);
@@ -19,10 +21,21 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
   const glow = useSharedValue(0);
 
   useEffect(() => {
+    // Small delay to ensure Skia is ready
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) return;
+
     // Pulse animation - gentle breathing effect
     pulse.value = withRepeat(
       withTiming(1, {
-        duration: 3000 + (attendees * 100), // Larger bubbles pulse slower
+        duration: 3000 + (attendees * 100),
         easing: Easing.inOut(Easing.ease),
       }),
       -1,
@@ -67,78 +80,57 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
       -1,
       false
     );
-  }, [attendees]);
+  }, [isReady, attendees]);
 
   // Derived values for smooth animations
   const pulseScale = useDerivedValue(() => {
+    if (!isReady) return 1;
     return 1 + pulse.value * 0.06;
   });
 
   const shimmerOpacity = useDerivedValue(() => {
+    if (!isReady) return 0.5;
     return 0.4 + shimmer.value * 0.3;
   });
 
   const wave1Offset = useDerivedValue(() => {
+    if (!isReady) return 0;
     return Math.sin(wave1.value * Math.PI * 2) * 6;
   });
 
   const wave2Offset = useDerivedValue(() => {
+    if (!isReady) return 0;
     return Math.cos(wave2.value * Math.PI * 2) * 8;
   });
 
   const glowIntensity = useDerivedValue(() => {
+    if (!isReady) return 0.5;
     return 0.3 + glow.value * 0.4;
   });
 
   const center = size / 2;
   const radius = size / 2 - 6;
 
-  // Enhanced purple color palette with more vibrant colors
-  const purpleGradient = [
-    'rgba(187, 134, 252, 0.45)', // Primary purple - more opaque
-    'rgba(139, 92, 246, 0.38)',   // Deep purple
-    'rgba(168, 85, 247, 0.35)',   // Violet
-    'rgba(126, 58, 242, 0.3)',    // Dark purple
-  ];
-
-  const accentGradient = [
-    'rgba(255, 64, 129, 0.35)',  // Pink accent
-    'rgba(236, 72, 153, 0.3)',   // Rose
-    'rgba(219, 39, 119, 0.25)',  // Deep pink
-  ];
-
-  const cyanGradient = [
-    'rgba(3, 218, 198, 0.32)',   // Cyan accent
-    'rgba(20, 184, 166, 0.28)',  // Teal
-    'rgba(6, 182, 212, 0.24)',   // Sky
-  ];
-
-  // Outer glow colors - more vibrant
-  const glowColors = [
-    'rgba(187, 134, 252, 0.6)',
-    'rgba(168, 85, 247, 0.45)',
-    'rgba(255, 64, 129, 0.35)',
-    'rgba(3, 218, 198, 0.25)',
-    'transparent',
-  ];
-
-  // Shimmer highlight colors
-  const shimmerColors = [
-    'rgba(255, 255, 255, 0.7)',
-    'rgba(187, 134, 252, 0.5)',
-    'rgba(255, 255, 255, 0.3)',
-    'transparent',
-  ];
-
-  // Inner glow colors
-  const innerGlowColors = [
-    'rgba(255, 64, 129, 0.25)',
-    'rgba(187, 134, 252, 0.2)',
-    'transparent',
-  ];
-
   // Calculate icon size based on bubble size and attendees
   const iconSize = Math.min(18 + (attendees * 1.8), 42);
+
+  if (!isReady) {
+    // Render a simple placeholder while Skia initializes
+    return (
+      <View style={[styles.container, { width: size, height: size }]}>
+        <View style={[styles.placeholder, { width: size, height: size, borderRadius: size / 2 }]}>
+          <Text style={[styles.icon, { fontSize: iconSize }]}>{icon}</Text>
+        </View>
+        {attendees > 5 && (
+          <View style={styles.badgeContainer}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{attendees}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -149,7 +141,13 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
             <LinearGradient
               start={vec(0, 0)}
               end={vec(size, size)}
-              colors={glowColors}
+              colors={[
+                'rgba(187, 134, 252, 0.6)',
+                'rgba(168, 85, 247, 0.45)',
+                'rgba(255, 64, 129, 0.35)',
+                'rgba(3, 218, 198, 0.25)',
+                'transparent',
+              ]}
             />
             <Blur blur={25} />
           </Circle>
@@ -177,7 +175,12 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
             <LinearGradient
               start={vec(size * 0.15, size * 0.15)}
               end={vec(size * 0.85, size * 0.85)}
-              colors={purpleGradient}
+              colors={[
+                'rgba(187, 134, 252, 0.45)',
+                'rgba(139, 92, 246, 0.38)',
+                'rgba(168, 85, 247, 0.35)',
+                'rgba(126, 58, 242, 0.3)',
+              ]}
             />
           </Circle>
         </Group>
@@ -192,7 +195,11 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
             <LinearGradient
               start={vec(center - radius * 0.5, center - radius * 0.5)}
               end={vec(center + radius * 0.5, center + radius * 0.5)}
-              colors={accentGradient}
+              colors={[
+                'rgba(255, 64, 129, 0.35)',
+                'rgba(236, 72, 153, 0.3)',
+                'rgba(219, 39, 119, 0.25)',
+              ]}
             />
             <Blur blur={16} />
           </Circle>
@@ -208,7 +215,11 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
             <LinearGradient
               start={vec(center, center)}
               end={vec(center + radius, center + radius)}
-              colors={cyanGradient}
+              colors={[
+                'rgba(3, 218, 198, 0.32)',
+                'rgba(20, 184, 166, 0.28)',
+                'rgba(6, 182, 212, 0.24)',
+              ]}
             />
             <Blur blur={14} />
           </Circle>
@@ -224,7 +235,12 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
             <LinearGradient
               start={vec(center - radius * 0.6, center - radius * 0.6)}
               end={vec(center - radius * 0.1, center - radius * 0.1)}
-              colors={shimmerColors}
+              colors={[
+                'rgba(255, 255, 255, 0.7)',
+                'rgba(187, 134, 252, 0.5)',
+                'rgba(255, 255, 255, 0.3)',
+                'transparent',
+              ]}
             />
             <Blur blur={14} />
           </Circle>
@@ -257,7 +273,11 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
             <LinearGradient
               start={vec(center, center)}
               end={vec(center + radius * 0.6, center + radius * 0.6)}
-              colors={innerGlowColors}
+              colors={[
+                'rgba(255, 64, 129, 0.25)',
+                'rgba(187, 134, 252, 0.2)',
+                'transparent',
+              ]}
             />
             <Blur blur={20} />
           </Circle>
@@ -334,6 +354,13 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  placeholder: {
+    backgroundColor: 'rgba(187, 134, 252, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(187, 134, 252, 0.7)',
   },
   iconContainer: {
     position: 'absolute',

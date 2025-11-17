@@ -8,14 +8,15 @@ import {
   Image,
   Pressable,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
-import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
-import { KeyboardAwareComposer } from "@/components/KeyboardAwareComposer";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -41,7 +42,7 @@ export default function ChatScreen() {
   const [eventName, setEventName] = useState("Event Chat");
   const [eventIcon, setEventIcon] = useState("");
   const [participantCount, setParticipantCount] = useState(0);
-  const scrollViewRef = useRef<any>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -139,6 +140,11 @@ export default function ChatScreen() {
       }));
 
       setMessages(formattedMessages);
+      
+      // Scroll to bottom after loading messages
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 100);
     } catch (error: any) {
       console.error("Error loading messages:", error);
     } finally {
@@ -171,6 +177,11 @@ export default function ChatScreen() {
           },
         ]);
         
+        // Scroll to bottom when new message arrives
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+        
         // Mark new messages as read
         markMessagesAsRead();
       })
@@ -199,6 +210,11 @@ export default function ChatScreen() {
       
       // Clear the message input after successful send
       setMessage("");
+      
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error: any) {
       console.error("Error sending message:", error);
       // Don't clear message on error so user can retry
@@ -259,13 +275,20 @@ export default function ChatScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.contentContainer}>
-          <KeyboardAwareScrollView
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        >
+          <ScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
-            extraScrollHeight={100}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }}
           >
             {messages.map((msg) => (
               <View
@@ -317,21 +340,41 @@ export default function ChatScreen() {
                 </Text>
               </View>
             ))}
-            {/* Extra space for composer */}
-            <View style={{ height: 120 }} />
-          </KeyboardAwareScrollView>
+          </ScrollView>
 
-          <KeyboardAwareComposer
-            value={message}
-            onChangeText={setMessage}
-            onSend={handleSend}
-            placeholder="Type a message..."
-            disabled={false}
-            sending={sending}
-            maxLines={5}
-            sendButtonColor={colors.primary}
-          />
-        </View>
+          <View style={styles.composerContainer}>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Type a message..."
+                placeholderTextColor={colors.textSecondary}
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                editable={!sending}
+                maxLength={1000}
+              />
+              <Pressable
+                style={[
+                  styles.sendButton,
+                  (!message.trim() || sending) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSend}
+                disabled={!message.trim() || sending}
+              >
+                <IconSymbol
+                  name="arrow.up.circle.fill"
+                  size={36}
+                  color={
+                    message.trim() && !sending
+                      ? colors.primary
+                      : colors.textSecondary
+                  }
+                />
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -389,9 +432,8 @@ const styles = StyleSheet.create({
   infoButton: {
     padding: 8,
   },
-  contentContainer: {
+  keyboardAvoidingView: {
     flex: 1,
-    position: 'relative',
   },
   messagesContainer: {
     flex: 1,
@@ -399,6 +441,7 @@ const styles = StyleSheet.create({
   messagesContent: {
     paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingBottom: 8,
   },
   messageWrapper: {
     marginBottom: 16,
@@ -467,9 +510,41 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
   timestampMe: {
-    color: '#FFFFFF', // Pure white for maximum readability on purple background
+    color: '#FFFFFF',
   },
   timestampOther: {
     color: colors.textSecondary,
+  },
+  composerContainer: {
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.highlight,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  input: {
+    flex: 1,
+    backgroundColor: colors.highlight,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: colors.text,
+    marginRight: 8,
+    minHeight: 40,
+    maxHeight: 100,
+  },
+  sendButton: {
+    padding: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
 });

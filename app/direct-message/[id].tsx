@@ -6,8 +6,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/styles/commonStyles";
 import { supabase } from "@/app/integrations/supabase/client";
-import { KeyboardAwareScrollView } from "@/components/KeyboardAwareScrollView";
-import { KeyboardAwareComposer } from "@/components/KeyboardAwareComposer";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   View,
@@ -16,6 +14,10 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -38,7 +40,7 @@ export default function DirectMessageScreen() {
   const [otherUserAvatar, setOtherUserAvatar] = useState<string | null>(null);
   const router = useRouter();
   const { id: otherUserId } = useLocalSearchParams();
-  const scrollViewRef = useRef<any>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -122,6 +124,11 @@ export default function DirectMessageScreen() {
       }));
 
       setMessages(formattedMessages);
+      
+      // Scroll to bottom after loading messages
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 100);
     } catch (error: any) {
       console.error("Error loading messages:", error);
     } finally {
@@ -185,6 +192,11 @@ export default function DirectMessageScreen() {
       
       // Clear the message input after successful send
       setNewMessage("");
+      
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
     } catch (error: any) {
       console.error("Error sending message:", error);
       // Don't clear message on error so user can retry
@@ -243,13 +255,20 @@ export default function DirectMessageScreen() {
           </View>
         </View>
 
-        <View style={styles.contentContainer}>
-          <KeyboardAwareScrollView
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        >
+          <ScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
-            extraScrollHeight={100}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }}
           >
             {messages.map((message) => (
               <View
@@ -291,22 +310,41 @@ export default function DirectMessageScreen() {
                 </Text>
               </View>
             )}
-            
-            {/* Extra space for composer */}
-            <View style={{ height: 120 }} />
-          </KeyboardAwareScrollView>
+          </ScrollView>
 
-          <KeyboardAwareComposer
-            value={newMessage}
-            onChangeText={setNewMessage}
-            onSend={handleSend}
-            placeholder="Type a message..."
-            disabled={false}
-            sending={sending}
-            maxLines={5}
-            sendButtonColor={colors.primary}
-          />
-        </View>
+          <View style={styles.composerContainer}>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Type a message..."
+                placeholderTextColor={colors.textSecondary}
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                editable={!sending}
+                maxLength={1000}
+              />
+              <Pressable
+                style={[
+                  styles.sendButton,
+                  (!newMessage.trim() || sending) && styles.sendButtonDisabled,
+                ]}
+                onPress={handleSend}
+                disabled={!newMessage.trim() || sending}
+              >
+                <IconSymbol
+                  name="arrow.up.circle.fill"
+                  size={36}
+                  color={
+                    newMessage.trim() && !sending
+                      ? colors.primary
+                      : colors.textSecondary
+                  }
+                />
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -364,15 +402,15 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: colors.text,
   },
-  contentContainer: {
+  keyboardAvoidingView: {
     flex: 1,
-    position: 'relative',
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
     padding: 16,
+    paddingBottom: 8,
   },
   messageWrapper: {
     marginBottom: 12,
@@ -406,7 +444,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
   },
   messageTimeMe: {
-    color: '#FFFFFF', // Pure white for maximum readability on purple background
+    color: '#FFFFFF',
   },
   messageTimeOther: {
     color: colors.textSecondary,
@@ -426,5 +464,37 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  composerContainer: {
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.highlight,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  input: {
+    flex: 1,
+    backgroundColor: colors.highlight,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: colors.text,
+    marginRight: 8,
+    minHeight: 40,
+    maxHeight: 100,
+  },
+  sendButton: {
+    padding: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
 });

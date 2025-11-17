@@ -9,7 +9,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
-      "node": "20.18.0",
+      "node": "lts",
       "ios": {
         "simulator": false,
         "buildConfiguration": "Debug",
@@ -23,7 +23,7 @@
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
-      "node": "20.18.0",
+      "node": "lts",
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",
@@ -36,7 +36,7 @@
     },
     "production": {
       "autoIncrement": true,
-      "node": "20.18.0",
+      "node": "lts",
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",

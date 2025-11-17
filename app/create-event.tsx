@@ -903,7 +903,7 @@ export default function CreateEventScreen() {
               <DateTimePicker
                 value={date}
                 mode="date"
-                display="default"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onDateChange}
                 minimumDate={new Date()}
               />
@@ -912,7 +912,7 @@ export default function CreateEventScreen() {
               <DateTimePicker
                 value={time}
                 mode="time"
-                display="default"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onTimeChange}
               />
             )}

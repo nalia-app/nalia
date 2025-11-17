@@ -611,12 +611,12 @@ export default function HomeScreen() {
           
           // Calculate bubble size based on attendees
           function calculateBubbleSize(attendees) {
-            // Base size: 40px for 1 person
+            // Base size: 60px for 1 person (increased from 40px)
             // Scale: +8px per additional attendee
-            // Max: 120px
-            const baseSize = 40;
+            // Max: 140px (increased from 120px)
+            const baseSize = 60;
             const scale = 8;
-            const maxSize = 120;
+            const maxSize = 140;
             const calculatedSize = baseSize + ((attendees - 1) * scale);
             return Math.min(calculatedSize, maxSize);
           }
@@ -625,7 +625,7 @@ export default function HomeScreen() {
           console.log('[Map] Adding', events.length, 'event markers to map');
           events.forEach((event, index) => {
             const size = calculateBubbleSize(event.attendees);
-            const iconSize = Math.min(20 + (event.attendees * 1.5), 38);
+            const iconSize = Math.min(24 + (event.attendees * 1.5), 42);
             
             console.log('[Map] Adding marker', index, 'for event:', event.description, 'with', event.attendees, 'attendees, bubble size:', size, 'px');
             

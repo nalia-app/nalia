@@ -452,6 +452,7 @@ export default function ChatScreen() {
             contentContainerStyle: {
               paddingTop: 8,
             },
+            alwaysBounceVertical: false,
           }}
           textInputProps={{
             returnKeyType: "send",

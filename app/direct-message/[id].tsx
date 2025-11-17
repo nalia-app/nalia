@@ -389,6 +389,7 @@ export default function DirectMessageScreen() {
             contentContainerStyle: {
               paddingTop: 8,
             },
+            alwaysBounceVertical: false,
           }}
           textInputProps={{
             returnKeyType: "send",

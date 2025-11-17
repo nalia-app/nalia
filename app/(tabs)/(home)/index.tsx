@@ -51,6 +51,12 @@ interface EventBubble {
   recurrenceType: string | null;
 }
 
+interface EventPosition {
+  id: string;
+  x: number;
+  y: number;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useUser();
@@ -65,6 +71,7 @@ export default function HomeScreen() {
   const webViewRef = useRef<WebView>(null);
   const [mapKey, setMapKey] = useState(0);
   const lastReloadTimeRef = useRef<number>(0);
+  const [eventPositions, setEventPositions] = useState<EventPosition[]>([]);
 
   const loadLocation = async () => {
     try {
@@ -304,8 +311,23 @@ export default function HomeScreen() {
     if (events.length > 0) {
       console.log('[HomeScreen] Events updated, reloading map. Event count:', events.length);
       setMapKey(prev => prev + 1);
+      // Request position updates from the map
+      requestPositionUpdates();
     }
   }, [events]);
+
+  // Request position updates from the map
+  const requestPositionUpdates = () => {
+    if (webViewRef.current) {
+      console.log('[HomeScreen] Requesting position updates from map');
+      webViewRef.current.injectJavaScript(`
+        if (window.updateBubblePositions) {
+          window.updateBubblePositions();
+        }
+        true;
+      `);
+    }
+  };
 
   // Filter events based on user interests
   const filteredEvents = filter === "interests" && user?.interests
@@ -420,23 +442,6 @@ export default function HomeScreen() {
     return Math.min(calculatedSize, maxSize);
   };
 
-  // Convert lat/lng to screen coordinates (simplified for demo)
-  const latLngToScreen = (lat: number, lng: number) => {
-    if (!location) return { x: 0, y: 0 };
-    
-    // Simple mercator projection approximation
-    const centerLat = mapCenter.lat;
-    const centerLng = mapCenter.lng;
-    
-    // Scale factor (adjust based on zoom level)
-    const scale = 100000;
-    
-    const x = (lng - centerLng) * scale + width / 2;
-    const y = (centerLat - lat) * scale + height / 2;
-    
-    return { x, y };
-  };
-
   // Generate HTML for the map
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
@@ -493,6 +498,21 @@ export default function HomeScreen() {
             cursor: pointer;
           }
           
+          .event-marker-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+          }
+          
+          .event-marker-icon {
+            font-size: 24px;
+            text-align: center;
+            filter: drop-shadow(0 0 8px rgba(187, 134, 252, 0.8));
+          }
+          
           .user-marker {
             background: radial-gradient(circle, rgba(3, 218, 198, 1), rgba(3, 218, 198, 0.4));
             border: 3px solid rgba(255, 255, 255, 0.9);
@@ -522,6 +542,7 @@ export default function HomeScreen() {
           console.log('[Map] Initializing with', ${filteredEvents.length}, 'events');
           const events = ${eventsJSON};
           const userLocation = ${userLocationJSON};
+          const eventMarkers = {};
           
           const map = L.map('map', {
             zoomControl: false,
@@ -560,22 +581,49 @@ export default function HomeScreen() {
             return Math.min(calculatedSize, maxSize);
           }
           
+          function updateBubblePositions() {
+            console.log('[Map] Updating bubble positions');
+            const positions = [];
+            
+            events.forEach((event) => {
+              const marker = eventMarkers[event.id];
+              if (marker) {
+                const point = map.latLngToContainerPoint([event.latitude, event.longitude]);
+                positions.push({
+                  id: event.id,
+                  x: point.x,
+                  y: point.y
+                });
+              }
+            });
+            
+            console.log('[Map] Sending', positions.length, 'positions to React Native');
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'positionUpdate',
+              positions: positions
+            }));
+          }
+          
+          window.updateBubblePositions = updateBubblePositions;
+          
           console.log('[Map] Adding', events.length, 'event markers to map');
           events.forEach((event, index) => {
             const size = calculateBubbleSize(event.attendees);
             
-            console.log('[Map] Adding marker', index, 'for event:', event.description, 'with', event.attendees, 'attendees, size:', size);
+            console.log('[Map] Adding marker', index, 'for event:', event.description, 'at', event.latitude, event.longitude);
             
-            // Create transparent marker - the Skia bubble will be rendered on top
+            // Create marker with icon visible
             const eventIcon = L.divIcon({
               className: 'custom-marker',
-              html: '<div style="width: 100%; height: 100%; background: transparent;"></div>',
+              html: '<div class="event-marker-container"><div class="event-marker-icon">' + event.icon + '</div></div>',
               iconSize: [size, size],
               iconAnchor: [size/2, size/2]
             });
             
             const marker = L.marker([event.latitude, event.longitude], { icon: eventIcon })
               .addTo(map);
+            
+            eventMarkers[event.id] = marker;
             
             marker.on('click', () => {
               console.log('[Map] Marker clicked:', event.description);
@@ -585,6 +633,15 @@ export default function HomeScreen() {
               }));
             });
           });
+          
+          // Update positions after markers are added
+          setTimeout(() => {
+            updateBubblePositions();
+          }, 100);
+          
+          // Update positions on map move/zoom
+          map.on('moveend', updateBubblePositions);
+          map.on('zoomend', updateBubblePositions);
           
           map.on('click', (e) => {
             window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -605,13 +662,16 @@ export default function HomeScreen() {
       
       if (data.type === 'eventClick') {
         const eventData = data.event;
-        console.log('Event clicked:', eventData.id);
+        console.log('[HomeScreen] Event clicked:', eventData.id);
         handleEventClick(eventData);
       } else if (data.type === 'mapClick') {
-        console.log('Map clicked at:', data.lat, data.lng);
+        console.log('[HomeScreen] Map clicked at:', data.lat, data.lng);
+      } else if (data.type === 'positionUpdate') {
+        console.log('[HomeScreen] Received position update with', data.positions.length, 'positions');
+        setEventPositions(data.positions);
       }
     } catch (error) {
-      console.log('Error parsing WebView message:', error);
+      console.log('[HomeScreen] Error parsing WebView message:', error);
     }
   };
 
@@ -630,13 +690,23 @@ export default function HomeScreen() {
           startInLoadingState={true}
           scalesPageToFit={true}
           scrollEnabled={false}
+          onLoad={() => {
+            console.log('[HomeScreen] WebView loaded, requesting initial positions');
+            requestPositionUpdates();
+          }}
         />
 
         {/* Overlay Skia bubbles on top of map */}
         <View style={styles.bubblesOverlay} pointerEvents="box-none">
           {filteredEvents.map((event, index) => {
             const bubbleSize = calculateBubbleSize(event.attendees);
-            const position = latLngToScreen(event.latitude, event.longitude);
+            const position = eventPositions.find(p => p.id === event.id);
+            
+            // Only render if we have position data
+            if (!position) {
+              console.log('[HomeScreen] No position data for event:', event.id);
+              return null;
+            }
             
             // Only render if within screen bounds (with some margin)
             if (position.x < -bubbleSize || position.x > width + bubbleSize ||
@@ -644,9 +714,11 @@ export default function HomeScreen() {
               return null;
             }
             
+            console.log('[HomeScreen] Rendering bubble for event:', event.id, 'at', position.x, position.y);
+            
             return (
               <Pressable
-                key={index}
+                key={event.id}
                 style={[
                   styles.bubbleContainer,
                   {

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Canvas, Circle, Group, LinearGradient, vec, Blur, useCanvasRef } from '@shopify/react-native-skia';
+import { Canvas, Circle, Group, LinearGradient, vec, Blur } from '@shopify/react-native-skia';
 import { useSharedValue, withRepeat, withTiming, Easing, useDerivedValue, withSequence } from 'react-native-reanimated';
 import { View, StyleSheet, Text } from 'react-native';
 
@@ -21,10 +21,10 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
   const glow = useSharedValue(0);
 
   useEffect(() => {
-    // Small delay to ensure Skia is ready
+    // Delay to ensure Skia is ready - increased delay
     const timer = setTimeout(() => {
       setIsReady(true);
-    }, 50);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, []);
@@ -32,81 +32,85 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
   useEffect(() => {
     if (!isReady) return;
 
-    // Pulse animation - gentle breathing effect
-    pulse.value = withRepeat(
-      withTiming(1, {
-        duration: 3000 + (attendees * 100),
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
+    try {
+      // Pulse animation - gentle breathing effect
+      pulse.value = withRepeat(
+        withTiming(1, {
+          duration: 3000 + (attendees * 100),
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true
+      );
 
-    // Shimmer animation - light movement
-    shimmer.value = withRepeat(
-      withTiming(1, {
-        duration: 4000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    );
+      // Shimmer animation - light movement
+      shimmer.value = withRepeat(
+        withTiming(1, {
+          duration: 4000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1,
+        true
+      );
 
-    // Wave animations - liquid distortion
-    wave1.value = withRepeat(
-      withTiming(1, {
-        duration: 5000,
-        easing: Easing.inOut(Easing.sine),
-      }),
-      -1,
-      true
-    );
+      // Wave animations - liquid distortion
+      wave1.value = withRepeat(
+        withTiming(1, {
+          duration: 5000,
+          easing: Easing.inOut(Easing.sine),
+        }),
+        -1,
+        true
+      );
 
-    wave2.value = withRepeat(
-      withTiming(1, {
-        duration: 6500,
-        easing: Easing.inOut(Easing.sine),
-      }),
-      -1,
-      true
-    );
+      wave2.value = withRepeat(
+        withTiming(1, {
+          duration: 6500,
+          easing: Easing.inOut(Easing.sine),
+        }),
+        -1,
+        true
+      );
 
-    // Glow pulsing
-    glow.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-  }, [isReady, attendees]);
+      // Glow pulsing
+      glow.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    } catch (error) {
+      console.error('[LiquidBubble] Error starting animations:', error);
+    }
+  }, [isReady, attendees, pulse, shimmer, wave1, wave2, glow]);
 
   // Derived values for smooth animations
   const pulseScale = useDerivedValue(() => {
     if (!isReady) return 1;
     return 1 + pulse.value * 0.06;
-  });
+  }, [isReady, pulse]);
 
   const shimmerOpacity = useDerivedValue(() => {
     if (!isReady) return 0.5;
     return 0.4 + shimmer.value * 0.3;
-  });
+  }, [isReady, shimmer]);
 
   const wave1Offset = useDerivedValue(() => {
     if (!isReady) return 0;
     return Math.sin(wave1.value * Math.PI * 2) * 6;
-  });
+  }, [isReady, wave1]);
 
   const wave2Offset = useDerivedValue(() => {
     if (!isReady) return 0;
     return Math.cos(wave2.value * Math.PI * 2) * 8;
-  });
+  }, [isReady, wave2]);
 
   const glowIntensity = useDerivedValue(() => {
     if (!isReady) return 0.5;
     return 0.3 + glow.value * 0.4;
-  });
+  }, [isReady, glow]);
 
   const center = size / 2;
   const radius = size / 2 - 6;
@@ -132,221 +136,240 @@ export const LiquidBubble: React.FC<LiquidBubbleProps> = ({ size, icon, attendee
     );
   }
 
-  return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      <Canvas style={{ width: size, height: size }}>
-        {/* Outer glow layer - pulsing */}
-        <Group opacity={glowIntensity}>
-          <Circle cx={center} cy={center} r={radius * 1.4}>
+  try {
+    return (
+      <View style={[styles.container, { width: size, height: size }]}>
+        <Canvas style={{ width: size, height: size }}>
+          {/* Outer glow layer - pulsing */}
+          <Group opacity={glowIntensity}>
+            <Circle cx={center} cy={center} r={radius * 1.4}>
+              <LinearGradient
+                start={vec(0, 0)}
+                end={vec(size, size)}
+                colors={[
+                  'rgba(187, 134, 252, 0.6)',
+                  'rgba(168, 85, 247, 0.45)',
+                  'rgba(255, 64, 129, 0.35)',
+                  'rgba(3, 218, 198, 0.25)',
+                  'transparent',
+                ]}
+              />
+              <Blur blur={25} />
+            </Circle>
+          </Group>
+
+          {/* Secondary glow ring */}
+          <Group opacity={0.5}>
+            <Circle cx={center} cy={center} r={radius * 1.15}>
+              <LinearGradient
+                start={vec(size * 0.3, size * 0.3)}
+                end={vec(size * 0.7, size * 0.7)}
+                colors={[
+                  'rgba(187, 134, 252, 0.4)',
+                  'rgba(168, 85, 247, 0.3)',
+                  'transparent',
+                ]}
+              />
+              <Blur blur={18} />
+            </Circle>
+          </Group>
+
+          {/* Main bubble body with liquid gradient - pulsing */}
+          <Group transform={[{ scale: pulseScale }]} origin={vec(center, center)}>
+            <Circle cx={center} cy={center} r={radius}>
+              <LinearGradient
+                start={vec(size * 0.15, size * 0.15)}
+                end={vec(size * 0.85, size * 0.85)}
+                colors={[
+                  'rgba(187, 134, 252, 0.45)',
+                  'rgba(139, 92, 246, 0.38)',
+                  'rgba(168, 85, 247, 0.35)',
+                  'rgba(126, 58, 242, 0.3)',
+                ]}
+              />
+            </Circle>
+          </Group>
+
+          {/* Liquid distortion layer 1 - creates organic movement */}
+          <Group opacity={0.5}>
+            <Circle 
+              cx={center + wave1Offset} 
+              cy={center - wave2Offset * 0.7} 
+              r={radius * 0.85}
+            >
+              <LinearGradient
+                start={vec(center - radius * 0.5, center - radius * 0.5)}
+                end={vec(center + radius * 0.5, center + radius * 0.5)}
+                colors={[
+                  'rgba(255, 64, 129, 0.35)',
+                  'rgba(236, 72, 153, 0.3)',
+                  'rgba(219, 39, 119, 0.25)',
+                ]}
+              />
+              <Blur blur={16} />
+            </Circle>
+          </Group>
+
+          {/* Liquid distortion layer 2 - cyan accent */}
+          <Group opacity={0.45}>
+            <Circle 
+              cx={center - wave2Offset * 0.6} 
+              cy={center + wave1Offset * 0.8} 
+              r={radius * 0.75}
+            >
+              <LinearGradient
+                start={vec(center, center)}
+                end={vec(center + radius, center + radius)}
+                colors={[
+                  'rgba(3, 218, 198, 0.32)',
+                  'rgba(20, 184, 166, 0.28)',
+                  'rgba(6, 182, 212, 0.24)',
+                ]}
+              />
+              <Blur blur={14} />
+            </Circle>
+          </Group>
+
+          {/* Top-left shimmer highlight */}
+          <Group opacity={shimmerOpacity}>
+            <Circle 
+              cx={center - radius * 0.35 + wave1Offset * 0.5} 
+              cy={center - radius * 0.35 - wave2Offset * 0.3} 
+              r={radius * 0.45}
+            >
+              <LinearGradient
+                start={vec(center - radius * 0.6, center - radius * 0.6)}
+                end={vec(center - radius * 0.1, center - radius * 0.1)}
+                colors={[
+                  'rgba(255, 255, 255, 0.7)',
+                  'rgba(187, 134, 252, 0.5)',
+                  'rgba(255, 255, 255, 0.3)',
+                  'transparent',
+                ]}
+              />
+              <Blur blur={14} />
+            </Circle>
+          </Group>
+
+          {/* Bottom-right shimmer - complementary */}
+          <Group opacity={shimmerOpacity * 0.6}>
+            <Circle 
+              cx={center + radius * 0.3 - wave1Offset * 0.4} 
+              cy={center + radius * 0.3 + wave2Offset * 0.4} 
+              r={radius * 0.35}
+            >
+              <LinearGradient
+                start={vec(center, center)}
+                end={vec(center + radius * 0.6, center + radius * 0.6)}
+                colors={[
+                  'rgba(3, 218, 198, 0.6)',
+                  'rgba(20, 184, 166, 0.4)',
+                  'rgba(139, 92, 246, 0.3)',
+                  'transparent',
+                ]}
+              />
+              <Blur blur={12} />
+            </Circle>
+          </Group>
+
+          {/* Inner glow for depth */}
+          <Group opacity={0.35}>
+            <Circle cx={center} cy={center} r={radius * 0.6}>
+              <LinearGradient
+                start={vec(center, center)}
+                end={vec(center + radius * 0.6, center + radius * 0.6)}
+                colors={[
+                  'rgba(255, 64, 129, 0.25)',
+                  'rgba(187, 134, 252, 0.2)',
+                  'transparent',
+                ]}
+              />
+              <Blur blur={20} />
+            </Circle>
+          </Group>
+
+          {/* Gradient border ring - multi-color */}
+          <Circle cx={center} cy={center} r={radius} style="stroke" strokeWidth={2.5}>
             <LinearGradient
               start={vec(0, 0)}
               end={vec(size, size)}
               colors={[
-                'rgba(187, 134, 252, 0.6)',
-                'rgba(168, 85, 247, 0.45)',
-                'rgba(255, 64, 129, 0.35)',
-                'rgba(3, 218, 198, 0.25)',
-                'transparent',
-              ]}
-            />
-            <Blur blur={25} />
-          </Circle>
-        </Group>
-
-        {/* Secondary glow ring */}
-        <Group opacity={0.5}>
-          <Circle cx={center} cy={center} r={radius * 1.15}>
-            <LinearGradient
-              start={vec(size * 0.3, size * 0.3)}
-              end={vec(size * 0.7, size * 0.7)}
-              colors={[
-                'rgba(187, 134, 252, 0.4)',
-                'rgba(168, 85, 247, 0.3)',
-                'transparent',
-              ]}
-            />
-            <Blur blur={18} />
-          </Circle>
-        </Group>
-
-        {/* Main bubble body with liquid gradient - pulsing */}
-        <Group transform={[{ scale: pulseScale }]} origin={vec(center, center)}>
-          <Circle cx={center} cy={center} r={radius}>
-            <LinearGradient
-              start={vec(size * 0.15, size * 0.15)}
-              end={vec(size * 0.85, size * 0.85)}
-              colors={[
-                'rgba(187, 134, 252, 0.45)',
-                'rgba(139, 92, 246, 0.38)',
-                'rgba(168, 85, 247, 0.35)',
-                'rgba(126, 58, 242, 0.3)',
+                'rgba(187, 134, 252, 0.7)',
+                'rgba(168, 85, 247, 0.65)',
+                'rgba(255, 64, 129, 0.6)',
+                'rgba(3, 218, 198, 0.5)',
+                'rgba(187, 134, 252, 0.7)',
               ]}
             />
           </Circle>
-        </Group>
 
-        {/* Liquid distortion layer 1 - creates organic movement */}
-        <Group opacity={0.5}>
-          <Circle 
-            cx={center + wave1Offset} 
-            cy={center - wave2Offset * 0.7} 
-            r={radius * 0.85}
-          >
+          {/* Inner border for extra definition */}
+          <Circle cx={center} cy={center} r={radius - 1.5} style="stroke" strokeWidth={1} opacity={0.4}>
             <LinearGradient
-              start={vec(center - radius * 0.5, center - radius * 0.5)}
-              end={vec(center + radius * 0.5, center + radius * 0.5)}
+              start={vec(size, 0)}
+              end={vec(0, size)}
               colors={[
-                'rgba(255, 64, 129, 0.35)',
-                'rgba(236, 72, 153, 0.3)',
-                'rgba(219, 39, 119, 0.25)',
-              ]}
-            />
-            <Blur blur={16} />
-          </Circle>
-        </Group>
-
-        {/* Liquid distortion layer 2 - cyan accent */}
-        <Group opacity={0.45}>
-          <Circle 
-            cx={center - wave2Offset * 0.6} 
-            cy={center + wave1Offset * 0.8} 
-            r={radius * 0.75}
-          >
-            <LinearGradient
-              start={vec(center, center)}
-              end={vec(center + radius, center + radius)}
-              colors={[
-                'rgba(3, 218, 198, 0.32)',
-                'rgba(20, 184, 166, 0.28)',
-                'rgba(6, 182, 212, 0.24)',
-              ]}
-            />
-            <Blur blur={14} />
-          </Circle>
-        </Group>
-
-        {/* Top-left shimmer highlight */}
-        <Group opacity={shimmerOpacity}>
-          <Circle 
-            cx={center - radius * 0.35 + wave1Offset * 0.5} 
-            cy={center - radius * 0.35 - wave2Offset * 0.3} 
-            r={radius * 0.45}
-          >
-            <LinearGradient
-              start={vec(center - radius * 0.6, center - radius * 0.6)}
-              end={vec(center - radius * 0.1, center - radius * 0.1)}
-              colors={[
-                'rgba(255, 255, 255, 0.7)',
-                'rgba(187, 134, 252, 0.5)',
-                'rgba(255, 255, 255, 0.3)',
-                'transparent',
-              ]}
-            />
-            <Blur blur={14} />
-          </Circle>
-        </Group>
-
-        {/* Bottom-right shimmer - complementary */}
-        <Group opacity={shimmerOpacity * 0.6}>
-          <Circle 
-            cx={center + radius * 0.3 - wave1Offset * 0.4} 
-            cy={center + radius * 0.3 + wave2Offset * 0.4} 
-            r={radius * 0.35}
-          >
-            <LinearGradient
-              start={vec(center, center)}
-              end={vec(center + radius * 0.6, center + radius * 0.6)}
-              colors={[
-                'rgba(3, 218, 198, 0.6)',
-                'rgba(20, 184, 166, 0.4)',
-                'rgba(139, 92, 246, 0.3)',
-                'transparent',
-              ]}
-            />
-            <Blur blur={12} />
-          </Circle>
-        </Group>
-
-        {/* Inner glow for depth */}
-        <Group opacity={0.35}>
-          <Circle cx={center} cy={center} r={radius * 0.6}>
-            <LinearGradient
-              start={vec(center, center)}
-              end={vec(center + radius * 0.6, center + radius * 0.6)}
-              colors={[
-                'rgba(255, 64, 129, 0.25)',
-                'rgba(187, 134, 252, 0.2)',
-                'transparent',
-              ]}
-            />
-            <Blur blur={20} />
-          </Circle>
-        </Group>
-
-        {/* Gradient border ring - multi-color */}
-        <Circle cx={center} cy={center} r={radius} style="stroke" strokeWidth={2.5}>
-          <LinearGradient
-            start={vec(0, 0)}
-            end={vec(size, size)}
-            colors={[
-              'rgba(187, 134, 252, 0.7)',
-              'rgba(168, 85, 247, 0.65)',
-              'rgba(255, 64, 129, 0.6)',
-              'rgba(3, 218, 198, 0.5)',
-              'rgba(187, 134, 252, 0.7)',
-            ]}
-          />
-        </Circle>
-
-        {/* Inner border for extra definition */}
-        <Circle cx={center} cy={center} r={radius - 1.5} style="stroke" strokeWidth={1} opacity={0.4}>
-          <LinearGradient
-            start={vec(size, 0)}
-            end={vec(0, size)}
-            colors={[
-              'rgba(255, 255, 255, 0.5)',
-              'rgba(187, 134, 252, 0.4)',
-              'rgba(255, 255, 255, 0.3)',
-            ]}
-          />
-        </Circle>
-
-        {/* Subtle sparkle effect - top right */}
-        <Group opacity={shimmerOpacity * 0.8}>
-          <Circle 
-            cx={center + radius * 0.5} 
-            cy={center - radius * 0.5} 
-            r={radius * 0.12}
-          >
-            <LinearGradient
-              start={vec(center + radius * 0.4, center - radius * 0.6)}
-              end={vec(center + radius * 0.6, center - radius * 0.4)}
-              colors={[
-                'rgba(255, 255, 255, 0.9)',
                 'rgba(255, 255, 255, 0.5)',
-                'transparent',
+                'rgba(187, 134, 252, 0.4)',
+                'rgba(255, 255, 255, 0.3)',
               ]}
             />
-            <Blur blur={4} />
           </Circle>
-        </Group>
-      </Canvas>
 
-      {/* Icon overlay */}
-      <View style={styles.iconContainer}>
-        <Text style={[styles.icon, { fontSize: iconSize }]}>{icon}</Text>
-      </View>
+          {/* Subtle sparkle effect - top right */}
+          <Group opacity={shimmerOpacity * 0.8}>
+            <Circle 
+              cx={center + radius * 0.5} 
+              cy={center - radius * 0.5} 
+              r={radius * 0.12}
+            >
+              <LinearGradient
+                start={vec(center + radius * 0.4, center - radius * 0.6)}
+                end={vec(center + radius * 0.6, center - radius * 0.4)}
+                colors={[
+                  'rgba(255, 255, 255, 0.9)',
+                  'rgba(255, 255, 255, 0.5)',
+                  'transparent',
+                ]}
+              />
+              <Blur blur={4} />
+            </Circle>
+          </Group>
+        </Canvas>
 
-      {/* Attendee count badge for larger groups */}
-      {attendees > 5 && (
-        <View style={styles.badgeContainer}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{attendees}</Text>
-          </View>
+        {/* Icon overlay */}
+        <View style={styles.iconContainer}>
+          <Text style={[styles.icon, { fontSize: iconSize }]}>{icon}</Text>
         </View>
-      )}
-    </View>
-  );
+
+        {/* Attendee count badge for larger groups */}
+        {attendees > 5 && (
+          <View style={styles.badgeContainer}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{attendees}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  } catch (error) {
+    console.error('[LiquidBubble] Error rendering Skia canvas:', error);
+    // Fallback to placeholder if Skia rendering fails
+    return (
+      <View style={[styles.container, { width: size, height: size }]}>
+        <View style={[styles.placeholder, { width: size, height: size, borderRadius: size / 2 }]}>
+          <Text style={[styles.icon, { fontSize: iconSize }]}>{icon}</Text>
+        </View>
+        {attendees > 5 && (
+          <View style={styles.badgeContainer}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{attendees}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
 };
 
 const styles = StyleSheet.create({

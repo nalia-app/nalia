@@ -954,7 +954,7 @@ export default function CreateEventScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Tags (comma-separated)</Text>
             <Text style={styles.hint}>
-              Emojis will be removed to ensure #coffee and #☕ coffee match
+              Add keywords for your event. These are suggested based on your interests.
             </Text>
             <TextInput
               style={styles.input}

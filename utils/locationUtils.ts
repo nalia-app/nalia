@@ -42,12 +42,12 @@ function toRad(degrees: number): number {
  * @returns Formatted string
  */
 export function formatDistance(distanceKm: number): string {
-  if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)}m away`;
-  } else if (distanceKm < 10) {
-    return `${distanceKm.toFixed(1)}km away`;
+  if (distanceKm < 10) {
+    return 'Less than 10 km away';
+  } else if (distanceKm < 20) {
+    return 'Less than 20 km away';
   } else {
-    return `${Math.round(distanceKm)}km away`;
+    return 'Less than 50 km away';
   }
 }
 

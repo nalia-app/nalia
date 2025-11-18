@@ -248,12 +248,19 @@ export default function EventDetailScreen() {
       Alert.alert("Info", "You must be an approved attendee to access the chat");
       return;
     }
-    router.push(`/chat/${id}` as any);
+    console.log("[EventDetail] Opening chat for event:", id);
+    router.push({
+      pathname: "/chat/[id]",
+      params: { id: id as string }
+    } as any);
   };
 
   const handleAttendeePress = (userId: string) => {
     console.log('[EventDetail] Opening profile for user:', userId);
-    router.push(`/user-profile/${userId}` as any);
+    router.push({
+      pathname: "/user-profile/[id]",
+      params: { id: userId }
+    } as any);
   };
 
   if (loading) {

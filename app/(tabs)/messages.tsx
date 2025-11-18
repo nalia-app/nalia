@@ -308,11 +308,19 @@ export default function MessagesScreen() {
   };
 
   const handleChatPress = (chat: Chat) => {
-    console.log("Opening chat:", chat.id);
+    console.log("Opening chat:", chat.id, "Type:", chat.type);
     if (chat.type === 'event') {
-      router.push(`/chat/${chat.event_id}` as any);
+      console.log("Navigating to event chat:", chat.event_id);
+      router.push({
+        pathname: "/chat/[id]",
+        params: { id: chat.event_id }
+      } as any);
     } else {
-      router.push(`/direct-message/${chat.other_user_id}` as any);
+      console.log("Navigating to direct message:", chat.other_user_id);
+      router.push({
+        pathname: "/direct-message/[id]",
+        params: { id: chat.other_user_id }
+      } as any);
     }
   };
 

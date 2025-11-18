@@ -70,6 +70,15 @@ export default function CreateEventScreen() {
   const scrollViewRef = useRef<any>(null);
   const savedScrollPosition = useRef<number>(0);
 
+  // Pre-fill tags with user interests
+  useEffect(() => {
+    if (user?.interests && user.interests.length > 0) {
+      const interestsString = user.interests.join(", ");
+      setTags(interestsString);
+      console.log('[CreateEvent] Pre-filled tags with user interests:', interestsString);
+    }
+  }, [user?.interests]);
+
   useEffect(() => {
     loadLocation();
     

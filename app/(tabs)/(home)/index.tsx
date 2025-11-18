@@ -15,13 +15,6 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  withSequence,
-} from "react-native-reanimated";
 import * as Location from "expo-location";
 import { useUser } from "@/contexts/UserContext";
 import { SafeAreaView } from "react-native-safe-area-context";

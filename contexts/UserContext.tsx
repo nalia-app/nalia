@@ -211,20 +211,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const value = {
+    user,
+    isOnboarded,
+    isLoading,
+    session,
+    setUser,
+    completeOnboarding,
+    updateProfile,
+    logout,
+    refreshUser,
+  };
+
   return (
-    <UserContext.Provider
-      value={{
-        user,
-        isOnboarded,
-        isLoading,
-        session,
-        setUser,
-        completeOnboarding,
-        updateProfile,
-        logout,
-        refreshUser,
-      }}
-    >
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   );

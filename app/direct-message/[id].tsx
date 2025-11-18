@@ -51,6 +51,48 @@ export default function DirectMessageScreen() {
   const { id: otherUserId } = useLocalSearchParams();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  const loadMessages = async () => {
+    if (!user || !otherUserId) return;
+
+    try {
+      setLoading(true);
+      console.log("Loading direct messages");
+
+      const { data, error } = await supabase
+        .from("direct_messages")
+        .select(`
+          id,
+          sender_id,
+          text,
+          created_at,
+          profiles!direct_messages_sender_id_fkey(name, avatar_url)
+        `)
+        .or(
+          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const formattedMessages: IMessage[] = (data || []).map((msg) => ({
+        _id: msg.id,
+        text: msg.text,
+        createdAt: new Date(msg.created_at),
+        user: {
+          _id: msg.sender_id,
+          name: (msg.profiles as any)?.name || "Unknown",
+          avatar: (msg.profiles as any)?.avatar_url || undefined,
+        },
+      }));
+
+      setMessages(formattedMessages);
+    } catch (error: any) {
+      console.error("Error loading messages:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (otherUserId && user) {
       loadOtherUser();
@@ -95,48 +137,6 @@ export default function DirectMessageScreen() {
         .eq("read", false);
     } catch (error: any) {
       console.error("Error marking messages as read:", error);
-    }
-  };
-
-  const loadMessages = async () => {
-    if (!user || !otherUserId) return;
-
-    try {
-      setLoading(true);
-      console.log("Loading direct messages");
-
-      const { data, error } = await supabase
-        .from("direct_messages")
-        .select(`
-          id,
-          sender_id,
-          text,
-          created_at,
-          profiles!direct_messages_sender_id_fkey(name, avatar_url)
-        `)
-        .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`
-        )
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const formattedMessages: IMessage[] = (data || []).map((msg) => ({
-        _id: msg.id,
-        text: msg.text,
-        createdAt: new Date(msg.created_at),
-        user: {
-          _id: msg.sender_id,
-          name: (msg.profiles as any)?.name || "Unknown",
-          avatar: (msg.profiles as any)?.avatar_url || undefined,
-        },
-      }));
-
-      setMessages(formattedMessages);
-    } catch (error: any) {
-      console.error("Error loading messages:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -195,7 +195,7 @@ export default function DirectMessageScreen() {
     } catch (error: any) {
       console.error("Error sending message:", error);
     }
-  }, [user, otherUserId]);
+  }, [user, otherUserId, loadMessages]);
 
   const renderBubble = (props: any) => {
     return (
@@ -293,7 +293,7 @@ export default function DirectMessageScreen() {
   };
 
   const renderSend = (props: any) => {
-    const hasText = props.text?.trim().length > 0;
+    const hasText = props.text && props.text.trim && props.text.trim().length > 0;
     
     return (
       <Send 

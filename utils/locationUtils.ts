@@ -1,4 +1,6 @@
 
+import * as Location from 'expo-location';
+
 /**
  * Calculate distance between two coordinates using Haversine formula
  * @param lat1 Latitude of first point
@@ -61,8 +63,6 @@ export async function reverseGeocodeLocation(
   longitude: number
 ): Promise<string | null> {
   try {
-    const Location = require('expo-location');
-    
     console.log('[LocationUtils] Reverse geocoding:', latitude, longitude);
     
     const results = await Location.reverseGeocodeAsync({

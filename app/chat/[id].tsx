@@ -221,8 +221,6 @@ export default function ChatScreen() {
   }, [user, id]);
 
   const renderBubble = (props: any) => {
-    const isCurrentUser = props.currentMessage?.user._id === user?.id;
-    
     return (
       <Bubble
         {...props}
@@ -324,7 +322,7 @@ export default function ChatScreen() {
   };
 
   const renderSend = (props: any) => {
-    const hasText = props.text?.trim().length > 0;
+    const hasText = props.text && props.text.trim && props.text.trim().length > 0;
     
     return (
       <Send 
@@ -352,11 +350,13 @@ export default function ChatScreen() {
   };
 
   const renderAvatar = (props: any) => {
-    if (props.currentMessage?.user._id === user?.id) {
+    const isCurrentUser = props.currentMessage && props.currentMessage.user && props.currentMessage.user._id === user?.id;
+    
+    if (isCurrentUser) {
       return null;
     }
 
-    const avatarUrl = props.currentMessage?.user.avatar;
+    const avatarUrl = props.currentMessage && props.currentMessage.user && props.currentMessage.user.avatar;
 
     return (
       <View style={styles.avatarContainer}>

@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
@@ -245,7 +246,7 @@ export default function HomeScreen() {
   const reloadEvents = React.useCallback(async () => {
     console.log('[HomeScreen] Reloading events...');
     await loadEvents();
-  }, []);
+  }, [loadEvents]);
 
   useEffect(() => {
     console.log('[HomeScreen] Initializing...');
@@ -338,7 +339,7 @@ export default function HomeScreen() {
           loadUnreadNotificationsCount();
         }
       }
-    }, [reloadEvents, user])
+    }, [reloadEvents, user, loadUnreadNotificationsCount])
   );
 
   useEffect(() => {

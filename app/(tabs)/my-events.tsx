@@ -28,6 +28,7 @@ interface Event {
   tags: string[];
   attendees: number;
   isHosting: boolean;
+  pendingRequests: number;
 }
 
 export default function MyEventsScreen() {
@@ -67,17 +68,25 @@ export default function MyEventsScreen() {
 
       if (attendingError) throw attendingError;
 
-      // Get attendee counts for hosted events
+      // Get attendee counts and pending requests for hosted events
       const hostedEventsWithCounts = await Promise.all(
         (hostedEvents || []).map(async (event) => {
-          const { count } = await supabase
+          const { count: approvedCount } = await supabase
             .from('event_attendees')
             .select('*', { count: 'exact', head: true })
             .eq('event_id', event.id)
             .eq('status', 'approved');
 
-          const attendeeCount = count || 0;
-          console.log(`[MyEventsScreen] Hosted event "${event.description}" has ${attendeeCount} attendees`);
+          const { count: pendingCount } = await supabase
+            .from('event_attendees')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id)
+            .eq('status', 'pending');
+
+          const attendeeCount = approvedCount || 0;
+          const pendingRequests = pendingCount || 0;
+          
+          console.log(`[MyEventsScreen] Hosted event "${event.description}" has ${attendeeCount} attendees and ${pendingRequests} pending requests`);
 
           return {
             id: event.id,
@@ -90,6 +99,7 @@ export default function MyEventsScreen() {
             tags: event.tags || [],
             attendees: attendeeCount,
             isHosting: true,
+            pendingRequests,
           };
         })
       );
@@ -121,6 +131,7 @@ export default function MyEventsScreen() {
               tags: event.tags || [],
               attendees: attendeeCount,
               isHosting: false,
+              pendingRequests: 0,
             };
           })
       );
@@ -306,6 +317,11 @@ export default function MyEventsScreen() {
             >
               <View style={styles.eventIcon}>
                 <Text style={styles.eventIconText}>{event.icon}</Text>
+                {event.isHosting && event.pendingRequests > 0 && (
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>{event.pendingRequests}</Text>
+                  </View>
+                )}
               </View>
               <View style={styles.eventContent}>
                 <View style={styles.eventHeader}>
@@ -322,6 +338,14 @@ export default function MyEventsScreen() {
                     </View>
                   )}
                 </View>
+                {event.isHosting && event.pendingRequests > 0 && (
+                  <View style={styles.pendingRequestsNotice}>
+                    <IconSymbol name="clock" size={14} color={colors.primary} />
+                    <Text style={styles.pendingRequestsText}>
+                      {event.pendingRequests} pending {event.pendingRequests === 1 ? 'request' : 'requests'}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.eventDetails}>
                   <View style={styles.eventDetailItem}>
                     <IconSymbol
@@ -459,9 +483,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
+    position: "relative",
   },
   eventIconText: {
     fontSize: 28,
+  },
+  pendingBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.text,
   },
   eventContent: {
     flex: 1,
@@ -470,7 +514,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   eventTitle: {
     fontSize: 16,
@@ -498,6 +542,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: colors.text,
+  },
+  pendingRequestsNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    backgroundColor: "rgba(187, 134, 252, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  pendingRequestsText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
   },
   eventDetails: {
     flexDirection: "row",

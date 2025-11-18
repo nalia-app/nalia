@@ -81,6 +81,7 @@ export default function EventDetailScreen() {
   const [isAttending, setIsAttending] = useState(false);
   const [attendeeStatus, setAttendeeStatus] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [processingAttendeeId, setProcessingAttendeeId] = useState<string | null>(null);
 
   useEffect(() => {
     loadEvent();
@@ -144,15 +145,18 @@ export default function EventDetailScreen() {
 
       if (error) throw error;
 
-      // No success pop-up, just reload the event
       console.log("[EventDetail] Successfully joined event");
 
       // Create notification for host
+      const notificationMessage = event?.is_public 
+        ? `${user.name} joined "${event?.description}"`
+        : `${user.name} wants to join "${event?.description}"`;
+
       await supabase.from("notifications").insert({
         user_id: event?.host_id,
         type: "event",
-        title: "New Event Request",
-        message: `${user.name} wants to join "${event?.description}"`,
+        title: event?.is_public ? "New Attendee" : "New Join Request",
+        message: notificationMessage,
         related_id: id as string,
       });
 
@@ -243,6 +247,82 @@ export default function EventDetailScreen() {
     );
   };
 
+  const handleApproveAttendee = async (attendeeId: string, userId: string, userName: string) => {
+    try {
+      setProcessingAttendeeId(attendeeId);
+      console.log("[EventDetail] Approving attendee:", attendeeId);
+
+      const { error } = await supabase
+        .from("event_attendees")
+        .update({ status: "approved" })
+        .eq("id", attendeeId);
+
+      if (error) throw error;
+
+      // Send notification to the user
+      await supabase.from("notifications").insert({
+        user_id: userId,
+        type: "event",
+        title: "Request Approved",
+        message: `Your request to join "${event?.description}" has been approved!`,
+        related_id: id as string,
+      });
+
+      console.log("[EventDetail] Attendee approved successfully");
+      loadEvent();
+    } catch (error: any) {
+      console.error("[EventDetail] Error approving attendee:", error);
+      Alert.alert("Error", "Failed to approve attendee");
+    } finally {
+      setProcessingAttendeeId(null);
+    }
+  };
+
+  const handleDeclineAttendee = async (attendeeId: string, userId: string, userName: string) => {
+    Alert.alert(
+      "Decline Request",
+      `Are you sure you want to decline ${userName}'s request?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setProcessingAttendeeId(attendeeId);
+              console.log("[EventDetail] Declining attendee:", attendeeId);
+
+              // Delete the attendee record
+              const { error } = await supabase
+                .from("event_attendees")
+                .delete()
+                .eq("id", attendeeId);
+
+              if (error) throw error;
+
+              // Send notification to the user
+              await supabase.from("notifications").insert({
+                user_id: userId,
+                type: "event",
+                title: "Request Declined",
+                message: `Your request to join "${event?.description}" was declined.`,
+                related_id: id as string,
+              });
+
+              console.log("[EventDetail] Attendee declined successfully");
+              loadEvent();
+            } catch (error: any) {
+              console.error("[EventDetail] Error declining attendee:", error);
+              Alert.alert("Error", "Failed to decline attendee");
+            } finally {
+              setProcessingAttendeeId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleOpenChat = () => {
     if (!isAttending || attendeeStatus !== "approved") {
       Alert.alert("Info", "You must be an approved attendee to access the chat");
@@ -281,7 +361,10 @@ export default function EventDetailScreen() {
     );
   }
 
-  // Filter out host from attendees list and only show approved attendees
+  // Filter attendees by status
+  const pendingAttendees = event.attendees.filter(
+    (a) => a.status === "pending" && a.user_id !== event.host_id
+  );
   const approvedAttendees = event.attendees.filter(
     (a) => a.status === "approved" && a.user_id !== event.host_id
   );
@@ -302,7 +385,7 @@ export default function EventDetailScreen() {
   };
 
   // Combine host and attendees with host first
-  const allAttendees = [hostAttendee, ...approvedAttendees];
+  const allApprovedAttendees = [hostAttendee, ...approvedAttendees];
 
   // Format description to always start with lowercase
   const formattedDescription = event.description.charAt(0).toLowerCase() + event.description.slice(1);
@@ -409,11 +492,59 @@ export default function EventDetailScreen() {
             </View>
           )}
 
+          {isHost && pendingAttendees.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  Pending Requests ({pendingAttendees.length})
+                </Text>
+                <View style={styles.pendingBadgeSmall}>
+                  <Text style={styles.pendingBadgeSmallText}>{pendingAttendees.length}</Text>
+                </View>
+              </View>
+              {pendingAttendees.map((attendee) => (
+                <View key={attendee.id} style={styles.pendingAttendeeCard}>
+                  <Pressable 
+                    style={styles.pendingAttendeeInfo}
+                    onPress={() => handleAttendeePress(attendee.user_id)}
+                  >
+                    <AvatarImage uri={attendee.profiles.avatar_url} size={40} />
+                    <Text style={styles.attendeeName}>{attendee.profiles.name}</Text>
+                  </Pressable>
+                  <View style={styles.pendingActions}>
+                    <Pressable
+                      style={styles.approveButton}
+                      onPress={() => handleApproveAttendee(attendee.id, attendee.user_id, attendee.profiles.name)}
+                      disabled={processingAttendeeId === attendee.id}
+                    >
+                      {processingAttendeeId === attendee.id ? (
+                        <ActivityIndicator size="small" color={colors.text} />
+                      ) : (
+                        <IconSymbol name="checkmark" size={20} color={colors.text} />
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={styles.declineButton}
+                      onPress={() => handleDeclineAttendee(attendee.id, attendee.user_id, attendee.profiles.name)}
+                      disabled={processingAttendeeId === attendee.id}
+                    >
+                      {processingAttendeeId === attendee.id ? (
+                        <ActivityIndicator size="small" color="#ff4444" />
+                      ) : (
+                        <IconSymbol name="xmark" size={20} color="#ff4444" />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               Attendees ({totalAttendees})
             </Text>
-            {allAttendees.map((attendee, index) => (
+            {allApprovedAttendees.map((attendee, index) => (
               <Pressable 
                 key={attendee.id} 
                 style={styles.attendeeCard}
@@ -611,11 +742,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 16,
+    flex: 1,
+  },
+  pendingBadgeSmall: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pendingBadgeSmallText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text,
   },
   tagsContainer: {
     flexDirection: "row",
@@ -633,6 +783,44 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 14,
     color: colors.secondary,
+  },
+  pendingAttendeeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  pendingAttendeeInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  pendingActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  approveButton: {
+    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  declineButton: {
+    backgroundColor: colors.card,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ff4444",
   },
   attendeeCard: {
     flexDirection: "row",

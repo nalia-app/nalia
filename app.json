@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "nalia",
@@ -90,7 +91,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "a546fae2-4d67-479e-9a86-d7d18e0b7704"
+      }
     }
   },
   "scheme": "nalia"

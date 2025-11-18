@@ -80,7 +80,12 @@ export default function CreateEventScreen() {
         // Restore scroll position after keyboard hides
         setTimeout(() => {
           if (scrollViewRef.current && savedScrollPosition.current > 0) {
-            scrollViewRef.current.scrollToPosition(0, savedScrollPosition.current, false);
+            // Use scrollTo method instead of scrollToPosition
+            if (scrollViewRef.current.scrollTo) {
+              scrollViewRef.current.scrollTo({ x: 0, y: savedScrollPosition.current, animated: false });
+            } else if (scrollViewRef.current.props && scrollViewRef.current.props.scrollToPosition) {
+              scrollViewRef.current.props.scrollToPosition(0, savedScrollPosition.current, false);
+            }
           }
         }, 50);
       }

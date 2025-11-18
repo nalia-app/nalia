@@ -17,7 +17,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer, Avatar } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer, Avatar, BubbleProps, InputToolbarProps, ComposerProps, SendProps } from "react-native-gifted-chat";
 import "react-native-get-random-values";
 
 // Avatar component with fallback
@@ -220,7 +220,7 @@ export default function ChatScreen() {
     }
   }, [user, id]);
 
-  const renderBubble = (props: any) => {
+  const renderBubble = (props: BubbleProps<IMessage>) => {
     return (
       <Bubble
         {...props}
@@ -280,7 +280,7 @@ export default function ChatScreen() {
     );
   };
 
-  const renderInputToolbar = (props: any) => {
+  const renderInputToolbar = (props: InputToolbarProps<IMessage>) => {
     return (
       <InputToolbar
         {...props}
@@ -299,7 +299,7 @@ export default function ChatScreen() {
     );
   };
 
-  const renderComposer = (props: any) => {
+  const renderComposer = (props: ComposerProps) => {
     return (
       <Composer
         {...props}
@@ -321,8 +321,8 @@ export default function ChatScreen() {
     );
   };
 
-  const renderSend = (props: any) => {
-    const hasText = props.text && props.text.trim && props.text.trim().length > 0;
+  const renderSend = (props: SendProps<IMessage>) => {
+    const hasText = props.text && props.text.trim().length > 0;
     
     return (
       <Send 

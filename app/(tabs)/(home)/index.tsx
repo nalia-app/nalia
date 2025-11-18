@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -127,7 +127,8 @@ export default function HomeScreen() {
     }
   };
 
-  const loadUnreadNotificationsCount = async () => {
+  // Wrap loadUnreadNotificationsCount in useCallback to fix lint warning
+  const loadUnreadNotificationsCount = useCallback(async () => {
     try {
       if (!user) return;
 
@@ -149,7 +150,7 @@ export default function HomeScreen() {
     } catch (error) {
       console.error("[HomeScreen] Error in loadUnreadNotificationsCount:", error);
     }
-  };
+  }, [user]);
 
   const isEventExpired = (eventDate: string, eventTime: string, isRecurring: boolean): boolean => {
     if (isRecurring) {
@@ -163,7 +164,8 @@ export default function HomeScreen() {
     return now > expirationTime;
   };
 
-  const loadEvents = async () => {
+  // Wrap loadEvents in useCallback to fix lint warning
+  const loadEvents = useCallback(async () => {
     try {
       console.log('[HomeScreen] Loading events...');
       
@@ -240,10 +242,10 @@ export default function HomeScreen() {
       console.error('[HomeScreen] Error in loadEvents:', error);
       setLoading(false);
     }
-  };
+  }, []);
 
   // New function to reload events (called when screen is focused)
-  const reloadEvents = React.useCallback(async () => {
+  const reloadEvents = useCallback(async () => {
     console.log('[HomeScreen] Reloading events...');
     await loadEvents();
   }, [loadEvents]);
@@ -320,12 +322,11 @@ export default function HomeScreen() {
         supabase.removeChannel(notificationsChannel);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loadEvents, loadUnreadNotificationsCount]);
 
   // Use useFocusEffect to reload events and notifications when screen comes into focus
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       console.log('[HomeScreen] Screen focused, checking if reload needed');
       const now = Date.now();
       const timeSinceLastReload = now - lastReloadTimeRef.current;

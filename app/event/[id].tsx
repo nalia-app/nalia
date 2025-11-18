@@ -18,6 +18,7 @@ import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
+import { getEventLocationDisplay } from "@/utils/locationUtils";
 
 interface EventDetails {
   id: string;
@@ -82,6 +83,8 @@ export default function EventDetailScreen() {
   const [attendeeStatus, setAttendeeStatus] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [processingAttendeeId, setProcessingAttendeeId] = useState<string | null>(null);
+  const [displayLocation, setDisplayLocation] = useState<string>("Location set");
+  const [loadingLocation, setLoadingLocation] = useState(false);
 
   useEffect(() => {
     loadEvent();
@@ -120,11 +123,35 @@ export default function EventDetailScreen() {
         setIsAttending(!!userAttendee);
         setAttendeeStatus(userAttendee?.status || null);
       }
+
+      // Load location display
+      loadLocationDisplay(eventData.location_name, eventData.latitude, eventData.longitude);
     } catch (error: any) {
       console.error("[EventDetail] Error loading event:", error);
       Alert.alert("Error", "Failed to load event details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLocationDisplay = async (
+    locationName: string | null,
+    latitude: number,
+    longitude: number
+  ) => {
+    try {
+      setLoadingLocation(true);
+      console.log("[EventDetail] Loading location display for:", locationName, latitude, longitude);
+      
+      const location = await getEventLocationDisplay(locationName, latitude, longitude);
+      setDisplayLocation(location);
+      
+      console.log("[EventDetail] Location display set to:", location);
+    } catch (error) {
+      console.error("[EventDetail] Error loading location display:", error);
+      setDisplayLocation("Location set");
+    } finally {
+      setLoadingLocation(false);
     }
   };
 
@@ -466,9 +493,11 @@ export default function EventDetailScreen() {
             </View>
             <View style={styles.detailRow}>
               <IconSymbol name="location" size={20} color={colors.primary} />
-              <Text style={styles.detailText}>
-                {event.location_name || "Location set"}
-              </Text>
+              {loadingLocation ? (
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 12 }} />
+              ) : (
+                <Text style={styles.detailText}>{displayLocation}</Text>
+              )}
             </View>
             <View style={styles.detailRow}>
               <IconSymbol

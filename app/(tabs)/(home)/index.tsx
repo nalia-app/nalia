@@ -20,7 +20,7 @@ import { useUser } from "@/contexts/UserContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { supabase } from "@/app/integrations/supabase/client";
-import { calculateDistance } from "@/utils/locationUtils";
+import { calculateDistance, getEventLocationDisplay } from "@/utils/locationUtils";
 import { useFocusEffect } from "@react-navigation/native";
 
 const { width, height } = Dimensions.get("window");
@@ -57,6 +57,8 @@ export default function HomeScreen() {
   const webViewRef = useRef<WebView>(null);
   const [mapKey, setMapKey] = useState(0);
   const lastReloadTimeRef = useRef<number>(0);
+  const [previewLocation, setPreviewLocation] = useState<string>("Location set");
+  const [loadingPreviewLocation, setLoadingPreviewLocation] = useState(false);
 
   const loadLocation = async () => {
     try {
@@ -425,11 +427,38 @@ export default function HomeScreen() {
 
       setSelectedEvent(updatedEvent);
       setShowEventPreview(true);
+      
+      // Load location display for preview
+      loadPreviewLocation(event.locationName, event.latitude, event.longitude);
     } catch (error) {
       console.error('[HomeScreen] Error fetching fresh attendee count:', error);
       // Fall back to cached data
       setSelectedEvent(event);
       setShowEventPreview(true);
+      
+      // Load location display for preview
+      loadPreviewLocation(event.locationName, event.latitude, event.longitude);
+    }
+  };
+
+  const loadPreviewLocation = async (
+    locationName: string | null,
+    latitude: number,
+    longitude: number
+  ) => {
+    try {
+      setLoadingPreviewLocation(true);
+      console.log("[HomeScreen] Loading preview location for:", locationName, latitude, longitude);
+      
+      const location = await getEventLocationDisplay(locationName, latitude, longitude);
+      setPreviewLocation(location);
+      
+      console.log("[HomeScreen] Preview location set to:", location);
+    } catch (error) {
+      console.error("[HomeScreen] Error loading preview location:", error);
+      setPreviewLocation("Location set");
+    } finally {
+      setLoadingPreviewLocation(false);
     }
   };
 
@@ -934,9 +963,13 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.previewDetailRow}>
                   <IconSymbol name="location" size={18} color={colors.primary} />
-                  <Text style={styles.previewDetailText}>
-                    {selectedEvent?.locationName || "Location set"}
-                  </Text>
+                  {loadingPreviewLocation ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 12 }} />
+                  ) : (
+                    <Text style={styles.previewDetailText}>
+                      {previewLocation}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.previewDetailRow}>
                   <IconSymbol name="person.2.fill" size={18} color={colors.primary} />

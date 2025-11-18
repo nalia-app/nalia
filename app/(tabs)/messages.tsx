@@ -311,16 +311,10 @@ export default function MessagesScreen() {
     console.log("Opening chat:", chat.id, "Type:", chat.type);
     if (chat.type === 'event') {
       console.log("Navigating to event chat:", chat.event_id);
-      router.push({
-        pathname: "/chat/[id]",
-        params: { id: chat.event_id }
-      } as any);
+      router.push(`/chat/${chat.event_id}` as any);
     } else {
       console.log("Navigating to direct message:", chat.other_user_id);
-      router.push({
-        pathname: "/direct-message/[id]",
-        params: { id: chat.other_user_id }
-      } as any);
+      router.push(`/direct-message/${chat.other_user_id}` as any);
     }
   };
 

@@ -249,18 +249,12 @@ export default function EventDetailScreen() {
       return;
     }
     console.log("[EventDetail] Opening chat for event:", id);
-    router.push({
-      pathname: "/chat/[id]",
-      params: { id: id as string }
-    } as any);
+    router.push(`/chat/${id}` as any);
   };
 
   const handleAttendeePress = (userId: string) => {
     console.log('[EventDetail] Opening profile for user:', userId);
-    router.push({
-      pathname: "/user-profile/[id]",
-      params: { id: userId }
-    } as any);
+    router.push(`/user-profile/${userId}` as any);
   };
 
   if (loading) {

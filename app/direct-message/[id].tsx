@@ -17,7 +17,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { supabase } from "@/app/integrations/supabase/client";
 import { useUser } from "@/contexts/UserContext";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer, BubbleProps, InputToolbarProps, ComposerProps, SendProps } from "react-native-gifted-chat";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Composer } from "react-native-gifted-chat";
 import "react-native-get-random-values";
 
 // Avatar component with fallback
@@ -51,7 +51,54 @@ export default function DirectMessageScreen() {
   const { id: otherUserId } = useLocalSearchParams();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const loadMessages = useCallback(async () => {
+  useEffect(() => {
+    if (otherUserId && user) {
+      loadOtherUser();
+      loadMessages();
+      markMessagesAsRead();
+      setupRealtimeSubscription();
+    }
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otherUserId, user]);
+
+  const loadOtherUser = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("name, avatar_url")
+        .eq("id", otherUserId)
+        .single();
+
+      if (error) throw error;
+      setOtherUserName(data.name);
+      setOtherUserAvatar(data.avatar_url);
+    } catch (error: any) {
+      console.error("Error loading other user:", error);
+    }
+  };
+
+  const markMessagesAsRead = async () => {
+    if (!user || !otherUserId) return;
+
+    try {
+      await supabase
+        .from("direct_messages")
+        .update({ read: true })
+        .eq("sender_id", otherUserId)
+        .eq("receiver_id", user.id)
+        .eq("read", false);
+    } catch (error: any) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
+  const loadMessages = async () => {
     if (!user || !otherUserId) return;
 
     try {
@@ -90,52 +137,6 @@ export default function DirectMessageScreen() {
       console.error("Error loading messages:", error);
     } finally {
       setLoading(false);
-    }
-  }, [user, otherUserId]);
-
-  useEffect(() => {
-    if (otherUserId && user) {
-      loadOtherUser();
-      loadMessages();
-      markMessagesAsRead();
-      setupRealtimeSubscription();
-    }
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
-    };
-  }, [otherUserId, user, loadMessages]);
-
-  const loadOtherUser = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, avatar_url")
-        .eq("id", otherUserId)
-        .single();
-
-      if (error) throw error;
-      setOtherUserName(data.name);
-      setOtherUserAvatar(data.avatar_url);
-    } catch (error: any) {
-      console.error("Error loading other user:", error);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    if (!user || !otherUserId) return;
-
-    try {
-      await supabase
-        .from("direct_messages")
-        .update({ read: true })
-        .eq("sender_id", otherUserId)
-        .eq("receiver_id", user.id)
-        .eq("read", false);
-    } catch (error: any) {
-      console.error("Error marking messages as read:", error);
     }
   };
 
@@ -194,9 +195,9 @@ export default function DirectMessageScreen() {
     } catch (error: any) {
       console.error("Error sending message:", error);
     }
-  }, [user, otherUserId, loadMessages]);
+  }, [user, otherUserId]);
 
-  const renderBubble = (props: BubbleProps<IMessage>) => {
+  const renderBubble = (props: any) => {
     return (
       <Bubble
         {...props}
@@ -250,7 +251,7 @@ export default function DirectMessageScreen() {
     );
   };
 
-  const renderInputToolbar = (props: InputToolbarProps<IMessage>) => {
+  const renderInputToolbar = (props: any) => {
     return (
       <InputToolbar
         {...props}
@@ -269,7 +270,7 @@ export default function DirectMessageScreen() {
     );
   };
 
-  const renderComposer = (props: ComposerProps) => {
+  const renderComposer = (props: any) => {
     return (
       <Composer
         {...props}
@@ -291,8 +292,8 @@ export default function DirectMessageScreen() {
     );
   };
 
-  const renderSend = (props: SendProps<IMessage>) => {
-    const hasText = props.text && props.text.trim().length > 0;
+  const renderSend = (props: any) => {
+    const hasText = props.text?.trim().length > 0;
     
     return (
       <Send 

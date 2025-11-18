@@ -642,7 +642,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.highlight,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
     overflow: "hidden",
   },
   avatarImage: {
@@ -654,6 +653,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     flex: 1,
+    marginLeft: 16,
   },
   hostTag: {
     backgroundColor: colors.accent,

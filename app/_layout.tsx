@@ -1,6 +1,4 @@
 
-import 'react-native-gesture-handler';
-import 'react-native-reanimated';
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";

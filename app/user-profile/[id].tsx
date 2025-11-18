@@ -205,7 +205,10 @@ export default function UserProfileScreen() {
   const handleMessage = () => {
     if (!profile) return;
     console.log("[UserProfile] Starting chat with user:", profile.id);
-    router.push(`/direct-message/${profile.id}`);
+    router.push({
+      pathname: "/direct-message/[id]",
+      params: { id: profile.id }
+    } as any);
   };
 
   const formatDate = (dateString: string) => {
@@ -346,7 +349,10 @@ export default function UserProfileScreen() {
               <Pressable
                 key={event.id}
                 style={styles.eventCard}
-                onPress={() => router.push(`/event/${event.id}`)}
+                onPress={() => router.push({
+                  pathname: "/event/[id]",
+                  params: { id: event.id }
+                } as any)}
               >
                 <LinearGradient
                   colors={[

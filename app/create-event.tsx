@@ -18,11 +18,12 @@ import {
   Dimensions,
   Platform,
   Modal,
+  Keyboard,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { stripEmojis } from "@/utils/emojiUtils";
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const EMOJI_CATEGORIES = {
   Social: ["☕", "🍺", "🍕", "🍔", "🎉", "🎊", "🎈"],
@@ -66,9 +67,47 @@ export default function CreateEventScreen() {
   const [mapZoom, setMapZoom] = useState(15); // Store current zoom level
   const [mapKey, setMapKey] = useState(0);
   const webViewRef = useRef<WebView>(null);
+  
+  // Scroll position management
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollPositionRef = useRef(0);
+  const isKeyboardVisibleRef = useRef(false);
 
   useEffect(() => {
     loadLocation();
+    
+    // Keyboard event listeners to preserve scroll position
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        console.log('[CreateEvent] Keyboard showing, saving scroll position:', scrollPositionRef.current);
+        isKeyboardVisibleRef.current = true;
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        console.log('[CreateEvent] Keyboard hiding, restoring scroll position:', scrollPositionRef.current);
+        isKeyboardVisibleRef.current = false;
+        
+        // Restore scroll position after keyboard dismisses
+        setTimeout(() => {
+          if (scrollViewRef.current && scrollPositionRef.current > 0) {
+            scrollViewRef.current.scrollTo({
+              y: scrollPositionRef.current,
+              animated: false,
+            });
+            console.log('[CreateEvent] Scroll position restored to:', scrollPositionRef.current);
+          }
+        }, 50);
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
   }, []);
 
   const loadLocation = async () => {
@@ -93,6 +132,11 @@ export default function CreateEventScreen() {
       console.error("[CreateEvent] Error getting location:", error);
       Alert.alert("Error", "Failed to get your location");
     }
+  };
+
+  const handleScroll = (event: any) => {
+    // Save scroll position continuously
+    scrollPositionRef.current = event.nativeEvent.contentOffset.y;
   };
 
   const generateMapHTML = () => {
@@ -635,14 +679,14 @@ export default function CreateEventScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <KeyboardAwareScrollView
+        <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          enableOnAndroid={true}
-          enableAutomaticScroll={true}
-          extraScrollHeight={20}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {/* Description */}
           <View style={styles.section}>
@@ -846,7 +890,7 @@ export default function CreateEventScreen() {
                   <View style={styles.monthlySelector}>
                     <View style={styles.pickerRow}>
                       <Text style={styles.pickerLabel}>Every</Text>
-                      <KeyboardAwareScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
                         {WEEK_OF_MONTH.map((week, index) => (
                           <Pressable
                             key={week}
@@ -866,10 +910,10 @@ export default function CreateEventScreen() {
                             </Text>
                           </Pressable>
                         ))}
-                      </KeyboardAwareScrollView>
+                      </ScrollView>
                     </View>
                     <View style={styles.pickerRow}>
-                      <KeyboardAwareScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
                         {WEEKDAYS.map((day, index) => (
                           <Pressable
                             key={day}
@@ -889,7 +933,7 @@ export default function CreateEventScreen() {
                             </Text>
                           </Pressable>
                         ))}
-                      </KeyboardAwareScrollView>
+                      </ScrollView>
                       <Text style={styles.pickerLabel}>of every month</Text>
                     </View>
                   </View>
@@ -954,7 +998,7 @@ export default function CreateEventScreen() {
           </Pressable>
 
           <View style={{ height: 40 }} />
-        </KeyboardAwareScrollView>
+        </ScrollView>
       </LinearGradient>
 
       {/* iOS Date Picker Modal */}

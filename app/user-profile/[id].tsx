@@ -73,6 +73,9 @@ export default function UserProfileScreen() {
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Check if viewing own profile
+  const isOwnProfile = user?.id === id;
+
   useEffect(() => {
     if (id && user) {
       loadProfile();
@@ -270,35 +273,37 @@ export default function UserProfileScreen() {
           <Text style={styles.name}>{profile.name}</Text>
           {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <Pressable style={styles.primaryButton} onPress={handleMessage}>
-              <LinearGradient
-                colors={[colors.primary, colors.secondary]}
-                style={styles.primaryButtonGradient}
+          {/* Action Buttons - Only show if not viewing own profile */}
+          {!isOwnProfile && (
+            <View style={styles.actionButtons}>
+              <Pressable style={styles.primaryButton} onPress={handleMessage}>
+                <LinearGradient
+                  colors={[colors.primary, colors.secondary]}
+                  style={styles.primaryButtonGradient}
+                >
+                  <IconSymbol name="message.fill" size={16} color={colors.text} />
+                  <Text style={styles.primaryButtonText}>Message</Text>
+                </LinearGradient>
+              </Pressable>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={handleAddFriend}
               >
-                <IconSymbol name="message.fill" size={16} color={colors.text} />
-                <Text style={styles.primaryButtonText}>Message</Text>
-              </LinearGradient>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={handleAddFriend}
-            >
-              <IconSymbol
-                name={profile.isFriend ? "person.fill.checkmark" : "person.badge.plus"}
-                size={16}
-                color={colors.primary}
-              />
-              <Text style={styles.secondaryButtonText}>
-                {profile.isFriend
-                  ? "Friends"
-                  : profile.friendshipStatus === "pending"
-                  ? "Pending"
-                  : "Add Friend"}
-              </Text>
-            </Pressable>
-          </View>
+                <IconSymbol
+                  name={profile.isFriend ? "person.fill.checkmark" : "person.badge.plus"}
+                  size={16}
+                  color={colors.primary}
+                />
+                <Text style={styles.secondaryButtonText}>
+                  {profile.isFriend
+                    ? "Friends"
+                    : profile.friendshipStatus === "pending"
+                    ? "Pending"
+                    : "Add Friend"}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
         {/* Stats */}

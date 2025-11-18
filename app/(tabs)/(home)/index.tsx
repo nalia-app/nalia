@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const [nearbyCount, setNearbyCount] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<EventBubble | null>(null);
   const [showEventPreview, setShowEventPreview] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const webViewRef = useRef<WebView>(null);
   const [mapKey, setMapKey] = useState(0);
   const lastReloadTimeRef = useRef<number>(0);
@@ -120,6 +121,30 @@ export default function HomeScreen() {
       setNearbyCount(nearbyUsers.length);
     } catch (error) {
       console.error("[HomeScreen] Error in loadNearbyCount:", error);
+    }
+  };
+
+  const loadUnreadNotificationsCount = async () => {
+    try {
+      if (!user) return;
+
+      console.log("[HomeScreen] Loading unread notifications count...");
+
+      const { count, error } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("read", false);
+
+      if (error) {
+        console.error("[HomeScreen] Error loading unread notifications count:", error);
+        return;
+      }
+
+      console.log(`[HomeScreen] Found ${count || 0} unread notifications`);
+      setUnreadNotificationsCount(count || 0);
+    } catch (error) {
+      console.error("[HomeScreen] Error in loadUnreadNotificationsCount:", error);
     }
   };
 
@@ -225,6 +250,10 @@ export default function HomeScreen() {
     loadLocation();
     loadEvents();
     
+    if (user) {
+      loadUnreadNotificationsCount();
+    }
+    
     // Subscribe to real-time event changes
     const eventsChannel = supabase
       .channel('events-changes')
@@ -259,15 +288,39 @@ export default function HomeScreen() {
       )
       .subscribe();
 
+    // Subscribe to real-time notifications changes
+    let notificationsChannel: any = null;
+    if (user) {
+      notificationsChannel = supabase
+        .channel('notifications-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[HomeScreen] Notification change detected:', payload);
+            loadUnreadNotificationsCount();
+          }
+        )
+        .subscribe();
+    }
+
     return () => {
       console.log('[HomeScreen] Cleaning up subscriptions');
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(attendeesChannel);
+      if (notificationsChannel) {
+        supabase.removeChannel(notificationsChannel);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
-  // Use useFocusEffect to reload events when screen comes into focus
+  // Use useFocusEffect to reload events and notifications when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       console.log('[HomeScreen] Screen focused, checking if reload needed');
@@ -279,8 +332,11 @@ export default function HomeScreen() {
       if (timeSinceLastReload > 1000) {
         console.log('[HomeScreen] Reloading events due to screen focus');
         reloadEvents();
+        if (user) {
+          loadUnreadNotificationsCount();
+        }
       }
-    }, [reloadEvents])
+    }, [reloadEvents, user])
   );
 
   useEffect(() => {
@@ -733,6 +789,11 @@ export default function HomeScreen() {
             <View style={styles.topBarRight}>
               <Pressable style={styles.iconButton} onPress={handleNotifications}>
                 <IconSymbol name="bell.fill" size={20} color={colors.text} />
+                {unreadNotificationsCount > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <View style={styles.notificationDot} />
+                  </View>
+                )}
               </Pressable>
               <Pressable style={styles.avatarButton} onPress={handleProfile}>
                 {user?.photoUri ? (
@@ -992,6 +1053,24 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 6,
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF4081",
   },
   avatarButton: {
     padding: 2,

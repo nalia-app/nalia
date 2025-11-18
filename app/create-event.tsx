@@ -18,6 +18,7 @@ import {
   Dimensions,
   Platform,
   Modal,
+  Keyboard,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -66,9 +67,28 @@ export default function CreateEventScreen() {
   const [mapZoom, setMapZoom] = useState(15); // Store current zoom level
   const [mapKey, setMapKey] = useState(0);
   const webViewRef = useRef<WebView>(null);
+  const scrollViewRef = useRef<any>(null);
+  const savedScrollPosition = useRef<number>(0);
 
   useEffect(() => {
     loadLocation();
+    
+    // Track keyboard events to save scroll position
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        // Restore scroll position after keyboard hides
+        setTimeout(() => {
+          if (scrollViewRef.current && savedScrollPosition.current > 0) {
+            scrollViewRef.current.scrollToPosition(0, savedScrollPosition.current, false);
+          }
+        }, 50);
+      }
+    );
+
+    return () => {
+      keyboardWillHideListener.remove();
+    };
   }, []);
 
   const loadLocation = async () => {
@@ -623,6 +643,11 @@ export default function CreateEventScreen() {
     setShowTimePicker(false);
   };
 
+  const handleScroll = (event: any) => {
+    // Save current scroll position
+    savedScrollPosition.current = event.nativeEvent.contentOffset.y;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <LinearGradient colors={[colors.background, colors.card]} style={styles.gradient}>
@@ -636,6 +661,9 @@ export default function CreateEventScreen() {
         </View>
 
         <KeyboardAwareScrollView
+          innerRef={(ref: any) => {
+            scrollViewRef.current = ref;
+          }}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -643,6 +671,9 @@ export default function CreateEventScreen() {
           enableOnAndroid={true}
           enableAutomaticScroll={true}
           extraScrollHeight={20}
+          enableResetScrollToCoords={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {/* Description */}
           <View style={styles.section}>

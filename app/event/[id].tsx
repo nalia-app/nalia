@@ -90,7 +90,7 @@ export default function EventDetailScreen() {
   const loadEvent = async () => {
     try {
       setLoading(true);
-      console.log("Loading event:", id);
+      console.log("[EventDetail] Loading event:", id);
 
       const { data: eventData, error: eventError } = await supabase
         .from("events")
@@ -120,7 +120,7 @@ export default function EventDetailScreen() {
         setAttendeeStatus(userAttendee?.status || null);
       }
     } catch (error: any) {
-      console.error("Error loading event:", error);
+      console.error("[EventDetail] Error loading event:", error);
       Alert.alert("Error", "Failed to load event details");
     } finally {
       setLoading(false);
@@ -145,7 +145,7 @@ export default function EventDetailScreen() {
       if (error) throw error;
 
       // No success pop-up, just reload the event
-      console.log("Successfully joined event");
+      console.log("[EventDetail] Successfully joined event");
 
       // Create notification for host
       await supabase.from("notifications").insert({
@@ -158,7 +158,7 @@ export default function EventDetailScreen() {
 
       loadEvent();
     } catch (error: any) {
-      console.error("Error joining event:", error);
+      console.error("[EventDetail] Error joining event:", error);
       Alert.alert("Error", "Failed to join event");
     }
   };
@@ -184,7 +184,7 @@ export default function EventDetailScreen() {
             Alert.alert("Success", "You've left the event");
             loadEvent();
           } catch (error: any) {
-            console.error("Error leaving event:", error);
+            console.error("[EventDetail] Error leaving event:", error);
             Alert.alert("Error", "Failed to leave event");
           }
         },
@@ -212,7 +212,7 @@ export default function EventDetailScreen() {
           onPress: async () => {
             try {
               setIsDeleting(true);
-              console.log("Deleting event:", id);
+              console.log("[EventDetail] Deleting event:", id);
 
               // Delete the event (RLS policy ensures only host can delete)
               const { error } = await supabase
@@ -222,7 +222,7 @@ export default function EventDetailScreen() {
 
               if (error) throw error;
 
-              console.log("Event deleted successfully");
+              console.log("[EventDetail] Event deleted successfully");
               Alert.alert("Success", "Event deleted successfully", [
                 {
                   text: "OK",
@@ -233,7 +233,7 @@ export default function EventDetailScreen() {
                 },
               ]);
             } catch (error: any) {
-              console.error("Error deleting event:", error);
+              console.error("[EventDetail] Error deleting event:", error);
               Alert.alert("Error", "Failed to delete event. Please try again.");
               setIsDeleting(false);
             }
@@ -248,13 +248,21 @@ export default function EventDetailScreen() {
       Alert.alert("Info", "You must be an approved attendee to access the chat");
       return;
     }
+    if (!id) {
+      console.error("[EventDetail] ERROR: Event ID is undefined");
+      return;
+    }
     console.log("[EventDetail] Opening chat for event:", id);
-    router.push(`/chat/${id}` as any);
+    router.push(`/chat/${id}`);
   };
 
   const handleAttendeePress = (userId: string) => {
+    if (!userId) {
+      console.error("[EventDetail] ERROR: User ID is undefined");
+      return;
+    }
     console.log('[EventDetail] Opening profile for user:', userId);
-    router.push(`/user-profile/${userId}` as any);
+    router.push(`/user-profile/${userId}`);
   };
 
   if (loading) {

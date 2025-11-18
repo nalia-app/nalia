@@ -27,7 +27,7 @@ interface Chat {
   host_name?: string;
   lastMessage: string;
   timestamp: string;
-  timestampValue: number; // Add numeric timestamp for sorting
+  timestampValue: number;
   unread: number;
   icon?: string;
   avatar_url?: string | null;
@@ -137,7 +137,7 @@ export default function MessagesScreen() {
 
     try {
       setLoading(true);
-      console.log("Loading chats");
+      console.log("[MessagesScreen] Loading chats for user:", user.id);
 
       const eventChats: Chat[] = [];
       const directChats: Chat[] = [];
@@ -157,13 +157,22 @@ export default function MessagesScreen() {
         .eq("user_id", user.id)
         .eq("status", "approved");
 
-      if (attendeeError) throw attendeeError;
+      if (attendeeError) {
+        console.error("[MessagesScreen] Error loading attendee data:", attendeeError);
+        throw attendeeError;
+      }
+
+      console.log("[MessagesScreen] Attendee data:", attendeeData);
 
       // For each event, get the last message and unread count
       const eventChatsPromises = (attendeeData || []).map(async (item) => {
-        if (!item.events) return null;
+        if (!item.events) {
+          console.log("[MessagesScreen] No event data for item:", item);
+          return null;
+        }
 
         const event = item.events as any;
+        console.log("[MessagesScreen] Processing event:", event.id, event.description);
 
         const { data: lastMessage } = await supabase
           .from("messages")
@@ -198,7 +207,7 @@ export default function MessagesScreen() {
           ? new Date(lastMessage.created_at).getTime() 
           : 0;
 
-        return {
+        const chatObject = {
           id: event.id,
           event_id: event.id,
           event_name: event.description,
@@ -212,10 +221,15 @@ export default function MessagesScreen() {
           icon: event.icon,
           type: 'event' as const,
         };
+
+        console.log("[MessagesScreen] Created event chat object:", chatObject);
+        return chatObject;
       });
 
       const eventChatsData = await Promise.all(eventChatsPromises);
       eventChats.push(...(eventChatsData.filter((chat) => chat !== null) as Chat[]));
+
+      console.log("[MessagesScreen] Event chats:", eventChats);
 
       // Load direct message chats
       const { data: directMessagesData, error: dmError } = await supabase
@@ -231,7 +245,12 @@ export default function MessagesScreen() {
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
 
-      if (dmError) throw dmError;
+      if (dmError) {
+        console.error("[MessagesScreen] Error loading direct messages:", dmError);
+        throw dmError;
+      }
+
+      console.log("[MessagesScreen] Direct messages data:", directMessagesData);
 
       // Group by conversation partner
       const conversationsMap = new Map<string, any[]>();
@@ -244,9 +263,13 @@ export default function MessagesScreen() {
         conversationsMap.get(otherUserId)!.push(msg);
       });
 
+      console.log("[MessagesScreen] Conversations map:", Array.from(conversationsMap.keys()));
+
       // Create chat objects for each conversation
       const directChatsPromises = Array.from(conversationsMap.entries()).map(
         async ([otherUserId, messages]) => {
+          console.log("[MessagesScreen] Processing conversation with user:", otherUserId);
+
           const { data: otherUserProfile } = await supabase
             .from("profiles")
             .select("name, avatar_url")
@@ -260,7 +283,7 @@ export default function MessagesScreen() {
 
           const timestampValue = new Date(lastMessage.created_at).getTime();
 
-          return {
+          const chatObject = {
             id: `dm-${otherUserId}`,
             other_user_id: otherUserId,
             other_user_name: otherUserProfile?.name || "Unknown",
@@ -271,11 +294,16 @@ export default function MessagesScreen() {
             unread: unreadCount,
             type: 'direct' as const,
           };
+
+          console.log("[MessagesScreen] Created direct chat object:", chatObject);
+          return chatObject;
         }
       );
 
       const directChatsData = await Promise.all(directChatsPromises);
       directChats.push(...directChatsData);
+
+      console.log("[MessagesScreen] Direct chats:", directChats);
 
       // Combine and sort all chats by timestamp (most recent first)
       const allChats = [...eventChats, ...directChats];
@@ -284,9 +312,10 @@ export default function MessagesScreen() {
         return b.timestampValue - a.timestampValue;
       });
 
+      console.log("[MessagesScreen] All chats sorted:", allChats);
       setChats(allChats);
     } catch (error: any) {
-      console.error("Error loading chats:", error);
+      console.error("[MessagesScreen] Error loading chats:", error);
     } finally {
       setLoading(false);
     }
@@ -308,13 +337,27 @@ export default function MessagesScreen() {
   };
 
   const handleChatPress = (chat: Chat) => {
-    console.log("Opening chat:", chat.id, "Type:", chat.type);
+    console.log("[MessagesScreen] Opening chat:", {
+      id: chat.id,
+      type: chat.type,
+      event_id: chat.event_id,
+      other_user_id: chat.other_user_id,
+    });
+
     if (chat.type === 'event') {
-      console.log("Navigating to event chat:", chat.event_id);
-      router.push(`/chat/${chat.event_id}` as any);
+      if (!chat.event_id) {
+        console.error("[MessagesScreen] ERROR: event_id is undefined for event chat:", chat);
+        return;
+      }
+      console.log("[MessagesScreen] Navigating to event chat with ID:", chat.event_id);
+      router.push(`/chat/${chat.event_id}`);
     } else {
-      console.log("Navigating to direct message:", chat.other_user_id);
-      router.push(`/direct-message/${chat.other_user_id}` as any);
+      if (!chat.other_user_id) {
+        console.error("[MessagesScreen] ERROR: other_user_id is undefined for direct chat:", chat);
+        return;
+      }
+      console.log("[MessagesScreen] Navigating to direct message with user ID:", chat.other_user_id);
+      router.push(`/direct-message/${chat.other_user_id}`);
     }
   };
 

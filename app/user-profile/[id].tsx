@@ -203,9 +203,16 @@ export default function UserProfileScreen() {
   };
 
   const handleMessage = () => {
-    if (!profile) return;
+    if (!profile) {
+      console.error("[UserProfile] ERROR: Profile is null");
+      return;
+    }
+    if (!profile.id) {
+      console.error("[UserProfile] ERROR: Profile ID is undefined");
+      return;
+    }
     console.log("[UserProfile] Starting chat with user:", profile.id);
-    router.push(`/direct-message/${profile.id}` as any);
+    router.push(`/direct-message/${profile.id}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -346,7 +353,7 @@ export default function UserProfileScreen() {
               <Pressable
                 key={event.id}
                 style={styles.eventCard}
-                onPress={() => router.push(`/event/${event.id}` as any)}
+                onPress={() => router.push(`/event/${event.id}`)}
               >
                 <LinearGradient
                   colors={[

@@ -28,6 +28,7 @@ interface UserProfile {
   mutualEvents: number;
   isFriend: boolean;
   friendshipStatus: string | null;
+  friendshipId: string | null;
   avatar_url: string | null;
 }
 
@@ -123,14 +124,16 @@ export default function UserProfileScreen() {
         .eq("user_id", id)
         .eq("status", "approved");
 
-      // Check friendship status
+      // Check friendship status - need to check both directions
       const { data: friendshipData } = await supabase
         .from("friendships")
-        .select("status")
+        .select("id, status")
         .or(
           `and(user_id.eq.${user?.id},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${user?.id})`
         )
         .maybeSingle();
+
+      console.log("[UserProfile] Friendship data:", friendshipData);
 
       // Get recent events
       const { data: eventsData } = await supabase
@@ -150,10 +153,13 @@ export default function UserProfileScreen() {
         mutualEvents: 0, // TODO: Calculate mutual events
         isFriend: friendshipData?.status === "accepted",
         friendshipStatus: friendshipData?.status || null,
+        friendshipId: friendshipData?.id || null,
         avatar_url: profileData.avatar_url,
       };
 
       console.log("[UserProfile] Avatar URL:", userProfile.avatar_url);
+      console.log("[UserProfile] Friendship ID:", userProfile.friendshipId);
+      console.log("[UserProfile] Is Friend:", userProfile.isFriend);
 
       setProfile(userProfile);
       setRecentEvents(eventsData || []);
@@ -165,15 +171,52 @@ export default function UserProfileScreen() {
     }
   };
 
-  const handleAddFriend = async () => {
+  const handleFriendAction = async () => {
     if (!user || !profile) return;
 
     try {
-      if (profile.isFriend) {
-        Alert.alert("Already Friends", "You are already friends with this user");
+      // If already friends, unfriend them
+      if (profile.isFriend && profile.friendshipId) {
+        Alert.alert(
+          "Remove Friend",
+          `Are you sure you want to remove ${profile.name} from your friends?`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "Remove",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  console.log("[UserProfile] Removing friendship:", profile.friendshipId);
+                  
+                  const { error } = await supabase
+                    .from("friendships")
+                    .delete()
+                    .eq("id", profile.friendshipId);
+
+                  if (error) {
+                    console.error("[UserProfile] Error removing friend:", error);
+                    Alert.alert("Error", "Failed to remove friend");
+                    return;
+                  }
+
+                  Alert.alert("Success", `You are no longer friends with ${profile.name}`);
+                  loadProfile(); // Reload to update status
+                } catch (error) {
+                  console.error("[UserProfile] Error in unfriend:", error);
+                  Alert.alert("Error", "Failed to remove friend");
+                }
+              },
+            },
+          ]
+        );
         return;
       }
 
+      // If request is pending, show message
       if (profile.friendshipStatus === "pending") {
         Alert.alert(
           "Request Pending",
@@ -182,6 +225,7 @@ export default function UserProfileScreen() {
         return;
       }
 
+      // Otherwise, send friend request
       const { error } = await supabase.from("friendships").insert({
         user_id: user.id,
         friend_id: profile.id,
@@ -197,8 +241,8 @@ export default function UserProfileScreen() {
       Alert.alert("Success", "Friend request sent!");
       loadProfile(); // Reload to update status
     } catch (error) {
-      console.error("[UserProfile] Error in handleAddFriend:", error);
-      Alert.alert("Error", "Failed to send friend request");
+      console.error("[UserProfile] Error in handleFriendAction:", error);
+      Alert.alert("Error", "Failed to process friend action");
     }
   };
 
@@ -294,7 +338,7 @@ export default function UserProfileScreen() {
               </Pressable>
               <Pressable
                 style={styles.secondaryButton}
-                onPress={handleAddFriend}
+                onPress={handleFriendAction}
               >
                 <IconSymbol
                   name={profile.isFriend ? "person.fill.checkmark" : "person.badge.plus"}

@@ -1,6 +1,6 @@
 
-import 'react-native-reanimated';
 import 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -186,16 +186,14 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="light" animated />
       <UserProvider>
         <WidgetProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <RootLayoutNav />
-            <SystemBars style="light" />
-          </GestureHandlerRootView>
+          <RootLayoutNav />
+          <SystemBars style="light" />
         </WidgetProvider>
       </UserProvider>
-    </>
+    </GestureHandlerRootView>
   );
 }

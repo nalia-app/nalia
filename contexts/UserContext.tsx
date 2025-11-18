@@ -211,7 +211,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const value = {
+  const value: UserContextType = {
     user,
     isOnboarded,
     isLoading,
@@ -230,7 +230,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useUser() {
+export function useUser(): UserContextType {
   const context = useContext(UserContext);
   if (context === undefined) {
     throw new Error('useUser must be used within a UserProvider');

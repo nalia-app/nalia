@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -15,6 +15,12 @@ import {
   PlayfairDisplay_700Bold_Italic,
 } from '@expo-google-fonts/playfair-display';
 import { updateRecurringEvents } from "@/utils/recurringEventsUtils";
+import * as Notifications from 'expo-notifications';
+import { 
+  registerForPushNotificationsAsync,
+  addNotificationReceivedListener,
+  addNotificationResponseReceivedListener,
+} from '@/utils/pushNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,6 +32,8 @@ function RootLayoutNav() {
   const { user, isOnboarded, isLoading } = useUser();
   const segments = useSegments();
   const router = useRouter();
+  const notificationListener = useRef<any>();
+  const responseListener = useRef<any>();
 
   // Update recurring events when app starts
   useEffect(() => {
@@ -34,6 +42,60 @@ function RootLayoutNav() {
       updateRecurringEvents();
     }
   }, [user, isOnboarded]);
+
+  // Setup push notifications
+  useEffect(() => {
+    if (user && isOnboarded) {
+      console.log('[RootLayout] Setting up push notifications...');
+      
+      // Register for push notifications
+      registerForPushNotificationsAsync(user.id).then(token => {
+        if (token) {
+          console.log('[RootLayout] Push notifications registered successfully');
+        }
+      });
+
+      // Handle notifications received while app is in foreground
+      notificationListener.current = addNotificationReceivedListener(notification => {
+        console.log('[RootLayout] Notification received:', notification);
+      });
+
+      // Handle notification tapped by user
+      responseListener.current = addNotificationResponseReceivedListener(response => {
+        console.log('[RootLayout] Notification tapped:', response);
+        
+        const data = response.notification.request.content.data;
+        
+        // Navigate based on notification type
+        if (data.type === 'event_message' && data.event_id) {
+          router.push(`/chat/${data.event_id}` as any);
+        } else if (data.type === 'direct_message' && data.sender_id) {
+          router.push(`/direct-message/${data.sender_id}` as any);
+        } else if (data.type === 'event_reminder' && data.event_id) {
+          router.push(`/event/${data.event_id}` as any);
+        } else if (data.type === 'event_join' && data.event_id) {
+          router.push(`/event/${data.event_id}` as any);
+        } else if (data.type === 'event_join_request' && data.event_id) {
+          router.push(`/event/${data.event_id}` as any);
+        } else if (data.type === 'join_approved' && data.event_id) {
+          router.push(`/event/${data.event_id}` as any);
+        } else if (data.type === 'friend_request' && data.user_id) {
+          router.push('/(tabs)/friends' as any);
+        } else if (data.type === 'friend_accepted' && data.user_id) {
+          router.push(`/user-profile/${data.user_id}` as any);
+        }
+      });
+
+      return () => {
+        if (notificationListener.current) {
+          Notifications.removeNotificationSubscription(notificationListener.current);
+        }
+        if (responseListener.current) {
+          Notifications.removeNotificationSubscription(responseListener.current);
+        }
+      };
+    }
+  }, [user, isOnboarded, router]);
 
   useEffect(() => {
     if (isLoading) {

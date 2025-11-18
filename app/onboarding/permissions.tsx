@@ -8,11 +8,11 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useUser } from '@/contexts/UserContext';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import { registerForPushNotificationsAsync } from '@/utils/pushNotifications';
 
 export default function PermissionsScreen() {
   const router = useRouter();
-  const { completeOnboarding } = useUser();
+  const { completeOnboarding, user } = useUser();
   const [locationGranted, setLocationGranted] = useState(false);
   const [notificationsGranted, setNotificationsGranted] = useState(false);
 
@@ -32,8 +32,13 @@ export default function PermissionsScreen() {
 
   const requestNotificationPermission = async () => {
     try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
+      if (!user) {
+        Alert.alert('Error', 'User not found');
+        return;
+      }
+
+      const token = await registerForPushNotificationsAsync(user.id);
+      if (token) {
         setNotificationsGranted(true);
         Alert.alert('Success', 'Notification permission granted');
       } else {
@@ -41,6 +46,7 @@ export default function PermissionsScreen() {
       }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
+      Alert.alert('Error', 'Failed to register for notifications');
     }
   };
 

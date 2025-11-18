@@ -17,16 +17,20 @@ import { useRouter } from "expo-router";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/app/integrations/supabase/client";
 import * as WebBrowser from "expo-web-browser";
+import { registerForPushNotificationsAsync } from "@/utils/pushNotifications";
+import * as Notifications from 'expo-notifications';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useUser();
   const [showInNearby, setShowInNearby] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadSettings();
+    checkNotificationPermissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -53,6 +57,15 @@ export default function SettingsScreen() {
     }
   };
 
+  const checkNotificationPermissions = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      setNotificationsEnabled(status === 'granted');
+    } catch (error) {
+      console.error("[Settings] Error checking notification permissions:", error);
+    }
+  };
+
   const handleToggleNearby = async (value: boolean) => {
     try {
       if (!user) return;
@@ -76,6 +89,35 @@ export default function SettingsScreen() {
       console.error("[Settings] Error in handleToggleNearby:", error);
       Alert.alert("Error", "Failed to update setting");
       setShowInNearby(!value); // Revert on error
+    }
+  };
+
+  const handleToggleNotifications = async (value: boolean) => {
+    try {
+      if (!user) return;
+
+      if (value) {
+        // Enable notifications
+        const token = await registerForPushNotificationsAsync(user.id);
+        if (token) {
+          setNotificationsEnabled(true);
+          Alert.alert("Success", "Push notifications enabled");
+        } else {
+          Alert.alert(
+            "Permission Required",
+            "Please enable notifications in your device settings to receive push notifications."
+          );
+        }
+      } else {
+        // Disable notifications - just show alert
+        Alert.alert(
+          "Disable Notifications",
+          "To disable notifications, please go to your device settings and turn off notifications for Nalia."
+        );
+      }
+    } catch (error) {
+      console.error("[Settings] Error toggling notifications:", error);
+      Alert.alert("Error", "Failed to update notification settings");
     }
   };
 
@@ -111,6 +153,16 @@ export default function SettingsScreen() {
       // Delete user data from database
       // The foreign key constraints with ON DELETE CASCADE should handle most deletions
       // But we'll explicitly delete some data to ensure cleanup
+
+      // Delete push tokens
+      const { error: pushTokensError } = await supabase
+        .from("push_tokens")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (pushTokensError) {
+        console.error("[Settings] Error deleting push tokens:", pushTokensError);
+      }
 
       // Delete interests
       const { error: interestsError } = await supabase
@@ -280,6 +332,42 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          
+          <View style={styles.settingCard}>
+            <LinearGradient
+              colors={["rgba(187, 134, 252, 0.1)", "rgba(3, 218, 198, 0.1)"]}
+              style={styles.settingCardGradient}
+            >
+              <View style={styles.settingIcon}>
+                <IconSymbol
+                  name="bell.fill"
+                  size={24}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingInfo}>
+                <Text style={styles.settingTitle}>Push Notifications</Text>
+                <Text style={styles.settingDescription}>
+                  Get notified about friend requests, messages, and events
+                </Text>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleToggleNotifications}
+                trackColor={{
+                  false: colors.highlight,
+                  true: colors.primary,
+                }}
+                thumbColor={colors.text}
+                disabled={loading}
+              />
+            </LinearGradient>
+          </View>
+        </View>
+
         {/* Privacy Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy</Text>

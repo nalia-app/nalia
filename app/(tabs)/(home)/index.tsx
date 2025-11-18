@@ -458,6 +458,17 @@ export default function HomeScreen() {
     }
   };
 
+  // Format time from hh:mm:ss to hh:mm
+  const formatTime = (timeString: string) => {
+    if (!timeString) return "";
+    // Split by colon and take only hours and minutes
+    const parts = timeString.split(":");
+    if (parts.length >= 2) {
+      return `${parts[0]}:${parts[1]}`;
+    }
+    return timeString;
+  };
+
   // Generate HTML for the map with the same bubble style as Create Event page
   const generateMapHTML = () => {
     const eventsJSON = JSON.stringify(filteredEvents.map(event => ({
@@ -918,7 +929,7 @@ export default function HomeScreen() {
                 <View style={styles.previewDetailRow}>
                   <IconSymbol name="calendar" size={18} color={colors.primary} />
                   <Text style={styles.previewDetailText}>
-                    {selectedEvent && formatDate(selectedEvent.eventDate)} at {selectedEvent?.eventTime}
+                    {selectedEvent && formatDate(selectedEvent.eventDate)} at {selectedEvent && formatTime(selectedEvent.eventTime)}
                   </Text>
                 </View>
                 <View style={styles.previewDetailRow}>

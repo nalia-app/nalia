@@ -345,6 +345,17 @@ export default function EventDetailScreen() {
     router.push(`/user-profile/${userId}`);
   };
 
+  // Format time from hh:mm:ss to hh:mm
+  const formatTime = (timeString: string) => {
+    if (!timeString) return "";
+    // Split by colon and take only hours and minutes
+    const parts = timeString.split(":");
+    if (parts.length >= 2) {
+      return `${parts[0]}:${parts[1]}`;
+    }
+    return timeString;
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -451,7 +462,7 @@ export default function EventDetailScreen() {
             </View>
             <View style={styles.detailRow}>
               <IconSymbol name="clock" size={20} color={colors.primary} />
-              <Text style={styles.detailText}>{event.event_time}</Text>
+              <Text style={styles.detailText}>{formatTime(event.event_time)}</Text>
             </View>
             <View style={styles.detailRow}>
               <IconSymbol name="location" size={20} color={colors.primary} />

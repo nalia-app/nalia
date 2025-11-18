@@ -19,10 +19,10 @@ import {
   Platform,
   Modal,
 } from "react-native";
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { stripEmojis } from "@/utils/emojiUtils";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const EMOJI_CATEGORIES = {
   Social: ["☕", "🍺", "🍕", "🍔", "🎉", "🎊", "🎈"],
@@ -643,7 +643,6 @@ export default function CreateEventScreen() {
           enableOnAndroid={true}
           enableAutomaticScroll={true}
           extraScrollHeight={20}
-          extraHeight={Platform.OS === 'ios' ? 20 : 0}
         >
           {/* Description */}
           <View style={styles.section}>
